@@ -1,0 +1,8 @@
+{
+  "name": "umt-tbs-opencode-plugin",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@opencode-ai/plugin": "1.17.20"
+  }
+}

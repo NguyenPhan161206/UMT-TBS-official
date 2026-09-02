@@ -1,0 +1,68 @@
+# ==========================================
+# Local Machine Specific Agent Settings & Secrets
+# ==========================================
+# AGENTS.md là bản sao local của AGENTS.template.md (gitignored)
+AGENTS.md
+config/keys.json
+config/secrets.env
+config/*.env
+config/*.json
+!config/*.template.json
+!config/*.template.env
+credentials.h
+**/credentials.h
+*.env
+*.env.local
+
+# ==========================================
+# ESP-IDF / PlatformIO Build Artifacts
+# ==========================================
+build/
+**/build/
+.pio/
+**/.pio/
+sdkconfig*
+**/sdkconfig*
+managed_components/
+**/managed_components/
+
+# ==========================================
+# IDEs, Editors & OS Files
+# ==========================================
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosv
+*.sln
+*.swp
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# ==========================================
+# Python Cache / Virtualenv
+# ==========================================
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ==========================================
+# Node (opencode plugin)
+# ==========================================
+node_modules/
+.opencode/bun.lock
+
+# ==========================================
+# LaTeX Build Artifacts
+# ==========================================
+*.aux
+*.toc
+*.out
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz

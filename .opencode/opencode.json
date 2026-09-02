@@ -1,0 +1,45 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "AGENTS.template.md",
+    ".opencode/docs/CONSTITUTION.md",
+    ".opencode/docs/SELFCHECK.md",
+    ".opencode/docs/ROADMAP_CHECKLIST.md"
+  ],
+  "skills": {
+    "paths": [
+      ".claude/skills",
+      ".agents/skills"
+    ]
+  },
+  "agent": {
+    "plan": {
+      "color": "#22c55e"
+    },
+    "build": {
+      "color": "#3b82f6"
+    }
+  },
+  "plugin": [
+    "./plugin/guard.ts"
+  ],
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "git add -A": "deny",
+      "git add -A *": "deny",
+      "git add --all": "deny",
+      "git add --all *": "deny",
+      "git add .": "deny",
+      "git push *myrepo*": "deny",
+      "git push * -f": "deny",
+      "git push * --force": "deny",
+      "git push *:master": "ask",
+      "rm -rf *": "deny",
+      "rm -rf /": "deny",
+      "shred *": "deny",
+      "gh repo delete*": "deny"
+    }
+  }
+}
