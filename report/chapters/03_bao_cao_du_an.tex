@@ -1,0 +1,108 @@
+\chapter{Báo cáo Dự án}
+\label{ch:project-report}
+
+\section{Giới thiệu dự án}
+\label{sec:pr-intro}
+
+Dự án xây dựng hệ thống \textbf{Cảnh báo va chạm xe tải} (Truck Blind-spot Warning
+System) nhằm phát hiện vật cản/xe cộ trong vùng điểm mù (no-zone) quanh xe tải bằng
+\textbf{6 cảm biến siêu âm chống nước JSN-SR04T}, hiển thị cảnh báo theo thời gian thực
+trên màn hình \textbf{Waveshare 7" RGB LVGL v9} và báo còi cục bộ. Repo
+\code{UMT-TBS-official} là bản chính thức \textbf{V2} (Greenfield), kế thừa và sửa các
+lỗi kiến trúc của repo cũ \code{supersonic-warning-system} (V1): hợp đồng dữ liệu
+copy-paste giữa hai board, ngưỡng rải rác nhiều nơi, secret bị hardcode, thiếu CI và
+kiểm thử đo lường được.
+
+\subsection{Mục tiêu}
+\begin{itemize}
+\item Cảnh báo vùng nguy hiểm với độ trễ thấp (mục tiêu $<$ 50\,ms) qua \textbf{ESP-NOW};
+\item Giám sát từ xa qua \textbf{CoreIoT (ThingsBoard)} với Rule-Chain theo yêu cầu cloud;
+\item Một nguồn sự thật cho hợp đồng (`firmware/shared/`) và ngưỡng (R2/R3);
+\item Secret an toàn, build tái lập, CI bảo vệ mọi thay đổi (R1, R7--R10).
+\end{itemize}
+
+\section{Yêu cầu và phạm vi (roadmap B0--B9)}
+\label{sec:pr-scope}
+
+Lộ trình chuẩn hoá trong `.opencode/docs/ROADMAP\_CHECKLIST.md`:
+\textbf{config/enforcement (B0--B1) $\rightarrow$ shared contract (B2) $\rightarrow$ firmware
+(B3--B5) $\rightarrow$ CI (B7) $\rightarrow$ cloud demo (B9)}. Chi tiết từng giai đoạn
+được mô tả ở Chương~\ref{ch:project-structure} và Chương~\ref{ch:system}.
+
+\section{Giải pháp tổng thể}
+\label{sec:pr-solution}
+
+Kiến trúc \textbf{Hybrid V2} chạy hai đường song song (ESP-NOW chính, CoreIoT phụ) —
+chi tiết ở Mục~\ref{sec:overview}. Điểm mấu chốt: mọi quyết định kiến trúc đều được
+gắn với quy tắc cấu hiến (R1--R12) và có DoD đo lường được (R10).
+
+\section{Tiến độ triển khai}
+\label{sec:pr-progress}
+
+Bảng~\ref{tab:progress} trích từ ROADMAP\_CHECKLIST ở trạng thái hiện hành.
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{@{}p{1.2cm}p{8.2cm}p{3.0cm}@{}}
+\toprule
+\textbf{ID} & \textbf{Nội dung} & \textbf{Trạng thái} \\
+\midrule
+\endhead
+B0 & Repo Greenfield, 1 remote, git config, Node $\geq$20, PlatformIO & $\checkmark$ dir+init; push $\checkmark$ \\
+B0b & CoreIoT cách b: tài khoản, 2 device, token MỚI, import rule-chain & chờ user \\
+B1 & Cấu hiến R1--R12, SELFCHECK, agent, command, plugin guard, skills & $\checkmark$ \\
+B2 & Shared contract: \code{espnow\_protocol.h}, \code{thresholds.h} & $\checkmark$ \\
+B3 & Sensor-node: sensor/filter/buzzer/espnow + plugin coreiot + host test & $\checkmark$ \\
+B4 & Waveshare-screen: sensor\_model + ui\_dashboard + coreiot\_client & $\checkmark$ \\
+B5 & Nối ESP-NOW qua shared header; xoá define trùng & $\checkmark$ \\
+B6e & Enforcement: \code{tools/guard/*.py} + plugin guard & $\checkmark$ \\
+B7 & CI: build, host test, pytest, Gitleaks, size-gate, R11 gate & $\checkmark$ (run xanh) \\
+B7 & Protected branch \code{main} & chờ admin GitHub \\
+B9 & Nghiệm thu CoreIoT: tool + rule-chain snapshot + dashboard & $\checkmark$ (tool \& snapshot); chờ token/flash \\
+T5.x & Đo hiệu năng (latency, soak) & chưa bắt đầu \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\subsection{Kết quả đo được}
+\begin{itemize}
+\item Build waveshare-screen (ESP-IDF, pin \code{espressif32@7.0.1}): RAM 12.8\%
+  (42\,060\,B) / Flash 31.3\% (1\,293\,513\,B), khớp size-gate (R10).
+\item Host unit test sensor-node: \textbf{10/10} pass ($\approx$1,3\,s, bộ lọc
+  cluster-EMA + thresholds).
+\item Guard pytest: \textbf{16 passed} (gen\_credentials, scan\_secrets,
+  check\_rulechain, check\_size, test\_mqtt\_coreiot).
+\item CI GitHub Actions run \code{33592664432}: cả 2 job xanh (build+tests;
+  secrets+guards); Gitleaks 0 finding; \code{scan\_secrets} OK; gate
+  \code{check\_rulechain\_thresholds} OK.
+\item Quy tắc R2/R7 kiểm tra tự động: grep symbol dùng chung == 1 nơi; mọi file
+  nguồn $\leq$ 400 dòng.
+\end{itemize}
+
+\section{Hạn chế và rủi ro hiện tại}
+\label{sec:pr-limits}
+
+\begin{enumerate}
+\item \textbf{Chưa nghiệm thu cloud thật (B9-B)}: cần token \textbf{MỚI} sinh trên
+  `app.coreiot.io` (R11 — tuyệt đối không tái dùng token đã lộ ở repo cũ), import
+  rule-chain snapshot, điền \code{config/keys.json} rồi flash và kiểm dashboard.
+\item \textbf{Chưa có board trên máy dev}: build/kiểm thử được xác minh qua CI; phần
+  flash-and-observe (B5) vẫn chờ phần cứng.
+\item \textbf{Protected branch \code{main} chưa bật} (cần quyền admin GitHub).
+\item \textbf{Môi trường CI dùng Node 20} đang bị GitHub deprecation — không chặn hiện
+  tại nhưng cần nâng lên Node 24.
+\item \textbf{Đo hiệu năng (T5.x)}: chưa có baseline latency/soak trên firmware thật.
+\end{enumerate}
+
+\section{Hướng phát triển}
+\label{sec:pr-future}
+
+\begin{enumerate}
+\item Hoàn tất B9-B: token mới, import rule-chain, flash, nghiệm thu dashboard
+  `warning\_status` (DANGER/CAUTION/NORMAL).
+\item Bật protected branch + nâng Node trong CI; bổ sung job build LaTeX báo cáo.
+\item T5.x: đo latency ESP-NOW end-to-end, mức tiêu thụ, soak 24\,h.
+\item Cảnh báo nâng cao: phân biệt vật cản tĩnh/động, GPS/vận tốc, logging từ xa qua
+  CoreIoT (telemetry `d1..d6`/`nearest\_cm` đã sẵn).
+\end{enumerate}

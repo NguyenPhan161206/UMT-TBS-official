@@ -1,0 +1,88 @@
+% =====================================================================
+% UMT-TBS-official — Báo cáo kỹ thuật tổng hợp (LaTeX, tiếng Việt)
+% File chính: biên dịch bằng pdflatex (babel vietnamese + vntex T5).
+%
+% Build:   make            (hoặc: pdflatex main.tex 3 lượt + cp main.pdf
+%                            UMT_TBS_BaoCao.pdf)
+% Output:  UMT_TBS_BaoCao.pdf
+% =====================================================================
+\documentclass[a4paper,12pt]{report}
+
+% ---------- Encoding / Vietnamese ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T5,T1]{fontenc}
+\usepackage[vietnamese]{babel}
+
+% ---------- Layout ----------
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,fit,calc}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{listings}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!50!black,
+    urlcolor=blue!50!black,
+    citecolor=blue!50!black,
+    pdftitle={UMT-TBS-official — Báo cáo dự án và hệ thống (V2)},
+    pdfauthor={UMT-TBS}
+}
+
+\setlength{\headheight}{15pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Hệ thống Cảnh báo Va chạm Xe tải — UMT-TBS-official (V2)}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{\textbf{Báo cáo Dự án và Chi tiết Hệ thống\\[6pt]
+\large Hệ thống Cảnh báo Va chạm Xe tải (Truck Blind-spot Warning System)\\
+Kiến trúc Hybrid V2 — ESP-NOW \& CoreIoT (ThingsBoard)}}
+\author{UMT-TBS-official}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent
+Hệ thống nhúng cảnh báo va chạm xe tải sử dụng \textbf{6 cảm biến siêu âm chống nước
+JSN-SR04T}, vi điều khiển \textbf{ESP32-S3} và màn hình cảm ứng \textbf{Waveshare 7"
+RGB LVGL v9}. Kiến trúc \textbf{Hybrid V2} gồm hai đường truyền song song: đường chính
+\textbf{ESP-NOW} (liên kết Wi-Fi cục bộ, không qua điểm truy cập — độ trễ mục tiêu
+\textless{} 50\,ms) đưa khoảng cách đã lọc từ node cảm biến tới node màn hình; đường phụ
+\textbf{CoreIoT/MQTT} (độ trễ 100--500\,ms) đẩy telemetry lên cloud để giám sát từ xa và
+điều khiển qua Rule-Chain. Toàn bộ hợp đồng dùng chung giữa hai board nằm trong
+\code{firmware/shared/} (R2/R3/R4); CI bảo vệ build, kiểm thử host và quét bí mật
+(R1/R10) trên mọi push. Báo cáo gồm: cấu trúc dự án, cấu trúc thư mục, báo cáo tiến độ
+và báo cáo chi tiết hệ thống.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ================= CÁC CHƯƠNG (được viết ở các bước roadmap) =================
+\IfFileExists{chapters/01_cau_truc_du_an.tex}{\input{chapters/01_cau_truc_du_an.tex}}{}
+\IfFileExists{chapters/02_cau_truc_thu_muc.tex}{\input{chapters/02_cau_truc_thu_muc.tex}}{}
+\IfFileExists{chapters/03_bao_cao_du_an.tex}{\input{chapters/03_bao_cao_du_an.tex}}{}
+\IfFileExists{chapters/04_he_thong.tex}{\input{chapters/04_he_thong.tex}}{}
+
+\end{document}

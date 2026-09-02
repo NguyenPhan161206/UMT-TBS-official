@@ -1,0 +1,115 @@
+{
+  "$schema": "../../.claude/skills/dev-orchestrator/references/roadmap-schema.json",
+  "project_name": "UMT-TBS documentation — LaTeX reports (structure + project/system report)",
+  "total_steps": 7,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Scaffold report/ (main.tex + Makefile + README)",
+      "target_files": [
+        "report/main.tex",
+        "report/Makefile",
+        "report/README.md"
+      ],
+      "prerequisites": [],
+      "objective": "Tạo khung báo cáo LaTeX tiếng Việt (preamble pdflatex+babel vietnamese+vntex, 4 chương \\input qua \\IfFileExists để build được ngay khi chưa có file chương, trang bìa + TOC) + Makefile build 3 lượt pdflatex xuất report/UMT_TBS_BaoCao.pdf + README hướng dẫn build. Không nhúng secret literal (R1).",
+      "definition_of_done": "make -C report  chạy thành công (exit 0), tạo report/UMT_TBS_BaoCao.pdf chứa trang bìa + TOC; report/main.tex < 400 dòng (R7); các chương rỗng cho tới bước 3–5.",
+      "verification_command": "make -C report && ls -la report/UMT_TBS_BaoCao.pdf",
+      "risk": "medium",
+      "notes": "Preamble tham khảo report/report.tex repo cũ (đã build được trên TeX Live máy này: pdflatex + vntex T5 có sẵn)."
+    },
+    {
+      "step_id": 2,
+      "task_title": "Gitignore report build artifacts",
+      "target_files": [
+        ".gitignore"
+      ],
+      "prerequisites": [
+        1
+      ],
+      "objective": "Thêm /report/*.pdf, /report/*.log vào .gitignore để không track binary báo cáo (R8: binary qua GitHub Release/LFS).",
+      "definition_of_done": "git check-ignore report/UMT_TBS_BaoCao.pdf và report/report.log đều trả về exit 0; .gitignore < 400 dòng.",
+      "verification_command": "git check-ignore report/UMT_TBS_BaoCao.pdf && git check-ignore report/report.log",
+      "risk": "low",
+      "notes": "Các artifact .aux/.toc/.out/.lof/.lot/.fls/.fdb_latexmk/.synctex.gz đã bị ignore sẵn."
+    },
+    {
+      "step_id": 3,
+      "task_title": "Chương 1–2: cấu trúc dự án + thư mục",
+      "target_files": [
+        "report/chapters/01_cau_truc_du_an.tex",
+        "report/chapters/02_cau_truc_thu_muc.tex"
+      ],
+      "prerequisites": [
+        1,
+        2
+      ],
+      "objective": "Chương 1: kiến trúc Hybrid V2 (5 tầng + sơ đồ TikZ 2 đường ESP-NOW/CoreIoT + ma trận phần tử↔file↔R#). Chương 2: cây thư mục repo thật + bảng chú giải + mục gitignored (R8). Số liệu lấy từ AGENTS.md, firmware/shared/*, ROADMAP_CHECKLIST.",
+      "definition_of_done": "Build PDF chứa đủ section chương 1–2; cả 2 file .tex đều < 400 dòng; không có literal secret.",
+      "verification_command": "make -C report clean all",
+      "risk": "low",
+      "notes": "Nội dung cũ V1 (đặc tính JSN-SR04T, Waveshare 7\") giữ nguyên, chỉ cập nhật phần V2 khác (CoreIoT active, shared contract)."
+    },
+    {
+      "step_id": 4,
+      "task_title": "Chương 3: báo cáo dự án",
+      "target_files": [
+        "report/chapters/03_bao_cao_du_an.tex"
+      ],
+      "prerequisites": [
+        3
+      ],
+      "objective": "Báo cáo dự án: mục tiêu, kế thừa V1, yêu cầu/phạm vi roadmap B0–B9, tiến độ thật (B2–B5/B7 ✅, B9 🔨), kết quả (build RAM 12.8%/Flash 31.3%, 16 pytest, CI run 33592664432), hạn chế (thiếu board, token mới R11, Node 20 deprecation), hướng phát triển T5.x.",
+      "definition_of_done": "PDF chứa chương 3 với các mục theo outline; file < 400 dòng; build exit 0.",
+      "verification_command": "make -C report clean all",
+      "risk": "low"
+    },
+    {
+      "step_id": 5,
+      "task_title": "Chương 4: báo cáo chi tiết hệ thống",
+      "target_files": [
+        "report/chapters/04_he_thong.tex"
+      ],
+      "prerequisites": [
+        4
+      ],
+      "objective": "Phần cứng + GPIO map (thresholds.h, buzzer GPIO11, PSRAM GPIO47/48), firmware sensor-node (module + env), waveshare-screen (BSP/LVGL/UI tách <400), shared contract (espnow_protocol.h packed/slot/channel/MAC), CoreIoT/MQTT + rule-chain snapshot, CI 2 job + gate R11, bảo mật R1–R12, kiểm thử + số liệu, hướng dẫn vận hành/demo (lệnh thật).",
+      "definition_of_done": "PDF chứa đủ 10 mục chương 4; file < 400 dòng (quá thì tách file con và cập nhật main.tex); build exit 0; mọi số ngưỡng/GPIO khớp firmware/shared/thresholds.h.",
+      "verification_command": "make -C report clean all",
+      "risk": "medium",
+      "notes": "Chương dài nhất; nếu >400 dòng phải tách (VD: phần vận hành sang file con) để đạt SELFCHECK #6."
+    },
+    {
+      "step_id": 6,
+      "task_title": "README.md gốc (markdown)",
+      "target_files": [
+        "README.md"
+      ],
+      "prerequisites": [
+        1
+      ],
+      "objective": "Viết lại README.md repo (cổng vào GitHub): tổng quan Hybrid V2, quick start (keys/token R11), build & flash (env x2, ACM0/ACM1), kiểm thử, R1–R12 tóm tắt, git workflow, trạng thái lộ trình (tick đúng B0–B7, B9 🔨). Giữ nội dung cũ còn đúng.",
+      "definition_of_done": "README.md < 400 dòng; không literal secret; các liên kết markdown trỏ file tồn tại (link-check grep); scan_secrets exit 0.",
+      "verification_command": "python3 tools/guard/scan_secrets.py",
+      "risk": "low"
+    },
+    {
+      "step_id": 7,
+      "task_title": "Verify cuối + log build",
+      "target_files": [
+        "docs/logs/REPORT_BUILD_LOG.md"
+      ],
+      "prerequisites": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "objective": "Tạo log dựng tài liệu: mục tiêu, file đã tạo/sửa, kết quả build PDF + scan_secrets + gitleaks + pytest, hướng dẫn build lại. Chạy toàn bộ verify cuối cùng.",
+      "definition_of_done": "make -C report clean all + scan_secrets + gitleaks + pytest tools/guard/test_guard.py đều exit 0; log ghi đủ kết quả.",
+      "verification_command": "make -C report clean all && python3 tools/guard/scan_secrets.py && /tmp/opencode/gitleaks/gitleaks detect --source . --no-banner && ~/.venv-platformio/bin/python -m pytest tools/guard/test_guard.py -q",
+      "risk": "low",
+      "notes": "Sau step này: commit conventional (docs:) từng file cụ thể, rebase, push, theo dõi CI."
+    }
+  ]
+}

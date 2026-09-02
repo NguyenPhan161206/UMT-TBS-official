@@ -1,0 +1,125 @@
+\chapter{Cấu trúc Dự án}
+\label{ch:project-structure}
+
+\section{Tổng quan kiến trúc Hybrid V2}
+\label{sec:overview}
+
+Hệ thống \textbf{Cảnh báo va chạm xe tải} (Truck Blind-spot Warning System) — repo chính
+thức \textbf{V2} (Greenfield) kế thừa từ repo \code{supersonic-warning-system} (V1).
+Phần cứng gồm \textbf{6 cảm biến siêu âm chống nước JSN-SR04T} bao quanh xe, vi điều
+khiển \textbf{ESP32-S3} ở hai node và màn hình cảm ứng \textbf{Waveshare 7" RGB LVGL v9}.
+
+Kiến trúc \textbf{Hybrid V2} chạy hai đường truyền \emph{song song} (Bảng~\ref{tab:duong}):
+đường chính \textbf{ESP-NOW} phục vụ cảnh báo trực tiếp với độ trễ thấp, đường phụ
+\textbf{CoreIoT/MQTT} phục vụ giám sát từ xa theo yêu cầu cloud của đề xuất. Khác với V1
+(đường CoreIoT bị tắt), ở V2 \textbf{cả hai đường đều hoạt động}: firmware sensor-node
+compile kèm plugin CoreIoT qua env \code{yolo\_uno\_coreiot} (R6).
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Đường} & \textbf{Vai trò} & \textbf{Giao thức} & \textbf{Độ trễ mục tiêu} \\
+\midrule
+ESP-NOW (chính) & Cảnh báo critical path & ESP-NOW, shared header duy nhất (R2) & $<$ 50\,ms \\
+CoreIoT / MQTT (phụ) & Giám sát từ xa, Rule-Chain, dashboard & MQTT \code{v1/devices/me/telemetry} & 100--500\,ms \\
+\bottomrule
+\end{tabular}
+\caption{Hai đường truyền của kiến trúc Hybrid V2.}
+\label{tab:duong}
+\end{table}
+
+\section{Sơ đồ khối và luồng dữ liệu}
+\label{sec:dataflow}
+
+Hình~\ref{fig:dataflow} mô tả luồng dữ liệu toàn hệ thống. Sensor-node đọc 6 cảm biến,
+lọc nhiễu, điều khiển còi cục bộ và gửi khoảng cách theo cả hai đường; waveshare-screen
+nhận cảnh báo ưu tiên qua ESP-NOW và đồng bộ qua CoreIoT.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.0cm,
+    box/.style={rectangle, rounded corners, draw=black!70, thick,
+                 minimum width=5.2cm, minimum height=0.95cm,
+                 align=center, fill=blue!6},
+    lbl/.style={font=\footnotesize\itshape, align=center}
+]
+\node[box] (sensor) {Cảm biến JSN-SR04T\\\footnotesize 6 cảm biến (Trig/Echo GPIO)};
+\node[box, below=of sensor] (node1) {ESP32-S3 Sensor Node\\\footnotesize \code{firmware/sensor-node}\\ đo, lọc, còi cục bộ};
+\node[box, below=of node1] (screen) {Waveshare Screen Node\\\footnotesize \code{firmware/waveshare-screen}\\ nhận ESP-NOW \& MQTT, hiển thị LVGL};
+
+\draw[-{Stealth}, thick] (sensor) -- (node1);
+\draw[-{Stealth}, thick] (node1) -- node[right, lbl]{ESP-NOW chính, channel 1, 500\,ms} (screen);
+
+\node[box, right=0.8cm of node1, fill=green!6] (cloud) {CoreIoT (ThingsBoard)\\\footnotesize app.coreiot.io\\ Rule-Chain $\rightarrow$ dashboard};
+
+\draw[-{Stealth}, thick] (node1.east) -- node[above, lbl]{MQTT telemetry} (cloud.west);
+\draw[-{Stealth}, thick] (cloud.south) -- node[right, lbl]{shared attributes} ++(0,-0.5) -| (screen.east);
+\end{tikzpicture}
+\caption{Luồng dữ liệu Hybrid V2 — hai đường ESP-NOW (chính) và CoreIoT/MQTT (phụ).}
+\label{fig:dataflow}
+\end{figure}
+
+\section{Năm tầng kiến trúc}
+\label{sec:layers}
+
+\begin{enumerate}[label=\textbf{Tầng \arabic*.}, leftmargin=*]
+\item \textbf{Shared contract} — \code{firmware/shared/} chứa mọi struct/define dùng chung
+  hai board: \code{espnow\_protocol.h} (payload ESP-NOW, kênh, MAC, slot) và
+  \code{thresholds.h} (ngưỡng zone, chân cảm biến, SENSOR\_COUNT suy từ
+  \code{sizeof} + \verb+static_assert+ — R2/R3/R4).
+
+\item \textbf{Firmware sensor-node} (\code{firmware/sensor-node/}, Arduino + FreeRTOS) —
+  6 module: \code{ultrasonic\_sensor}, \code{distance\_filter} (lọc cluster-EMA),
+  \code{shared\_state}, \code{buzzer} (GPIO11), \code{espnow\_client} và plugin
+  \code{plugins/coreiot} (biên dịch khi \code{USE\_COREIOT=1}).
+
+\item \textbf{Firmware waveshare-screen} (\code{firmware/waveshare-screen/}, ESP-IDF thuần) —
+  BSP màn hình RGB, \code{espnow\_receiver}, \code{sensor\_model},
+  \code{ui\_dashboard} (LVGL v9, đã tách 4 file nhỏ hơn 400 dòng — R7) và
+  \code{coreiot\_client} (MQTT cloud).
+
+\item \textbf{Cloud CoreIoT} (\code{cloud/coreiot/rule\_chain/}) — snapshot Rule-Chain
+  nhận telemetry sensor-node, tính \code{warning\_status}, đổi originator và đẩy shared
+  attributes tới waveshare-screen (\code{notifyDevice=true}, R11).
+
+\item \textbf{Enforcement} (\code{.opencode/}, \code{tools/guard/}, \code{.github/}) —
+  Cấu hiến R1--R12, agent (dev-orchestrator / arch-guard / secrets-responder), plugin
+  guard, CI (build 2 env $\times$ 2 firmware + host test + Gitleaks + pytest + size-gate).
+\end{enumerate}
+
+\section{Ma trận phần tử -- file -- quy tắc}
+\label{sec:matrix}
+
+Bảng~\ref{tab:matrix} ánh xạ phần tử kiến trúc tới file nguồn và quy tắc cấu hiến liên quan.
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{@{}p{3.4cm}p{5.4cm}p{3.0cm}@{}}
+\toprule
+\textbf{Phần tử} & \textbf{File nguồn} & \textbf{Quy tắc} \\
+\midrule
+\endhead
+Hợp đồng ESP-NOW & \code{firmware/shared/espnow\_protocol.h} & R2, R4 \\
+Ngưỡng vùng cảnh báo & \code{firmware/shared/thresholds.h} & R3, R4 \\
+Sensor-node & \code{firmware/sensor-node/src/*.cpp} & R5 (không demo), R7 \\
+Plugin CoreIoT & \code{sensor-node/src/plugins/coreiot/} & R6 (build $\geq$1 env) \\
+Waveshare-screen & \code{firmware/waveshare-screen/src/}, \code{components/} & R7 \\
+Rule-Chain snapshot & \code{cloud/coreiot/rule\_chain/*.json} & R11 \\
+Secret local & \code{config/keys.json} (gitignored) & R1 \\
+Guard tools & \code{tools/guard/*.py} & R10, R11 \\
+CI pipeline & \code{.github/workflows/ci.yml} & R1, R8, R10 \\
+Cấu hiến agent & \code{.opencode/} & R12 \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{Kết luận chương}
+\label{sec:ch1-ketluan}
+
+Cấu trúc dự án V2 tách bạch theo trách nhiệm: hợp đồng dùng chung một nguồn, hai firmware
+độc lập về build nhưng nối qua shared header, cloud là snapshot theo dõi được, và tầng
+enforcement (Cấu hiến + CI) đảm bảo mọi thay đổi được đo lường và kiểm chứng (R1--R12).

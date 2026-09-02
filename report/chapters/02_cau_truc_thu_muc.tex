@@ -1,0 +1,133 @@
+\chapter{Cấu trúc Thư mục}
+\label{ch:directory-structure}
+
+\section{Cây thư mục tổng quan}
+\label{sec:tree}
+
+Cây thư mục dưới đây phản ánh \emph{các file được quản lý bởi Git} (R8) của repo
+\code{UMT-TBS-official} ở trạng thái hiện hành; các thư mục build (\code{.pio},
+\code{build/}, \code{managed\_components/}) và secret local được lược bỏ.
+
+\begin{verbatim}
+UMT-TBS-official/
+|-- AGENTS.template.md          # Template cau hinh AI Agent cho may moi
+|-- AGENTS.md                   # Cau hinh local (gitignored)
+|-- CONTRIBUTING.md             # Quy trinh Git, quy uoc commit
+|-- SECURITY.md                 # Chinh sach bao mat
+|-- README.md                   # Cong vao du an (GitHub)
+|-- .gitignore                  # Bo qua secret/artifacts
+|-- .gitleaks.toml              # Allowlist scan secret (Gitleaks)
+|-- config/
+|   |-- keys.template.json      # Template key (tracked)
+|   `-- keys.json               # Secret local: token CoreIoT, Wi-Fi (gitignored)
+|-- firmware/
+|   |-- shared/                 # Hop dong dung chung 2 board (R2/R3/R4)
+|   |   |-- espnow_protocol.h
+|   |   `-- thresholds.h
+|   |-- sensor-node/            # Node cam bien (Arduino, env x2)
+|   |   |-- platformio.ini      # yolo_uno | yolo_uno_coreiot | native
+|   |   |-- include/            # buzzer, distance_filter, espnow_client, ...
+|   |   |-- src/                # main.cpp + plugins/coreiot/
+|   |   `-- test/               # Host unit tests (Unity)
+|   `-- waveshare-screen/       # Node man hinh (ESP-IDF thuan)
+|       |-- platformio.ini, sdkconfig.defaults, partitions.csv
+|       |-- src/                # main.c, bsp/waveshare_rgb_lcd_port
+|       `-- components/         # coreiot_client, espnow_receiver,
+|                               #   sensor_model, ui_dashboard
+|-- cloud/
+|   `-- coreiot/rule_chain/     # Snapshot Rule-Chain (R11)
+|       `-- supersonic_rule_chain.json
+|-- tools/
+|   |-- test_mqtt_coreiot.py    # Publisher MQTT nghiem thu CoreIoT (B9)
+|   |-- requirements.txt        # paho-mqtt
+|   `-- guard/                  # Guard tools (R1/R10/R11)
+|       |-- scan_secrets.py
+|       |-- gen_credentials.py
+|       |-- check_rulechain_thresholds.py
+|       |-- check_size.py
+|       `-- test_guard.py       # pytest
+|-- report/                     # Bao cao LaTeX (bo tai lieu nay)
+|   |-- main.tex, Makefile, README.md
+|   `-- chapters/               # 4 chuong .tex
+|-- docs/
+|   |-- logs/                   # Nhat ky trien khai (implementation logs)
+|   `-- roadmaps/               # Roadmap dev-orchestrator
+|-- .opencode/                  # Cau hinh opencode: agent, command, docs, plugin
+|   |-- opencode.json           # Permission + instructions
+|   |-- agent/, command/, plugin/, docs/
+|   `-- (CONSTITUTION.md, SELFCHECK.md, ROADMAP_CHECKLIST.md)
+|-- .agents/skills/             # Skill: cross_device_reconfig, esp32_screen_debug,
+|                               #   lvgl_v9_warning_display
+|-- .claude/skills/             # Skill: dev-orchestrator (+ references schema)
+`-- .github/workflows/ci.yml    # CI: build + tests + secrets/guards
+\end{verbatim}
+
+\section{Chú giải từng mục}
+\label{sec:glossary}
+
+Bảng~\ref{tab:glossary} giải thích vai trò của từng mục quan trọng.
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{@{}p{4.6cm}p{8.2cm}@{}}
+\toprule
+\textbf{Đường dẫn} & \textbf{Vai trò} \\
+\midrule
+\endhead
+\code{firmware/shared/} & Hợp đồng duy nhất giữa hai board: struct ESP-NOW
+  (packed 30\,B), kênh/MAC/channel, ngưỡng vùng (CAUTION 100\,cm, DANGER 30\,cm),
+  chân 6 cảm biến, SENSOR\_COUNT suy từ \code{sizeof} + \verb+static_assert+ (R2--R4). \\
+\code{firmware/sensor-node/} & Node đo/lọc 6 cảm biến, còi cục bộ, gửi ESP-NOW và
+  telemetry CoreIoT (khi \code{USE\_COREIOT=1}). Env: \code{yolo\_uno},
+  \code{yolo\_uno\_coreiot}, \code{native} (host test). \\
+\code{firmware/waveshare-screen/} & Node hiển thị: BSP RGB LCD, nhận ESP-NOW
+  (\code{espnow\_receiver}), mô hình dữ liệu (\code{sensor\_model}), UI LVGL v9
+  (\code{ui\_dashboard}, tách 4 file $<$400 dòng R7), client MQTT
+  (\code{coreiot\_client}). \\
+\code{cloud/coreiot/rule\_chain/} & Snapshot Rule-Chain CoreIoT có thể đối chiếu
+  ngưỡng (R11); 7 node: lưu telemetry/attributes, switch loại, transform
+  (d1..d6/nearest\_cm $\rightarrow$ warning\_status), đổi originator, shared
+  attributes. \\
+\code{tools/test\_mqtt\_coreiot.py} & Publisher MQTT nghiệm thu B9: payload đúng
+  format sensor-node V2, token chỉ đọc từ \code{config/keys.json} (R1),
+  \code{--dry-run} không cần token. \\
+\code{tools/guard/} & Enforcement local: quét secret (R1), sinh credential từ keys.json,
+  đối chiếu ngưỡng rule-chain vs thresholds.h (R11), size-gate (R7), pytest 16 test. \\
+\code{report/} & Bộ báo cáo LaTeX này: \code{main.tex} + 4 chương + Makefile; PDF
+  \textbf{không commit} (R8, gitignored). \\
+\code{.opencode/docs/} & Cấu hiến R1--R12, SELFCHECK, ROADMAP\_CHECKLIST — nguồn chuẩn
+  cho mọi agent. \\
+\code{.github/workflows/ci.yml} & 2 job: (1) build 2 env $\times$ 2 firmware + host test +
+  size-gate; (2) Gitleaks + scan\_secrets + gen\_credentials --check +
+  check\_rulechain\_thresholds + assert Git hygiene. \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{Mục gitignored và quy tắc Git hygiene (R8)}
+\label{sec:gitignored}
+
+Các mục sau \textbf{không được phép track} (kiểm tra bởi CI và \code{scan\_secrets.py}):
+
+\begin{itemize}
+\item \code{config/keys.json}, \code{config/*.env} — secret local (R1); chỉ dùng template.
+\item \code{credentials.h} (mọi nơi, \code{**/credentials.h}) — file sinh bởi
+  \code{gen\_credentials.py}, gitignored.
+\item \code{sdkconfig*}, \code{build/}, \code{.pio/}, \code{managed\_components/} —
+  artifact build ESP-IDF/PlatformIO.
+\item \code{report/*.pdf}, \code{report/*.log} + \code{*.aux/*.toc/*.out/...} — artifact
+  LaTeX (R8: binary qua GitHub Release/LFS).
+\item Ngược lại, \code{dependencies.lock} (ESP-IDF component manager) \textbf{phải được
+  track} để tái lập build.
+\end{itemize}
+
+\section{Liên hệ thư mục -- tầng kiến trúc}
+\label{sec:dir-layers}
+
+Ánh xạ thư mục tới 5 tầng ở Chương~\ref{ch:project-structure}:
+Tầng 1 (shared contract) = \code{firmware/shared/}; Tầng 2 (sensor) =
+\code{firmware/sensor-node/}; Tầng 3 (screen) = \code{firmware/waveshare-screen/};
+Tầng 4 (cloud) = \code{cloud/coreiot/} + \code{tools/test\_mqtt\_coreiot.py};
+Tầng 5 (enforcement) = \code{.opencode/} + \code{tools/guard/} +
+\code{.github/workflows/ci.yml}.

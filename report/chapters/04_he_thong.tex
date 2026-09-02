@@ -1,0 +1,238 @@
+\chapter{Báo cáo Chi tiết Hệ thống}
+\label{ch:system}
+
+\section{Tổ quan hệ thống}
+\label{sec:sys-overview}
+
+Hệ thống gồm hai node ESP32-S3: \textbf{sensor-node} (6 cảm biến JSN-SR04T, đo/lọc, còi
+cục bộ, gửi ESP-NOW + MQTT) và \textbf{waveshare-screen} (màn hình RGB 7" LVGL v9, nhận
+ESP-NOW + MQTT). Hợp đồng dữ liệu và ngưỡng nằm duy nhất ở \code{firmware/shared/}.
+Chương này mô tả chi tiết phần cứng, firmware, hợp đồng, cloud, CI, bảo mật, kiểm thử
+và vận hành.
+
+\section{Phần cứng}
+\label{sec:sys-hw}
+
+\subsection{Thiết bị chính}
+\begin{itemize}
+\item \textbf{ESP32-S3} Dual-Core 240\,MHz, Wi-Fi/BLE 5 LE, 8\,MB Octal PSRAM (2 board).
+\item \textbf{JSN-SR04T} — cảm biến siêu âm chống nước (20--600\,cm, FOV 75°), 6 chiếc.
+\item \textbf{Waveshare ESP32-S3 Touch LCD 7"} — RGB 800$\times$480, cảm ứng GT911 (I2C
+  400\,kHz), đèn nền CH422G IO-expander (I2C 0x38/0x24).
+\item \textbf{Buzzer} cảnh báo (GPIO11) gắn trên sensor-node.
+\end{itemize}
+
+\subsection{GPIO map}
+Bảng~\ref{tab:gpio} trích từ \code{thresholds.h}. Lưu ý: \textbf{không dùng GPIO47/48}
+(PSRAM 8\,MB dùng làm SPICLK/Diff 1/0 cho PSRAM) — cổng REAR dùng \{3,4\}.
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}cllcl@{}}
+\caption{Chân 6 cảm biến JSN-SR04T (Trig/Echo) và slot ESP-NOW tương ứng.}\\
+\toprule
+\textbf{\#} & \textbf{Vị trí} & \textbf{Trig} & \textbf{Echo} & \textbf{Slot dây (espnow)} \\
+\midrule
+\endhead
+0 & FRONT        & 5  & 6  & FRONT \\
+1 & LEFT\_FRONT  & 7  & 8  & LEFT\_FRONT \\
+2 & RIGHT\_FRONT & 9  & 10 & RIGHT\_FRONT \\
+3 & LEFT\_REAR   & 17 & 18 & LEFT\_REAR \\
+4 & RIGHT\_REAR  & 21 & 38 & RIGHT\_REAR \\
+5 & REAR         & 3  & 4  & REAR \\
+\bottomrule
+\end{longtable}
+\label{tab:gpio}
+\end{center}
+
+Chú ý: thứ tự mảng \code{SENSOR\_PINS} \textbf{không trùng} thứ tự slot trên dây trong
+\code{espnow\_protocol.h} — sensor-node giữ ánh xạ \code{SENSOR\_ESPNOW\_SLOT[]}
+(vật lý $\rightarrow$ wire) trong \code{main.cpp}. SENSOR\_COUNT suy bằng
+\code{sizeof(SENSOR\_PINS)/sizeof(SENSOR\_PINS[0])} + \verb+static_assert+ (R4).
+
+\section{Firmware sensor-node}
+\label{sec:sys-sensor}
+
+\subsection{Cấu trúc và luồng chính}
+PlatformIO + \textbf{Arduino core}; các module: \code{ultrasonic\_sensor}
+(Trig/Echo, chuyển đổi thời gian), \code{distance\_filter} (cluster-EMA),
+\code{shared\_state} (trạng thái 6 slot + nearest), \code{buzzer}, \code{espnow\_client},
+và \code{plugins/coreiot/coreiot\_client} (được biên dịch khi
+\code{USE\_COREIOT=1}). Env build: \code{yolo\_uno} (mặc định, không CoreIoT),
+\code{yolo\_uno\_coreiot} (R6) và \code{native} (host unit test, Unity).
+
+Luồng chính: đo 6 cảm biến (chu kỳ \code{MEASURE\_INTERVAL\_MS}=100\,ms), lọc, cập nhật
+shared state; \code{espnow\_client} gửi gói ESP-NOW mỗi
+\code{ESPNOW\_SEND\_INTERVAL\_MS}=500\,ms; \code{buzzer} đánh giá ngưỡng cục bộ độc lập
+(mục tiêu độ trễ thấp).
+
+\subsection{Bộ lọc cluster-EMA}
+Lọc nhiễu nhiều tầng: khử giá trị ngoài dải (15--500\,cm), cluster 9 mẫu
+(\code{FILTER\_HISTORY\_SIZE}=9, cluster tolerance 8\,cm + 8\%), jump detection
+(ngưỡng 30\,cm + 25\%, xác nhận 3 lần), EMA $\alpha$=0,30, reset sau 15 mẫu invalid.
+
+\subsection{Còi buzzer và ESP-NOW client}
+Buzzer (GPIO11) theo ngưỡng \code{BUZZER\_WARNING\_DISTANCE\_CM}=50\,cm
+(chu 3\,s, beep 120\,ms) và \code{BUZZER\_DANGER\_DISTANCE\_CM}=20\,cm (chu 1\,s) —
+độc lập ESP-NOW, giữ cảnh báo âm thanh ngay cả khi mất liên kết. ESP-NOW client dùng
+shared header, peer MAC/Wi-Fi channel cố định (Mục~\ref{sec:sys-contract}).
+
+\subsection{Plugin CoreIoT (telemetry)}
+Khi \code{USE\_COREIOT=1}, publish MQTT mỗi \code{COREIOT\_PUBLISH\_INTERVAL\_MS}=500\,ms
+tới \code{v1/devices/me/telemetry} payload JSON:
+\begin{verbatim}
+{"d1":..,"d2":..,"d3":..,"d4":..,"d5":..,"d6":..,
+ "nearest_cm":..,"has_nearest":true|false}
+\end{verbatim}
+Credential (broker, port, token, Wi-Fi) đọc từ \code{credentials.h} do
+\code{gen\_credentials.py} sinh từ \code{config/keys.json} (R1).
+
+\section{Firmware waveshare-screen}
+\label{sec:sys-screen}
+
+\subsection{Khởi tạo và vòng lặp}
+ESP-IDF thuần (không Arduino — driver RGB/GT911/LVGL v9 cần ESP-IDF $\geq$5.5). \code{main.c}
+khởi tạo BSP, LVGL, các component, rồi chạy task LVGL (lõi 1) và vòng lặp cập nhật UI từ
+sensor model.
+
+\subsection{BSP RGB LCD}
+\code{src/bsp/waveshare\_rgb\_lcd\_port} cấu hình panel RGB 800$\times$480 (2 framebuffer,
+bounce-buffer), PSRAM octal, backlight qua CH422G.
+
+\subsection{espnow\_receiver}
+Nhận \code{espnow\_sensor\_msg\_t} (kiểm tra \code{len == sizeof(msg)} = 30\,B), cập nhật
+sensor model; slot nào quá \code{ESPNOW\_LINK\_TIMEOUT\_MS}=1500\,ms không nhận gói hợp lệ
+sẽ bị xoá (coi là mất tín hiệu).
+
+\subsection{sensor\_model và ui\_dashboard (LVGL v9)}
+\code{sensor\_model} là nguồn dữ liệu đã lọc cho UI. \code{ui\_dashboard} (LVGL v9.1) được
+tách thành 4 file nhỏ hơn 400 dòng (R7): \code{ui\_dashboard.c}, \code{ui\_dashboard\_layout.c},
+\code{ui\_dashboard\_system.c}, \code{ui\_dashboard\_private.h}/\code{\_theme.h}.
+
+\subsection{coreiot\_client (MQTT)}
+Subscribe \code{v1/devices/me/telemetry}, \code{v1/devices/me/attributes},
+\code{attributes/response/+} — nhận shared attributes do rule-chain đẩy
+(\code{notifyDevice=true}) và phản hồi RPC; publish trạng thái reboot telemetry.
+
+\subsection{Cấu hình sdkconfig/partitions}
+\code{sdkconfig.defaults}: PSRAM octal 80\,MHz, XIP, cache 32/64\,KB, LVGL (FREERTOS,
+reft 15\,ms, sw draw 2 units, fonts Montserrat 12--36, cấm demo R5). \code{partitions.csv}:
+nvs 24\,KB, phy 4\,KB, factory app 3\,936\,KB.
+
+\section{Hợp đồng dùng chung (shared contract)}
+\label{sec:sys-contract}
+
+\subsection{espnow\_protocol.h (R2)}
+\begin{itemize}
+\item \code{ESPNOW\_CHANNEL}=1; peer MAC \code{64:e8:33:7c:3f:e0} (waveshare-screen).
+\item \code{ESPNOW\_SEND\_INTERVAL\_MS}=500; \code{ESPNOW\_LINK\_TIMEOUT\_MS}=1500.
+\item Slot enum: \code{FRONT=0, REAR=1, LEFT\_FRONT=2, LEFT\_REAR=3, RIGHT\_FRONT=4,
+  RIGHT\_REAR=5} ($=$6).
+\item Payload packed: \code{espnow\_sensor\_msg\_t\{float distance\_cm[6]; uint8
+  valid[6];\}} = 30\,B; gửi đủ 6 slot, \code{valid[i]=0} nghĩa là null.
+\item \verb+static_assert(ESPNOW_SENSOR_SLOT_COUNT == SENSOR_COUNT)+ (R2/R4).
+\end{itemize}
+
+\subsection{thresholds.h (R3/R4)}
+\begin{itemize}
+\item Dải đo hợp lệ JSN-SR04T: 20--600\,cm, FOV 75°.
+\item Vùng cảnh báo: \code{SENSOR\_CAUTION\_CM}=100, \code{SENSOR\_DANGER\_CM}=30
+  (SAFE $>$ 100, CAUTION 30--100, DANGER $\leq$ 30).
+\item Buzzer: warning 50\,cm (chu 3\,s), danger 20\,cm (chu 1\,s), beep 120\,ms.
+\item \code{SENSOR\_PINS} + \code{SENSOR\_COUNT} (sizeof) + \verb+static_assert+ == 6 (R4).
+\end{itemize}
+
+\section{Cloud CoreIoT và MQTT}
+\label{sec:sys-cloud}
+
+\subsection{Giao thức}
+Broker \code{app.coreiot.io:1883}; telemetry topic \code{v1/devices/me/telemetry};
+username = device access token (ThingsBoard). Sensor-node publish payload
+\code{d1..d6/nearest\_cm/has\_nearest}; waveshare-screen nhận shared attributes.
+
+\subsection{Rule-Chain snapshot (R11)}
+\code{cloud/coreiot/rule\_chain/supersonic\_rule\_chain.json} — 7 node: Save Timeseries,
+Save Attributes, Message Type Switch, \emph{Process Ultrasonic \& Vehicle Data (V2)}
+(JS: đọc d1..d6/nearest\_cm, tính \code{warning\_status} DANGER $\leq$30 /
+CAUTION $\leq$100 / NORMAL, mirror relay/buzzer), Change Originator waveshare-screen,
+Update Shared Attributes (\code{notifyDevice=true}), Save Timeseries. Gate
+\code{check\_rulechain\_thresholds.py} đối chiếu snapshot với
+\code{thresholds.h} (100/30) — CI đỏ nếu lệch.
+
+\subsection{Bảo mật token (R11)}
+Token phải là \textbf{token MỚI} do chủ tài khoản sinh trên
+\code{app.coreiot.io} (cách b); tuyệt đối không tái dùng token đã commit ở bất kỳ repo cũ
+nào. Token chỉ nằm ở \code{config/keys.json} (gitignored).
+
+\subsection{Công cụ nghiệm thu}
+\code{tools/test\_mqtt\_coreiot.py} — publisher V2: payload đúng format sensor-node, đọc
+token từ \code{config/keys.json}, \code{--dry-run} (không cần token), \code{--loop},
+\code{--distance}. Cài phụ thuộc: \code{pip install -r tools/requirements.txt}
+(paho-mqtt).
+
+\section{CI/CD}
+\label{sec:sys-ci}
+
+\code{.github/workflows/ci.yml} hai job song song:
+\begin{itemize}
+\item \textbf{Build + host tests}: Set up Python 3.12, cài PlatformIO (pin
+  \code{espressif32@7.0.1} để tái lập build), sinh dummy credentials (gitignored, R1),
+  \code{pio run -e yolo\_uno} (sensor, ESP-NOW), \code{pio run -e yolo\_uno\_coreiot}
+  (R6), \code{pio test -e native} (10/10 host), \code{pio run -e yolo\_uno} (screen),
+  size-gate.
+\item \textbf{Secrets + repo guards}: Gitleaks (allowlist fixture CI),
+  \code{scan\_secrets.py}, \code{gen\_credentials.py --check}, assert Git hygiene
+  (không track \code{sdkconfig*}/\code{keys.json}; \code{dependencies.lock} được track),
+  \code{check\_rulechain\_thresholds.py}.
+\end{itemize}
+
+\section{Bảo mật hệ thống (R1--R12)}
+\label{sec:sys-security}
+
+Snap từ CONSTITUTION: \textbf{R1} secret không vào tracked (P0); \textbf{R2/R3/R4} shared
+contract/thresholds/SENSOR\_COUNT một nguồn với static\_assert; \textbf{R5} cấm demo trong
+production; \textbf{R6} mọi module build $\geq$1 env; \textbf{R7} file $\leq$400 dòng;
+\textbf{R8/R9} Git hygiene + 1 remote + conventional commit + cấm \code{add -A};
+\textbf{R10} DoD có lệnh xác minh; \textbf{R11} rule-chain snapshot + token tự sinh;
+\textbf{R12} tối thiểu agent theo roadmap.
+
+\section{Kiểm thử và số liệu}
+\label{sec:sys-test}
+
+\begin{itemize}
+\item Host unit test sensor-node (lọc cluster-EMA, thresholds): 10/10 pass.
+\item Guard pytest: 16 passed (gen\_credentials, scan\_secrets, check\_rulechain R11,
+  check\_size, test\_mqtt\_coreiot V2).
+\item Build waveshare-screen: RAM 12,8\% (42\,060\,B) / Flash 31,3\% (1\,293\,513\,B);
+  size-gate OK. Sensor-node build 2 env OK.
+\item CI run \code{33592664432} xanh; Gitleaks 0 finding; scan\_secrets OK.
+\item Qoát secret: \code{python3 tools/guard/scan\_secrets.py} exit 0.
+\end{itemize}
+
+\section{Hướng dẫn vận hành / demo}
+\label{sec:sys-ops}
+
+\begin{itemize}
+\item \textbf{Build}: \code{cd firmware/sensor-node \&\& pio run -e yolo\_uno}
+  (hoặc \code{yolo\_uno\_coreiot}); \code{cd firmware/waveshare-screen \&\& pio run -e yolo\_uno}.
+\item \textbf{Flash/monitor}: sensor \code{pio run -e yolo\_uno -t upload --upload-port
+  /dev/ttyACM0}; monitor \code{pio device monitor -p /dev/ttyACM0 -b 115200}; screen dùng
+  \code{/dev/ttyACM1}.
+\item \textbf{Cloud (B9)}: tạo token MỚI trên app.coreiot.io, import snapshot rule-chain,
+  điền \code{config/keys.json}; \code{python3 tools/test\_mqtt\_coreiot.py --distance
+  15.5} (DANGER), \code{60} (CAUTION), \code{150} (NORMAL); \code{--loop --interval 2}.
+\item \textbf{Kiểm tra local}: \code{python3 -m pytest tools/guard/test\_guard.py -q};
+  \code{python3 tools/guard/scan\_secrets.py}; \code{python3
+  tools/guard/check\_rulechain\_thresholds.py}.
+\end{itemize}
+
+\section{Tài liệu tham khảo}
+\label{sec:sys-refs}
+
+AGENTS.md / AGENTS.template.md; CONSTITUTION.md (R1--R12); SELFCHECK.md;
+ROADMAP\_CHECKLIST.md; docs/logs/* (CI\_FIX, CI\_PIPELINE, SENSOR\_NODE\_SCAFFOLD,
+SHARED\_CONTRACT\_BUILD, WAVESHARE\_SCREEN\_SCAFFOLD, WAVESHARE\_SCREEN\_ESPNOW\_LINK,
+COREIOT\_ACCEPTANCE\_TOOL); firmware/shared/*; report/README.md; CONTRIBUTING.md;
+SECURITY.md; skill \code{lvgl\_v9\_warning\_display}, \code{esp32\_screen\_debug},
+\code{cross\_device\_reconfig}.
