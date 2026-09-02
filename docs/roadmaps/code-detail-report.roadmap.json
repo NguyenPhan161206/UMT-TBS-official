@@ -1,0 +1,96 @@
+{
+  "project_name": "code-detail-report — Báo cáo chi tiết Code theo 4 lớp IoT",
+  "total_steps": 9,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Scaffold report-code/ (main.tex + Makefile + README + pictures + .gitignore)",
+      "target_files": ["report-code/main.tex", "report-code/Makefile", ".gitignore"],
+      "prerequisites": [],
+      "objective": "Dựng document LaTeX mới report-code/ (pdflatex + babel vietnamese + vntex T5, class report, IfFileExists cho 8 chương 00..07, Makefile build UMT_TBS_CodeDetail.pdf, pictures/README, .gitignore PDF/log).",
+      "definition_of_done": "make -C report-code clean all exit 0 -> UMT_TBS_CodeDetail.pdf tồn tại; make -C report-code verify pass; wc -l main.tex < 400; git check-ignore report-code/UMT_TBS_CodeDetail.pdf exit 0",
+      "verification_command": "make -C report-code clean all && make -C report-code verify && git check-ignore report-code/UMT_TBS_CodeDetail.pdf",
+      "risk": "low"
+    },
+    {
+      "step_id": 2,
+      "task_title": "Chương 00: Tổng quan hành trình dữ liệu + sơ đồ TikZ 4 lớp",
+      "target_files": ["report-code/chapters/00_tong_quan.tex"],
+      "prerequisites": [1],
+      "objective": "Viết chương mở đầu map 4 lớp IoT chuẩn (Cảm biến/Mạng/Xử lý/Ứng dụng) sang cây repo + sơ đồ TikZ luồng 1 gói dữ liệu qua cả 2 đường ESP-NOW & MQTT.",
+      "definition_of_done": "make -C report-code clean all exit 0; pdftotext UMT_TBS_CodeDetail.pdf | grep 'Tổng quan' hit>=1; wc -l 00_tong_quan.tex <= 400",
+      "verification_command": "make -C report-code clean all && pdftotext report-code/UMT_TBS_CodeDetail.pdf - | grep -c 'Tổng quan' && wc -l report-code/chapters/00_tong_quan.tex",
+      "risk": "low"
+    },
+    {
+      "step_id": 3,
+      "task_title": "Chương 01: Lớp Cảm biến (Perception) — phân tích file/hàm/dòng",
+      "target_files": ["report-code/chapters/01_perception.tex"],
+      "prerequisites": [1],
+      "objective": "Phân tích từng dòng: thresholds.h (R4/SENSOR_COUNT/ngưỡng), ultrasonic_sensor.cpp (đọc Trig/Echo), distance_filter.cpp (cluster-EMA), shared_state.cpp, main.cpp SensorTask + BuzzerTask.",
+      "definition_of_done": "make -C report-code clean all exit 0; pdftotext | grep 'Perception\|Cảm biến' hit>=1; wc -l 01_perception.tex <= 400",
+      "verification_command": "make -C report-code clean all && pdftotext report-code/UMT_TBS_CodeDetail.pdf - | grep -c 'Cảm biến' && wc -l report-code/chapters/01_perception.tex",
+      "risk": "low"
+    },
+    {
+      "step_id": 4,
+      "task_title": "Chương 02: Lớp Mạng (Network) — ESP-NOW + MQTT + platformio",
+      "target_files": ["report-code/chapters/02_network.tex"],
+      "prerequisites": [1, 3],
+      "objective": "Phân tích espnow_protocol.h (packed 30B, static_assert), espnow_client.cpp (gửi 500ms), espnow_receiver.c (LINKED/timeout 1500ms), coreiot_client 2 board (MQTT 500ms, topics), platformio.ini 2 env + sơ đồ topology và bản đồ payload.",
+      "definition_of_done": "make -C report-code clean all exit 0; pdftotext | grep 'Mạng\|ESP-NOW' hit>=1; wc -l 02_network.tex <= 400",
+      "verification_command": "make -C report-code clean all && pdftotext report-code/UMT_TBS_CodeDetail.pdf - | grep -c 'ESP-NOW' && wc -l report-code/chapters/02_network.tex",
+      "risk": "low"
+    },
+    {
+      "step_id": 5,
+      "task_title": "Chương 03: Lớp Xử lý (Processing) — tool MQTT + rule-chain + guard",
+      "target_files": ["report-code/chapters/03_processing.tex"],
+      "prerequisites": [1],
+      "objective": "Phân tích test_mqtt_coreiot.py (payload d1..d6, classify), rule-chain JSON (7 node, script JS ngưỡng 100/30, đồ thị), check_rulechain_thresholds.py (R11).",
+      "definition_of_done": "make -C report-code clean all exit 0; pdftotext | grep 'Xử lý\|Rule-Chain' hit>=1; wc -l 03_processing.tex <= 400",
+      "verification_command": "make -C report-code clean all && pdftotext report-code/UMT_TBS_CodeDetail.pdf - | grep -c 'Rule-Chain' && wc -l report-code/chapters/03_processing.tex",
+      "risk": "low"
+    },
+    {
+      "step_id": 6,
+      "task_title": "Chương 04: Lớp Ứng dụng core — sensor_model + main.c + BSP",
+      "target_files": ["report-code/chapters/04_application_core.tex"],
+      "prerequisites": [1],
+      "objective": "Phân tích waveshare-screen: main.c (task/init), sensor_model.c/h (classify/is_stale), bsp/waveshare_rgb_lcd_port.c (RGB LCD + GT911).",
+      "definition_of_done": "make -C report-code clean all exit 0; pdftotext | grep 'sensor_model\|BSP' hit>=1; wc -l 04_application_core.tex <= 400",
+      "verification_command": "make -C report-code clean all && pdftotext report-code/UMT_TBS_CodeDetail.pdf - | grep -c 'sensor_model' && wc -l report-code/chapters/04_application_core.tex",
+      "risk": "low"
+    },
+    {
+      "step_id": 7,
+      "task_title": "Chương 05: Lớp Ứng dụng UI — ui_dashboard 5 file",
+      "target_files": ["report-code/chapters/05_application_ui.tex"],
+      "prerequisites": [6],
+      "objective": "Phân tích ui_dashboard.c (evaluate_hazard, stale skip, LINKED badge), ui_dashboard_layout.c (sidebar/Calibrate chưa callback), ui_dashboard_system.c (sys_info), private.h/theme.h.",
+      "definition_of_done": "make -C report-code clean all exit 0; pdftotext | grep 'ui_dashboard\|Calibrate' hit>=1; wc -l 05_application_ui.tex <= 400",
+      "verification_command": "make -C report-code clean all && pdftotext report-code/UMT_TBS_CodeDetail.pdf - | grep -c 'ui_dashboard' && wc -l report-code/chapters/05_application_ui.tex",
+      "risk": "low"
+    },
+    {
+      "step_id": 8,
+      "task_title": "Chương 06: CI & Bảo mật — ci.yml + tools/guard",
+      "target_files": ["report-code/chapters/06_ci_bao_mat.tex"],
+      "prerequisites": [1],
+      "objective": "Phân tích .github/workflows/ci.yml (build 2 env x 2 firmware, Gitleaks, guards), tools/guard/scan_secrets.py + gen_credentials.py + check_rulechain_thresholds.py; luồng credentials R1/R11.",
+      "definition_of_done": "make -C report-code clean all exit 0; pdftotext | grep 'CI\|Gitleaks' hit>=1; wc -l 06_ci_bao_mat.tex <= 400",
+      "verification_command": "make -C report-code clean all && pdftotext report-code/UMT_TBS_CodeDetail.pdf - | grep -c 'Gitleaks' && wc -l report-code/chapters/06_ci_bao_mat.tex",
+      "risk": "low"
+    },
+    {
+      "step_id": 9,
+      "task_title": "Chương 07: Nối các lớp end-to-end + verify + log + commit/push",
+      "target_files": ["report-code/chapters/07_ket_noi.tex", "docs/logs/CODE_DETAIL_REPORT_LOG.md"],
+      "prerequisites": [2, 3, 4, 5, 6, 7, 8],
+      "objective": "Viết chương kết: trace 1 message '55 cm' qua cả 2 đường, ma trận file↔lớp, bảng 4 lớp ↔ cảm biến/hàm; rồi verify toàn bộ (make + scan_secrets + gitleaks + wc -l), ghi log, commit 'docs:' và push lên GitHub.",
+      "definition_of_done": "make -C report-code all + verify pass; scan_secrets exit 0; gitleaks no leaks; mọi chapter <= 400 dòng; git push origin main thành công; CI run xanh",
+      "verification_command": "make -C report-code all && python3 tools/guard/scan_secrets.py && /tmp/opencode/gitleaks/gitleaks detect --source . --no-banner && git push origin main",
+      "risk": "medium"
+    }
+  ]
+}

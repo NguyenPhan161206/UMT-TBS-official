@@ -1,0 +1,196 @@
+% =====================================================================
+% Chương 1 — Lớp Cảm biến (Perception)
+% Phân tích: shared/thresholds.h, ultrasonic_sensor.cpp, distance_filter.cpp,
+%            shared_state.cpp, main.cpp (SensorTask/BuzzerTask)
+% =====================================================================
+
+\chapter{Lớp Cảm biến (Perception)}
+
+Lớp Perception "chạm" thế giới thực: điều khiển 6 cảm biến JSN-SR04T, tạo gói
+dữ liệu khoảng cách đã lọc và giữ trạng thái dùng chung cho các task. Phần mềm
+nằm ở \code{firmware/sensor-node/src/} + một file hợp đồng dùng chung
+\code{firmware/shared/thresholds.h}.
+
+\section{Danh mục file và ký hiệu chính}
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}p{5.6cm}p{3.2cm}p{7.4cm}@{}}
+\caption{Các file lớp Cảm biến và ký hiệu công khai.}\\
+\toprule
+\textbf{File} & \textbf{Lớp} & \textbf{Ký hiệu chính} \\
+\midrule
+\endhead
+\code{firmware/shared/thresholds.h} & Chung & \code{SENSOR\_PINS}, \code{SENSOR\_COUNT}, \code{sensor\_zone\_t}, \code{BUZZER\_*}, \code{FILTER\_*} \\
+\code{src/ultrasonic\_sensor.cpp} & 1 & \code{UltrasonicSensor::begin/readOnce}, ISR \code{onEchoChange} \\
+\code{src/distance\_filter.cpp} & 1 & \code{process}, \code{getStable}, \code{reset} (cluster-EMA) \\
+\code{src/shared\_state.cpp} & 1 & \code{sharedStateSet/Get/GetNearest} + mutex \\
+\code{src/main.cpp} & 1 & \code{sensorTask} (core 1), \code{buzzerTask} (core 0) \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{Hợp đồng dùng chung: thresholds.h (124 dòng, R2/R3/R4)}
+
+File này là \textbf{nguồn duy nhất} mọi ngưỡng/layout/chuẩn đo của cả 2 board.
+Bốn khối chính:
+
+\begin{enumerate}
+\item \textbf{Zone} (dòng 32--46): \code{sensor\_zone\_t} ba mức
+\code{SAFE/CAUTION/DANGER}; ngưỡng \code{SENSOR\_CAUTION\_CM 100} và
+\code{SENSOR\_DANGER\_CM 30}. Cả 2 board include cùng file nên không thể lệch
+(R3).
+\item \textbf{Còi} (dòng 51--56): \code{BUZZER\_PIN 11} (đã chuyển khỏi GPIO48
+tránh xung đột PSRAM — ghi chú dòng 96--102), phân cấp WARNING \textless{}50\,cm
+(period 3000\,ms) / DANGER \textless{}20\,cm (period 1000\,ms, beep 120\,ms).
+\item \textbf{Đo/lọc} (dòng 62--81): \code{SOUND\_SPEED\_CM\_PER\_US 0.0343},
+\code{ECHO\_TIMEOUT\_US 40000}, \code{MEASURE\_INTERVAL\_MS 100}, bộ lọc
+cluster-EMA (\code{FILTER\_HISTORY\_SIZE 9}, \code{FILTER\_MIN\_SAMPLES 5},
+\code{FILTER\_EMA\_ALPHA 0.30f}, \code{FILTER\_JUMP\_CONFIRM\_COUNT 3}).
+\item \textbf{Layout 6 cảm biến} (dòng 104--116): \code{static const
+sensor\_pin\_cfg\_t SENSOR\_PINS[] = \{\{5,6\},...\}} — FRONT (5/6),
+LEFT\_FRONT (7/8), RIGHT\_FRONT (9/10), LEFT\_REAR (17/18), RIGHT\_REAR
+(21/38), REAR (3/4).
+\end{enumerate}
+
+\textbf{R4 dòng 118--123} — không gõ tay count:
+\begin{verbatim}
+#define SENSOR_COUNT (sizeof(SENSOR_PINS) / sizeof(SENSOR_PINS[0]))
+...
+TBS_STATIC_ASSERT(SENSOR_COUNT == 6, "SENSOR_COUNT must equal 6 sensor slots");
+\end{verbatim}
+\code{TBS\_STATIC\_ASSERT} dùng \code{static\_assert} (C++) hoặc
+\code{\_Static\_assert} (C) tuy theo trình biên dịch — đó là cách 1 header
+phục vụ cả 2 core (R2).
+
+\textbf{Lưu ý ánh xạ vị trí} (ghi chú dòng 96--102): thứ tự vật lý
+\code{SENSOR\_PINS} \textbf{không trùng} \code{espnow\_slot\_t} trong
+\code{espnow\_protocol.h}; sensor-node giữ mảng \code{SENSOR\_ESPNOW\_SLOT[]}
+trong \code{main.cpp} để đổi vật lý $\rightarrow$ wire. Báo cáo này phân tích
+phía Mạng ở Chương 2.
+
+\section{ultrasonic\_sensor.cpp (104 dòng) — đọc 1 lần đo}
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=0.7cm and 1.1cm,
+  box/.style={draw, rounded corners=2pt, minimum height=0.8cm, minimum width=3.6cm, font=\scriptsize, align=center},
+  arr/.style={-{Stealth}, thin}
+]
+  \node[box, fill=blue!6] (trig) {Task phát xung 20 us\\\code{TRIGGER\_HIGH\_US}};
+  \node[box, fill=blue!6, below=of trig] (isr) {ISR \code{onEchoChange} (CHANGE)\\bắt cạnh lên + cạnh xuống};
+  \node[box, fill=blue!6, below=of isr] (sem) {\code{xSemaphoreGiveFromISR} $\rightarrow$ task thức dậy};
+  \node[box, fill=green!6, below=of sem] (dist) {\code{durationUs * 0.0343 / 2}\\kiểm MIN/MAX (15--500 cm)};
+  \node[box, fill=green!6, below=of dist] (flt) {\code{distance\_filter.process(cm)}\\cluster-EMA};
+  \node[box, fill=orange!8, below=of flt] (st) {\code{sharedStateSet(i, out, valid)}\\mutex bảo vệ};
+  \draw[arr] (trig) -- (isr);
+  \draw[arr] (isr) -- (sem);
+  \draw[arr] (sem) -- (dist);
+  \draw[arr] (dist) -- (flt);
+  \draw[arr] (flt) -- (st);
+\end{tikzpicture}
+\captionof{figure}{Chuỗi xử lý một lần đo của sensor-node.}
+\end{center}
+
+Phân tích từng hàm:
+
+\textbf{\code{begin(trigPin, echoPin)} (dòng 19--31)}: gán chân, tạo binary
+semaphore, gọi \code{attachInterruptArg(... CHANGE)} — chạy ISR trên cả hai
+cạnh Echo. Truyền \code{this} làm hằng số để ISR tĩnh gọi đúng instance.
+
+\textbf{\code{IRAM\_ATTR onEchoChange} (dòng 36--52)} — ISR, diệt nhẹ:
+\begin{itemize}
+\item Cạnh lên (\code{digitalRead != HIGH}): lưu \code{\_echoRiseUs = micros()}.
+\item Cạnh xuống: \code{\_echoDurationUs = micros() - \_echoRiseUs}, rồi
+\code{xSemaphoreGiveFromISR} + \code{portYIELD\_FROM\_ISR} nếu task cao hơn
+đang chờ — đúng khuôn ISR FreeRTOS (không gọi hàm blocking/Serial).
+\end{itemize}
+
+\textbf{\code{waitEchoLow(timeoutUs)} (dòng 58--73)}: đảm bảo Echo ở LOW trước
+khi Trigger mới; dùng \code{vTaskDelay(1)} thay busy-wait để nhường CPU.
+
+\textbf{\code{readOnce()} (dòng 75--104)} — lõi đo:
+\begin{enumerate}
+\item \code{waitEchoLow(ECHO\_LOW\_TIMEOUT\_US)} — nếu Echo vẫn HIGH $\Rightarrow$
+\code{error} trả về sớm (không đo khi Echo chưa rảnh).
+\item \code{xSemaphoreTake(\_echoSemaphore, 0)} — xoá semaphore sót từ lần đo
+trước.
+\item Phát xung: LOW 5\,us $\rightarrow$ HIGH 20\,us $\rightarrow$ LOW.
+\item \code{xSemaphoreTake(\_echoSemaphore, timeoutTicks)} — \textbf{không
+busy-wait}; task ngủ đến khi ISR báo hoặc timeout 40\,ms.
+\item \code{distanceCm = durationUs * SOUND\_SPEED\_CM\_PER\_US / 2.0f} —
+quãng đường chia 2 (đi + về).
+\item Loại vùng mù \code{< MIN\_DISTANCE\_CM (15)} và vượt tầm
+\code{> MAX\_DISTANCE\_CM (500)}; lỗi trả về qua \code{reading.error} (con trỏ
+hằng chuỗi — không cấp phát).
+\end{enumerate}
+
+\section{distance\_filter.cpp (368 dòng) — cluster-EMA}
+
+Bộ lọc kết hợp \textbf{cụm} (cluster) và \textbf{EMA} để loại nhiễu siêu âm
+(phản xạ phụ, vật lạ) trong \code{FILTER\_HISTORY\_SIZE = 9} mẫu gần nhất:
+\begin{itemize}
+\item \code{sortedMedian} — insertion sort tại chỗ (đủ nhanh với $\le 9$ phần tử,
+không dùng STL theo yêu cầu dòng 6--9).
+\item \code{findBestCluster} — nhóm các mẫu nằm trong dung sai động
+(\code{FILTER\_BASE\_CLUSTER\_TOLERANCE\_CM 8} hoặc 8\% của tâm) và chọn cụm
+đông nhất.
+\item \code{getJumpThreshold / getJumpTolerance} — ngưỡng "nhảy xa" tối thiểu
+30\,cm (hoặc 25\%) phải được xác nhận \code{FILTER\_JUMP\_CONFIRM\_COUNT = 3}
+lần liên tiếp, tránh đổi trạng thái do nhiễu.
+\item \code{process(cm)} $\rightarrow$ \code{FilterResult\{outputCm, hasOutput\}}
+áp EMA \code{FILTER\_EMA\_ALPHA 0.30f}; nếu quá nhiều mẫu lỗi liên tiếp
+\code{FILTER\_RESET\_AFTER\_INVALID 15} thì \code{reset()}.
+\end{itemize}
+
+Đây chính là "độ trễ 0,5--0,8\,s" được nhắc trong checklist T3.5: bộ lọc cần
+$\ge$5 mẫu + 3 lần xác nhận bước nhảy — báo cáo này ghi nhận là hạn chế cần đo
+thật (xem Chương 7).
+
+\section{shared\_state.cpp (69 dòng) — trạng thái dùng chung}
+
+Dùng mutex FreeRTOS để SensorTask/BuzzerTask/NetworkTask/CoreIoTTask chia sẻ
+an toàn:
+\begin{itemize}
+\item \code{sharedStateInit} — tạo mutex một lần.
+\item \code{sharedStateSet(i, cm, valid)} — ghi slot nếu chỉ số hợp lệ, có
+mutex (timeout 10\,ms).
+\item \code{sharedStateGet(i, cm)} — trả \code{true} nếu slot đang \code{valid}.
+\item \code{sharedStateGetNearest(cm)} — duyệt 6 slot, trả khoảng cách \textbf{nhỏ
+nhất} hợp lệ — nguồn cho BuzzerTask và CoreIoTTask (\code{nearest\_cm}).
+\end{itemize}
+
+\section{main.cpp — SensorTask và BuzzerTask}
+
+\textbf{Khởi tạo} (\code{setup}, dòng 295--348): 4 task cố định core
+(\code{xTaskCreatePinnedToCore}), điều kiện biên dịch \code{\#if USE\_COREIOT}
+cho CoreIoTTask (R6 — bản coreiot dùng \code{yolo\_uno\_coreiot});
+\code{loop()} gọi \code{vTaskDelete(nullptr)} vì toàn bộ logic đã ở các task.
+
+\textbf{\code{sensorTask} (core 1, dòng 126--199)} — vòng đo 100\,ms:
+\begin{itemize}
+\item Đầu task: \code{begin} 6 cảm biến + \code{reset} 6 bộ lọc; chờ 500\,ms
+ổn định; in mapping \code{S[0..5] Trig/Echo -> ESP-NOW slot} và cảnh báo
+\code{warnIfReservedPin} nếu trùng GPIO bảo lưu (47/48 PSRAM).
+\item Vòng lặp: với mỗi cảm biến $\rightarrow$ \code{readOnce()}; nếu
+\code{error != nullptr} tăng \code{s\_invalidCount[i]}; đủ
+\code{FILTER\_RESET\_AFTER\_INVALID (15)} lần lỗi $\rightarrow$
+\code{reset() + sharedStateSet(i, 0, false)}; nếu hợp lệ
+$\rightarrow$ \code{process()} rồi \code{sharedStateSet(i, output, hasOutput)}.
+\item \code{vTaskDelayUntil} giữ nhịp 100\,ms \textbf{không cộng dồn trễ} và
+không chặn task khác.
+\end{itemize}
+
+\textbf{\code{buzzerTask} (core 0, buzzer.cpp:63 dòng)} — đọc
+\code{sharedStateGetNearest} mỗi vòng; chọn period theo ngưỡng 50/20\,cm và
+toggle GPIO11 bằng \code{millis()} không blocking (xem Chương 6 máy trạng
+thái còi).
+
+\section{Kết luận lớp Cảm biến}
+
+Đầu ra của lớp này là một mảng \code{SENSOR\_COUNT=6} giá trị \emph{đã lọc +
+hợp lệ} trong \code{shared\_state}, sẵn sàng cho lớp Mạng đóng gói. Mọi ngưỡng
+được định nghĩa một lần duy nhất (R3), số lượng cảm biến suy từ mảng (R4), file
+giới hạn \code{ultrasonic\_sensor.cpp} 104 dòng / \code{shared\_state.cpp} 69
+dòng đều $\le$ 400 (R7).

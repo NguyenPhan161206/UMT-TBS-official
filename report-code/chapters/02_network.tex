@@ -1,0 +1,184 @@
+% =====================================================================
+% Chương 2 — Lớp Mạng (Network)
+% Phân tích: espnow_protocol.h, espnow_client.cpp, networkTask (main.cpp),
+%            espnow_receiver.c, coreiot_client (2 board), platformio.ini
+% =====================================================================
+
+\chapter{Lớp Mạng (Network)}
+
+Lớp Mạng vận chuyển dữ liệu đã lọc từ Lớp 1 tới đích bằng \textbf{hai tuyến
+song song}: ESP-NOW (đường chính trên xe) và MQTT/Wi-Fi (đường phụ lên cloud).
+Cả hai tuyến đều đọc cùng một nguồn \code{shared\_state} nhưng gói tin và tần
+suất khác nhau.
+
+\section{Tổng quan hai tuyến}
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}p{4.0cm}p{5.6cm}p{6.0cm}@{}}
+\caption{So sánh đường chính và đường phụ.}\\
+\toprule
+\textbf{Tiêu chí} & \textbf{ESP-NOW (chính)} & \textbf{MQTT (phụ)} \\
+\midrule
+\endhead
+Giao thức & Link Layer Espressif, không AP & TCP/MQTT qua Wi-Fi \\
+Tần suất & \code{ESPNOW\_SEND\_INTERVAL\_MS 500} & \code{COREIOT\_PUBLISH\_INTERVAL\_MS 500} \\
+Payload & \code{espnow\_sensor\_msg\_t} packed 30\,B & JSON \code{d1..d6 + nearest\_cm} \\
+Độ trễ mục tiêu & <50\,ms & 100--500\,ms \\
+Phụ thuộc Internet & Không & Có \\
+Đích & Waveshare-screen & app.coreiot.io:1883 \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{Hợp đồng dây: espnow\_protocol.h (R2)}
+
+File duy nhất định nghĩa giao diện ESP-NOW; cấm định nghĩa lại symbol ở nơi
+khác (R2 — \code{grep} toàn firmware = 1). Các hằng số quan trọng:
+
+\begin{verbatim}
+#define ESPNOW_CHANNEL 1
+static const uint8_t ESPNOW_PEER_MAC[6] = {0x64,0xe8,0x33,0x7c,0x3f,0xe0};
+#define ESPNOW_SEND_INTERVAL_MS 500
+#define ESPNOW_LINK_TIMEOUT_MS 1500
+typedef enum { ESPNOW_SLOT_FRONT=0, ESPNOW_SLOT_REAR=1,
+               ESPNOW_SLOT_LEFT_FRONT=2, ESPNOW_SLOT_LEFT_REAR=3,
+               ESPNOW_SLOT_RIGHT_FRONT=4, ESPNOW_SLOT_RIGHT_REAR=5 } espnow_slot_t;
+typedef struct __attribute__((packed)) {
+    float distance_cm[ESPNOW_SENSOR_SLOT_COUNT];
+    uint8_t valid[ESPNOW_SENSOR_SLOT_COUNT];
+} espnow_sensor_msg_t;
+TBS_STATIC_ASSERT(ESPNOW_SENSOR_SLOT_COUNT == SENSOR_COUNT, ...);
+\end{verbatim}
+
+Bản đồ bộ nhớ gói tin 30\,B:
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}lcc@{}}
+\caption{Bố cục payload ESP-NOW.}\\
+\toprule
+\textbf{Trường} & \textbf{Offset} & \textbf{Kích thước} \\
+\midrule
+\endhead
+\code{distance\_cm[0..5]} & 0 & 6\,$\times$ 4\,B = 24\,B (float) \\
+\code{valid[0..5]} & 24 & 6\,$\times$ 1\,B = 6\,B \\
+\textbf{Tổng} & 0 & \textbf{30\,B} \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Lưu ý ánh xạ \textbf{vật lý $\rightarrow$ dây} nằm ở \code{main.cpp:53}:
+\code{SENSOR\_ESPNOW\_SLOT[SENSOR\_COUNT]} — \code{SENSOR\_PINS[0]} (FRONT) là
+dây slot FRONT, \code{SENSOR\_PINS[5]} (REAR) là dây slot REAR. Nhờ
+\code{static\_assert} (R4), số slot trên dây luôn bằng \code{SENSOR\_COUNT}.
+
+\section{espnow\_client.cpp (42 dòng) — phát ESP-NOW}
+
+\begin{itemize}
+\item \code{begin()}: \code{WiFi.mode(WIFI\_STA)} + \code{disconnect()};
+\code{esp\_wifi\_set\_channel(ESPNOW\_CHANNEL,...)} cố định kênh 1; init
+ESP-NOW; đăng ký \code{onDataSent}; thêm peer với MAC đích
+(\code{peerInfo.encrypt = false} — không mã hoá, chấp nhận vì mạng cục bộ và
+payload không nhạy cảm).
+\item \code{sendReading(msg)}: \code{esp\_now\_send(ESPNOW\_PEER\_MAC, ...,
+sizeof(msg))} — gửi đúng 30\,B, trả \code{true} nếu đưa vào hàng đợi thành
+công.
+\end{itemize}
+
+\section{networkTask trong main.cpp — điều phối phát 500\,ms}
+
+Task core 0 (dòng 202--240):
+\begin{enumerate}
+\item \code{s\_espNowClient.begin()} một lần.
+\item Mỗi 500\,ms (\code{now - lastSendMs >= ESPNOW\_SEND\_INTERVAL\_MS}):
+tạo \code{espnow\_sensor\_msg\_t msg = \{\}}; với mỗi cảm biến
+\code{i = 0..SENSOR\_COUNT-1} đọc \code{sharedStateGet}, nếu hợp lệ thì ghi
+\code{msg.distance\_cm[slot]} và \code{msg.valid[slot] = 1} theo
+\code{SENSOR\_ESPNOW\_SLOT[i]}; rồi \code{sendReading}.
+\item \code{vTaskDelay(20)} giữa các lần kiểm tra — không gửi blocking.
+\end{enumerate}
+
+Điểm yếu cố ý: slot không lắp phần cứng giữ \code{valid=0} $\rightarrow$
+waveshare hiển thị ``--'' thay vì báo DANGER giả.
+
+\section{espnow\_receiver.c (112 dòng) — nhận và theo dõi liên kết}
+
+\begin{itemize}
+\item \code{on\_data\_recv}: \textbf{từ chối gói sai kích thước}
+(\code{len != sizeof(espnow\_sensor\_msg\_t)}) — ngăn buffer-overread; copy gói
+rồi cập nhật timestamp \code{s\_slot\_rx\_us[i]} cho từng slot có
+\code{valid[i]}; gọi callback driver với RSSI.
+\item \code{espnow\_receiver\_init(cb)}: đặt kênh, init ESP-NOW (chấp nhận trả
+\code{ESP\_ERR\_ESPNOW\_EXIST}), cài callback.
+\item \code{espnow\_receiver\_is\_linked()}: so \code{now - s\_last\_any\_rx\_us}
+với \code{ESPNOW\_LINK\_TIMEOUT\_MS * 1000} (1500\,ms) — nguồn cho badge
+``ESP-NOW: LINKED/NO LINK'' trên UI (xem Chương 5).
+\end{itemize}
+
+\section{MQTT — CoreiotClient (sensor-node, Arduino + PubSubClient)}
+
+File \code{plugins/coreiot/coreiot\_client.cpp} — đường phụ chỉ build khi
+\code{USE\_COREIOT=1} (env \code{yolo\_uno\_coreiot}, R6):
+\begin{itemize}
+\item \code{begin()}: \code{setServer(COREIOT\_BROKER, COREIOT\_PORT)};
+\code{WiFi.begin(WIFI\_SSID, WIFI\_PASSWORD)} — credential từ
+\code{credentials.h} \textbf{sinh tự động, gitignored} (R1).
+\item \code{ensureWifiConnected()}: không gọi lại \code{WiFi.begin()} nền
+(chỉ tái kết nối nền) để tránh reset trạng thái đang thử.
+\item \code{ensureMqttConnected()}: thử lại mỗi
+\code{COREIOT\_MQTT\_RETRY\_INTERVAL\_MS = 3000}; kết nối bằng
+\code{s\_mqttClient.connect("sensor-node", SENSOR\_NODE\_DEVICE\_TOKEN,
+nullptr)} — \textbf{access token là username MQTT}, password rỗng (chuẩn
+ThingsBoard/CoreIoT).
+\item \code{publishTelemetry(payload)}: publish lên
+\code{COREIOT\_TELEMETRY\_TOPIC} (\code{v1/devices/me/telemetry}).
+\end{itemize}
+
+\subsection{coreiotTask — payload telemetry 500\,ms (main.cpp:252--290)}
+
+\begin{verbatim}
+{"d1":25.0,"d2":120.0,...,"d6":400.0,"nearest_cm":25.0,"has_nearest":true}
+\end{verbatim}
+Dùng \code{snprintf} JSON đơn giản (không thư viện JSON Arduino), đọc từng slot
+qua \code{sharedStateGetValue} + gần nhất qua \code{sharedStateGetNearest};
+publish thất bại thì bỏ qua (loop() tự duy trì kết nối) — \textbf{không làm hỏng
+route cảnh báo chính}.
+
+\section{MQTT — coreiot\_client (waveshare-screen, ESP-IDF esp-mqtt)}
+
+File \code{components/coreiot\_client/coreiot\_client.c} — client đầy đủ hơn
+vì screen vừa gửi vừa nhận:
+\begin{itemize}
+\item \code{mqtt\_event\_handler} — khi \code{MQTT\_EVENT\_CONNECTED}:
+  \begin{itemize}
+  \item Subscribe \code{v1/devices/me/telemetry},
+\code{v1/devices/me/attributes} và \code{v1/devices/me/attributes/response/+}
+(QoS 1) — nhận cảnh báo real-time từ Rule-Chain (đường phụ).
+  \item Publish telemetry \code{reboot\_event} (\{status ONLINE, reason,
+wifi\_ssid\}) để dashboard biết màn hình vừa khởi động.
+  \end{itemize}
+\item \code{MQTT\_EVENT\_DATA}: ghi \code{s\_last\_mqtt\_rx\_time\_ms} (dùng cho
+badge MQTT trên UI) và gọi \code{s\_data\_cb} cho lớp Ứng dụng.
+\item \code{MQTT\_EVENT\_DISCONNECTED}: báo \code{s\_mqtt\_cb(false)}; kết nối
+lại do esp-mqtt tự thử.
+\end{itemize}
+
+\section{Tập trung: luồng mạng 1 chu kỳ}
+
+\begin{verbatim}
+SensorTask (100 ms) -> shared_state (mutex)
+   |-- networkTask (500 ms): khoi tao msg 30B -> esp_now_send -> screen
+   `-- coreiotTask (500 ms): snprintf JSON d1..d6+nearest
+              -> PubSubClient.publish(v1/devices/me/telemetry)
+              -> broker app.coreiot.io:1883 -> Lớp 3 (Chương 3)
+\end{verbatim}
+
+\section{Kết luận lớp Mạng}
+
+Mạng đóng gói đúng hợp đồng (R2), gửi đều nhịp, không blocking, không phụ
+thuộc nhau: mất MQTT không ảnh hưởng ESP-NOW. Trạng thái liên kết (link timeout
+1500\,ms) và thời gian MQTT rx được chuyển lên Lớp Ứng dụng (Chương 5) để hiển
+thị badge.

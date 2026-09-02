@@ -1,0 +1,104 @@
+% =====================================================================
+% Chương 07 — Kết nối end-to-end
+% Phân tích: truy vết "55 cm" qua 2 đường; ma trận file ↔ lớp;
+%            chuỗi xác minh (CI, guard).
+% =====================================================================
+
+\chapter{Kết nối end-to-end}
+\label{ch:endtoend}
+
+Chương cuối truy vết một phép đo cụ thể xuyên suốt 4 lớp và tổng kết ma trận
+file$\leftrightarrow$lớp để người đọc (sinh viên/hội đồng) định vị nhanh từng phần của hệ thống.
+
+\section{Truy vết một mẫu đo: 55\,cm}
+\label{sec:trace}
+
+Xét sensor FRONT (GPIO 5/6, \code{SENSOR\_PINS[0]}) đo được \textbf{55\,cm} — thuộc
+zone CAUTION ($100 \ge 55 > 30$, R3).
+
+\textbf{Đường chính — ESP-NOW:}
+\begin{enumerate}
+\item ISR \code{IRAM\_ATTR onEchoChange} bắt pulse echo
+  ($\S$\ref{ch:perception}, \code{sensor\_reading}) $\rightarrow$
+  \code{distance = pulse * 0.0343 / 2} $\approx$ 55.3\,cm.
+\item \code{DistanceFilter} làm sạch (median + cluster-EMA) rồi
+  \code{sharedStateSetNearest(55, ...)}.
+\item \code{networkTask} (mỗi 500\,ms) đọc \code{sharedStateGetNearest}, ghi
+  \code{msg.distance\_cm[SLOT\_FRONT]=55} + \code{valid=1} theo
+  \code{SENSOR\_ESPNOW\_SLOT[0]} ($\S$\ref{ch:network}) $\rightarrow$
+  \code{espnow\_send(...)} 30\,B.
+\item \code{waveshare-screen} nhận frame (\code{espnow\_receiver}), gọi
+  \code{on\_espnow\_rx}: \code{ui\_dashboard\_update\_sensor(FRONT, 55)}
+  $\rightarrow$ \code{arc\_set\_zone(CAUTION)} + \code{evaluate\_hazard()}
+  $\rightarrow$ banner \textbf{OVERALL: CAUTION} (nếu là vùng xa nhất)
+  ($\S$\ref{ch:application-ui}).
+\end{enumerate}
+
+\textbf{Đường phụ — MQTT/CoreIoT:}
+\begin{enumerate}
+\item \code{coreiotTask} (500\,ms) đóng \code{\{d1:55.3,...,has\_nearest:true\}}
+  publish lên \code{v1/devices/me/telemetry}.
+\item Rule-chain: TypeSwitch $\rightarrow$ JS Transform ($\S$\ref{ch:processing}):
+  \code{55 $\le$ 100} $\rightarrow$ \code{warning\_status = "CAUTION"},
+  \code{vehicle\_detected = true} $\rightarrow$ ChangeOriginator $\rightarrow$
+  Shared Attr \code{notifyDevice=true}.
+\item \code{waveshare-screen} đăng ký nhận attributes; parse JSON
+  \code{on\_coreiot\_data} ($\S$\ref{sec:main-c}) $\rightarrow$ cập nhật
+  sensor + trạng thái relay/buzzer lên UI.
+\end{enumerate}
+
+\noindent\textbf{Hai đường đều quy về cùng một \code{warning\_status} ngưỡng
+duy nhất} (\code{thresholds.h}, R3) — giảm lệch dữ liệu giữa hiển thị ESP-NOW
+(low-latency) và cloud.
+
+\section{Ma trận file $\leftrightarrow$ lớp}
+\label{sec:matrix}
+
+\begin{center}
+\begin{longtable}{@{}p{5.4cm}p{2.0cm}p{5.8cm}@{}}
+  \toprule
+  \textbf{File đường chính} & \textbf{Lớp} & \textbf{Vai trò} \\
+  \midrule
+  \endhead
+  \code{ultrasonic\_sensor.cpp} & Cảm biến & ISR + readOnce \\
+  \code{distance\_filter.cpp} & Cảm biến & lọc nhiễu, cluster-EMA \\
+  \code{espnow\_client.cpp} & Mạng & gửi ESP-NOW \\
+  \code{espnow\_receiver.c} & Mạng & nhận ESP-NOW (screen) \\
+  \code{sensor\_model.c} & Xử lý /Core & trạng thái cảm biến + mutex \\
+  \code{ui\_dashboard.c} & UI & evaluate\_hazard + mute \\
+  \code{ui\_dashboard\_layout.c} & UI & bố cục widget \\
+  \bottomrule
+\end{longtable}
+
+\begin{longtable}{@{}p{5.4cm}p{2.0cm}p{5.8cm}@{}}
+  \toprule
+  \textbf{File đường phụ} & \textbf{Lớp} & \textbf{Vai trò} \\
+  \midrule
+  \endhead
+  \code{plugins/coreiot/coreiot\_client.} & Mạng & MQTT sensor-node \\
+  \code{components/coreiot\_client/} & Mạng & MQTT screen (ESP-IDF) \\
+  \code{tools/test\_mqtt\_coreiot.py} & Xử lý & gửi telemetry thử \\
+  \code{supersonic\_rule\_chain.json} & Xử lý & 7-nút rule-chain \\
+  \code{ci.yml} + \code{tools/guard/} & CI/Bảo mật & build + guard \\
+  \bottomrule
+\end{longtable}
+\end{center}
+
+\section{Chuỗi xác minh}
+\label{sec:verify-chain}
+
+\begin{itemize}
+\item \textbf{Build:} \code{pio run -e yolo\_uno} / \code{yolo\_uno\_coreiot}
+  + \code{pio run -e yolo\_uno} (waveshare-screen) — CI job \code{firmware}.
+\item \textbf{Host test:} \code{pio test -e native} — DistanceFilter 10/10;
+  \code{pytest tools/guard/test\_guard.py} — 16/16.
+\item \textbf{Bảo mật:} Gitleaks (\code{.gitleaks.toml}) + \code{scan\_secrets.py}
+  exit 0; \code{gen\_credentials.py --check}.
+\item \textbf{Ngưỡng:} \code{check\_rulechain\_thresholds.py} — CI log
+  \code{CHECK-RULECHAIN OK}.
+\item \textbf{Kích thước file:} mọi \code{*.c/*.cpp/*.h} (firmware + chương báo
+  cáo) $\le$ 400 dòng (R7).
+\end{itemize}
+
+\noindent Kết quả CI run gần nhất xanh trên cả 2 job; báo cáo này đối chiếu
+code thật tại commit (xem \code{docs/logs/CODE\_DETAIL\_REPORT\_LOG.md}).

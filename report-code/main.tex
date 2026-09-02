@@ -1,0 +1,100 @@
+% =====================================================================
+% UMT-TBS-official — BÁO CÁO CHI TIẾT CODE (LaTeX, tiếng Việt)
+% File chính: biên dịch bằng pdflatex (babel vietnamese + vntex T5).
+%
+% Build:   make            (hoặc: pdflatex main.tex 3 lượt + cp main.pdf
+%                            UMT_TBS_CodeDetail.pdf)
+% Output:  UMT_TBS_CodeDetail.pdf
+%
+% Phạm vi: đi sâu từng folder / file / hàm / dòng theo 4 lớp IoT chuẩn
+%   (Cảm biến, Mạng, Xử lý, Ứng dụng) + CI/Bảo mật + nối các lớp.
+% =====================================================================
+\documentclass[a4paper,12pt]{report}
+
+% ---------- Encoding / Vietnamese ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T5,T1]{fontenc}
+\usepackage[vietnamese]{babel}
+
+% ---------- Layout ----------
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,fit,calc}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{listings}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!50!black,
+    urlcolor=blue!50!black,
+    citecolor=blue!50!black,
+    pdftitle={UMT-TBS-official — Báo cáo chi tiết Code (V2)},
+    pdfauthor={UMT-TBS}
+}
+
+\setlength{\headheight}{15pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Báo cáo Chi tiết Code — UMT-TBS-official (V2)}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+
+\newcommand{\code}[1]{\texttt{#1}}
+% Macro ảnh raster: bọc IfFileExists để build không gãy khi thiếu ảnh.
+\newcommand{\pic}[2]{%
+  \IfFileExists{#1}{\includegraphics[width=#2\textwidth]{#1}}{}%
+}
+
+\title{\textbf{Báo cáo Chi tiết Code\\[6pt]
+\large Hệ thống Cảnh báo Va chạm Xe tải (Truck Blind-spot Warning System)\\
+Phân tích theo 4 lớp IoT — folder, file, hàm, dòng code}}
+\author{UMT-TBS-official}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent
+Báo cáo này đi sâu vào \textbf{từng folder, từng file, từng hàm và từng dòng
+code} của hệ thống \textbf{UMT-TBS-official} (Hybrid V2), tổ chức theo \textbf{4
+lớp IoT chuẩn}: \emph{Cảm biến} (Perception) — 6 cảm biến JSN-SR04T và bộ lọc
+trên ESP32-S3 sensor-node; \emph{Mạng} (Network) — hai đường ESP-NOW (chính,
+\textless{}50\,ms) và MQTT lên CoreIoT (phụ, 100--500\,ms); \emph{Xử lý}
+(Processing) — Rule-Chain ThingsBoard
+(\code{cloud/coreiot/rule\_chain/supersonic\_rule\_chain.json}) và bộ tool
+\code{tools/}; \emph{Ứng dụng} (Application) — màn hình LVGL v9
+waveshare-screen và dashboard cloud. Mỗi chương gồm sơ đồ minh hoạ (TikZ, ảnh
+trong \code{report-code/pictures/}), bảng liệt kê hàm/ký hiệu và phân tích
+dòng-cuối có tham chiếu quy tắc R1--R12.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% ================= CÁC CHƯƠNG (được viết ở các bước roadmap) =================
+\IfFileExists{chapters/00_tong_quan.tex}{\input{chapters/00_tong_quan.tex}}{}
+\IfFileExists{chapters/01_perception.tex}{\input{chapters/01_perception.tex}}{}
+\IfFileExists{chapters/02_network.tex}{\input{chapters/02_network.tex}}{}
+\IfFileExists{chapters/03_processing.tex}{\input{chapters/03_processing.tex}}{}
+\IfFileExists{chapters/04_application_core.tex}{\input{chapters/04_application_core.tex}}{}
+\IfFileExists{chapters/05_application_ui.tex}{\input{chapters/05_application_ui.tex}}{}
+\IfFileExists{chapters/06_ci_bao_mat.tex}{\input{chapters/06_ci_bao_mat.tex}}{}
+\IfFileExists{chapters/07_ket_noi.tex}{\input{chapters/07_ket_noi.tex}}{}
+
+\end{document}

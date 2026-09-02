@@ -1,0 +1,114 @@
+% =====================================================================
+% Chương 05 — Lớp Ứng dụng (UI / LVGL v9)
+% Phân tích: ui_dashboard.{c,h}, ui_dashboard_layout.c, ui_dashboard_system.c,
+%            ui_dashboard_private.h, ui_dashboard_theme.h
+% =====================================================================
+
+\chapter{Lớp Ứng dụng — UI (LVGL v9)}
+\label{ch:application-ui}
+
+Lớp UI của \textbf{waveshare-screen} là giao diện LVGL v9 hiển thị 6 vùng
+cảm biến, đánh giá nguy cơ tổng thể và trang System.  Component được tách theo
+trách nhiệm (\textbf{R7} — mỗi file $\le$ 400 dòng):
+
+\begin{center}
+\begin{longtable}{@{}p{5.2cm}p{2.4cm}p{5.6cm}@{}}
+  \toprule
+  \textbf{File} & \textbf{Dòng} & \textbf{Trách nhiệm} \\
+  \midrule
+  \endhead
+  \code{ui\_dashboard.c} & 331 & API công khai + \code{evaluate\_hazard} + mute \\
+  \code{ui\_dashboard\_layout.c} & 335 & builder widget (header, sidebar, canvas) \\
+  \code{ui\_dashboard\_system.c} & 162 & trang System + thông tin heap/uptime/token \\
+  \code{ui\_dashboard\_private.h} & 75 & khai báo biến global widget \\
+  \code{ui\_dashboard\_theme.h} & 42 & bảng màu + ánh xạ zone $\rightarrow$ màu \\
+  \code{include/ui\_dashboard.h} & 64 & API public (hàm gọi từ \code{main.c}) \\
+  \bottomrule
+\end{longtable}
+\end{center}
+
+\section{Đánh giá nguy cơ — \code{evaluate\_hazard}}
+\label{sec:eval-hazard}
+
+\textbf{Trung tâm của UI} là hàm \code{evaluate\_hazard()} (\code{ui\_dashboard.c:134}):
+\begin{enumerate}
+\item \code{sensor\_model\_get\_all(readings)} — snapshot an toàn.
+\item \textbf{Skip các cảm biến chưa có dữ liệu} (\code{readings[i].is\_stale},
+  \code{ui\_dashboard.c:145}): nếu không skip, \code{distance\_cm = 0} mặc định
+  sẽ phân loại \textbf{DANGER} và ghim vĩnh viễn banner OVERALL (chú thích
+  \code{ui\_dashboard.c:141--144}).
+\item Với cảm biến còn lại, \code{sensor\_model\_classify} theo zone chung R3;
+  \code{worst = max(zone)}.
+\item Cập nhật \code{s\_lbl\_hazard\_overall}: \textbf{OVERALL: DANGER /
+  CAUTION / SAFE}; nếu DANGER và \code{s\_alarm\_muted} thì ghi thêm
+  \code{(MUTED)} (\code{ui\_dashboard.c:153--160}).
+\end{enumerate}
+
+\noindent\textbf{Mute:} \code{mute\_btn\_cb} (\code{ui\_dashboard.c:69}) đảo
+\code{s\_alarm\_muted}, cập nhật nút ("Mute Alarm"/"Unmute Alarm") và gọi lại
+\code{evaluate\_hazard()} cùng \code{arc\_set\_zone}.  Nút chỉ làm \textbf{tắt
+blink/animation} trên zone DANGER, banner vẫn hiện DANGER — không thể nhầm bị
+mute với SAFE (\code{ui\_dashboard.c:156--158}).
+
+\section{Bố cục widget — \code{ui\_dashboard\_layout.c}}
+\label{sec:layout}
+
+\textbf{Các builder:}
+\begin{itemize}
+\item \code{build\_header} (row 90): thanh đầu với title, \code{ESP-NOW} /
+  \code{Wi-Fi} / \code{MQTT} status.
+\item \code{build\_left\_sidebar} (row 146): các nút hành động; \textbf{lưu ý}
+  nút \textbf{"Calibrate"} (\code{ui\_dashboard\_layout.c:177--181}) được tạo
+  nhưng \textbf{không} có \code{lv\_obj\_add\_event\_cb} — hiện chỉ là
+  placeholder trực quan (không gọi callback).
+\item \code{build\_center\_canvas} (row 190): bố cục hình chiếc xe — hood,
+  cabin, trunk + 6 cung \code{arc} cho mỗi vùng cảm biến
+  (\code{arc\_set\_zone} / \code{arc\_set\_nodata}).
+\item \code{build\_right\_sidebar} (row 253): \code{OVERALL} hazard, crossing
+  risk, relay, buzzer state.
+\end{itemize}
+
+\noindent\textbf{Bảng màu zone} (\code{ui\_dashboard\_theme.h:15--23}):
+\texttt{COLOR\_DANGER 0xFF1744}, \texttt{COLOR\_CAUTION 0xFFD600},
+\texttt{COLOR\_SAFE 0x00C853}, \texttt{COLOR\_NODATA 0x64748B},
+\texttt{COLOR\_ACCENT 0x38BDF8}, nền \texttt{COLOR\_BG 0x0F172A};
+ánh xạ zone $\rightarrow$ màu ở \code{ui\_dashboard\_theme.h:39--41}.
+
+\section{Trang System — \code{ui\_dashboard\_system.c}}
+\label{sec:system}
+
+Tab System hiển thị trạng thái thiết bị, cập nhật mỗi 2\,s qua
+\code{sys\_info\_timer\_cb} (\code{main.c:129} + \code{ui\_dashboard\_system.c:87}):
+\begin{itemize}
+\item \textbf{Heap}: \code{esp\_get\_free\_heap\_size} /
+  \code{esp\_get\_minimum\_free\_heap\_size} (KB);
+\item \textbf{Uptime}: \code{format\_uptime} từ \code{esp\_timer\_get\_time}
+  (h:mm:ss);
+\item \textbf{FW / IDF / build / flash}.
+\end{itemize}
+
+\noindent\textbf{Bảo mật token (R1):} \code{mask\_secret} (\code{ui\_dashboard\_system.c:53})
+che chuỗi token; dòng \code{ui\_dashboard\_system.c:128} chỉ hiển thị
+\code{coreiot\_token\_display()} đã được che — \textbf{không} bao giờ in token
+đầy đủ lên màn hình.
+
+\section{ESP-NOW status (LINKED)}
+\label{sec:linked}
+
+Hàm \code{ui\_dashboard\_set\_espnow\_status(linked)} (\code{ui\_dashboard.c:330})
+đặt nhãn \code{"ESP-NOW: LINKED"} hoặc \code{"NO LINK"}.  Được gọi từ:
+\begin{itemize}
+\item \code{on\_espnow\_rx} — bất kỳ frame hợp lệ $\rightarrow$ LINKED;
+\item \code{espnow\_link\_watchdog\_cb} — nếu hết link (xem $\S$\ref{sec:link-watchdog})
+  $\rightarrow$ NO LINK + clear các slot quá \code{ESPNOW\_LINK\_TIMEOUT\_MS}.
+\end{itemize}
+
+\section{Tóm tắt UI}
+\label{sec:ui-summary}
+
+\textbf{Chuỗi cập nhật:} \code{on\_espnow\_rx/on\_coreiot\_data}
+$\rightarrow$ \code{ui\_dashboard\_update\_sensor / clear\_sensor}
+($\S$\ref{sec:main-c}) $\rightarrow$ \code{arc\_set\_zone}
+$\rightarrow$ \code{evaluate\_hazard()} $\rightarrow$ banner OVERALL.
+Mọi vòng lặp đều nằm trên LVGL task (qua \code{esp\_lv\_adapter\_lock()}),
+đảm bảo thread-safe với MQTT/Wi-Fi.

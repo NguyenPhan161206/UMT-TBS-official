@@ -1,0 +1,133 @@
+% =====================================================================
+% Chương 0 — Tổng quan hành trình dữ liệu (4 lớp IoT chuẩn ↔ repo)
+% =====================================================================
+
+\setcounter{chapter}{-1}
+
+\chapter{Chương 0 --- Tổng quan hành trình dữ liệu}
+
+Chương này đặt bối cảnh cho toàn bộ báo cáo: ánh xạ \textbf{4 lớp IoT chuẩn}
+(Cảm biến, Mạng, Xử lý, Ứng dụng) vào hệ thống UMT-TBS-official và vẽ sơ đồ
+dòng dữ liệu trên cả hai đường truyền. Các chương sau (1--7) đi sâu vào từng
+thư mục, từng file, từng hàm và từng dòng code.
+
+\section{Bốn lớp IoT chuẩn nhìn từ hệ thống}
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{@{}p{3.4cm}p{4.6cm}p{4.2cm}p{4.2cm}@{}}
+\caption{Ánh xạ 4 lớp IoT chuẩn sang thành phần thực trong repo.}\\
+\toprule
+\textbf{Lớp} & \textbf{Vai trò (ẩn dụ)} & \textbf{Thành phần phần cứng/mạng} & \textbf{Thư mục chính trong repo} \\
+\midrule
+\endhead
+\textbf{Cảm biến} (Perception) & Giác quan: đo thực tế, tạo gói dữ liệu &
+6\,$\times$ JSN-SR04T + ESP32-S3 sensor-node + còi GPIO11 &
+\code{firmware/shared/thresholds.h}, \code{firmware/sensor-node/src/} \\
+\textbf{Mạng} (Network) & Hệ thần kinh: vận chuyển dữ liệu &
+ESP-NOW (đường chính), Wi-Fi \& MQTT (đường phụ) &
+\code{espnow\_protocol.h}, \code{espnow\_client.cpp}, \code{espnow\_receiver.c}, \code{plugins/coreiot} \\
+\textbf{Xử lý} (Processing) & Não bộ: lưu trữ, phân loại, ra quyết định &
+CoreIoT broker chạy Rule-Chain (ThingsBoard) &
+\code{cloud/coreiot/rule\_chain/}, \code{tools/test\_mqtt\_coreiot.py} \\
+\textbf{Ứng dụng} (Application) & Ý thức: hiển thị, tự động hoá &
+Waveshare 7" RGB LVGL v9 + Dashboard cloud &
+\code{firmware/waveshare-screen/src/}, \code{components/ui\_dashboard}, \code{components/coreiot\_client} \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{Hai đường truyền song song (Hybrid V2)}
+
+Điểm khác biệt so với mô hình IoT 4 lớp "dọc" thông thường: hệ thống này có
+\textbf{hai tuyến} cùng vận chuyển gói dữ liệu \code{espnow\_sensor\_msg\_t}:
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=1.4cm and 2.0cm,
+  box/.style={draw, rounded corners=2pt, minimum height=0.9cm, minimum width=3.2cm, font=\small, align=center},
+  lbl/.style={font=\small\bfseries, align=center}
+]
+  % LỚP 1
+  \node[lbl] (l1) at (0,0) {Lớp 1 — Cảm biến};
+  \node[box, fill=blue!8] (sen) at (0,-1.1) {6$\times$ JSN-SR04T\\ESP32-S3 sensor-node\\SensorTask (100 ms)};
+  % LỚP 2
+  \node[lbl] (l2) at (0,-2.8) {Lớp 2 — Mạng};
+  \node[box, fill=green!8] (espnow) at (-3.2,-4.0) {ESP-NOW\\kênh 1, 500 ms\\đường chính <50 ms};
+  \node[box, fill=green!12] (mqtt) at (3.2,-4.0) {MQTT/Wi-Fi\\app.coreiot.io:1883\\đường phụ 100--500 ms};
+  % LỚP 3
+  \node[lbl] (l3) at (3.2,-5.8) {Lớp 3 — Xử lý (CoreIoT/ThingsBoard)};
+  \node[box, fill=orange!12] (rc) at (3.2,-7.0) {Rule-Chain 7 node\\script JS (100/30 cm)\\Timeseries + Attributes};
+  % LỚP 4
+  \node[lbl] (l4) at (0,-8.8) {Lớp 4 — Ứng dụng};
+  \node[box, fill=red!8] (screen) at (-3.2,-10.0) {Waveshare-screen\\LVGL v9 UI\\Cảnh báo + còi hiển thị};
+  \node[box, fill=red!12] (dash) at (3.2,-10.0) {Dashboard cloud\\warning\_status\\B9 nghiệm thu};
+  % ARROWS
+  \draw[-{Stealth}] (sen) -- (espnow) node[midway, right, font=\small\itshape] {packed 30 B};
+  \draw[-{Stealth}] (sen) -- (mqtt) node[midway, right, font=\small\itshape] {telemetry 500 ms};
+  \draw[-{Stealth}] (espnow) -- (screen) node[midway, right, font=\small\itshape] {trực tiếp};
+  \draw[-{Stealth}] (mqtt) -- (rc);
+  \draw[-{Stealth}] (rc) -- node[midway, right, align=center, font=\small\itshape] {attributes\\notifyDevice} (screen);
+  \draw[-{Stealth}] (rc) -- (dash);
+\end{tikzpicture}
+\captionof{figure}{Hành trình của một gói dữ liệu khoảng cách qua 2 đường truyền.}
+\end{center}
+
+\textbf{Đường chính (ESP-NOW)}: SensorTask đọc/lọc 6 cảm biến $\rightarrow$
+\code{espnow\_client} gửi gói 30\,B mỗi 500\,ms $\rightarrow$
+\code{espnow\_receiver} trên screen nhận, cập nhật \code{sensor\_model}
+$\rightarrow$ UI đổi màu. Toàn tuyến mục tiêu dưới 50\,ms và \textbf{không phụ
+thuộc Internet}.
+
+\textbf{Đường phụ (MQTT/CoreIoT)}: \code{coreiot\_client} publish telemetry
+\texttt{d1..d6 + nearest\_cm} mỗi 500\,ms $\rightarrow$ broker
+\code{app.coreiot.io} $\rightarrow$ Rule-Chain chạy script JS phân loại
+\code{warning\_status} $\rightarrow$ lưu Timeseries, đẩy Attributes ngược về
+screen và hiển thị Dashboard.
+
+\section{Cây repo theo lớp}
+
+\begin{verbatim}
+UMT-TBS-official/
+|-- firmware/
+|   |-- shared/                 [HOP DONG (R2/R3/R4) - dung cho ca 2 board]
+|   |   |-- espnow_protocol.h   [Lop 2: payload ESP-NOW packed]
+|   |   +-- thresholds.h        [Lop 1: cham cam bien, nguong, buzzer]
+|   |-- sensor-node/            [Lop 1 + 2: đo, loc, gui]
+|   |   `-- src/
+|   |       |-- ultrasonic_sensor.cpp   [1: đọc Trig/Echo]
+|   |       |-- distance_filter.cpp     [1: loc cluster-EMA]
+|   |       |-- shared_state.cpp        [1: trang thai 6 slot]
+|   |       |-- buzzer.cpp              [1: coi GPIO11]
+|   |       |-- espnow_client.cpp       [2: gui ESP-NOW]
+|   |       |-- main.cpp                [1: SensorTask/BuzzerTask/NetworkTask]
+|   |       `-- plugins/coreiot/
+|   |           `-- coreiot_client.*    [2: MQTT 500 ms]
+|   `-- waveshare-screen/       [Lop 4: hien thi, nhan 2 duong]
+|       |-- src/main.c + bsp/           [4: khoi dong, RGB LCD + GT911]
+|       `-- components/
+|           |-- espnow_receiver/        [2: nhan ESP-NOW, LINKED badge]
+|           |-- sensor_model/           [4: trang thai + classify + stale]
+|           |-- ui_dashboard/           [4: giao dien LVGL v9]
+|           `-- coreiot_client/         [2+4: MQTT nhan attributes]
+|-- cloud/coreiot/rule_chain/   [Lop 3: snapshot Rule-Chain (R11)]
+|-- tools/                      [Lop 3: test MQTT, guard scripts]
+|-- .github/workflows/ci.yml    [CI + bao mat]
+`-- report-code/                [ban bao cao nay]
+\end{verbatim}
+
+\section{Quy ước đọc báo cáo}
+
+\begin{itemize}
+\item \code{\textbackslash code\{...\}} — tên file/ký hiệu trong code.
+\item Mỗi mục hàm có bảng: \textbf{Ký hiệu} / \textbf{File} / \textbf{Lớp} /
+\textbf{Vai trò}, rồi phân tích dòng-cuối có tham chiếu dòng thực tế
+(\code{file.cpp:34}).
+\item Gắn cờ quy tắc CONSTITUTION khi liên quan: \textbf{R2} shared contract,
+\textbf{R3} thresholds một nguồn, \textbf{R4} SENSOR\_COUNT từ
+\code{sizeof}, \textbf{R7} file $\le$ 400 dòng, \textbf{R11} rule-chain
+snapshot.
+\item Ảnh raster nếu có đặt trong \code{report-code/pictures/} (macro
+\code{\textbackslash pic}); sơ đồ vector vẽ bằng TikZ ngay trong chương.
+\end{itemize}

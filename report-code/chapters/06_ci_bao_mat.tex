@@ -1,0 +1,104 @@
+% =====================================================================
+% Chương 06 — CI & Bảo mật
+% Phân tích: .github/workflows/ci.yml, tools/guard/{scan_secrets,
+%            gen_credentials, check_size, check_rulechain_thresholds}.py,
+%            .gitleaks.toml
+% =====================================================================
+
+\chapter{CI \& Bảo mật}
+\label{ch:ci-security}
+
+Hệ thống bảo vệ chất lượng và bí mật bằng \textbf{CI GitHub Actions} hai job
+(\code{.github/workflows/ci.yml}) + bộ tool guard trong \code{tools/guard/}.
+Chương này mô tả cách CI bắt buộc các rule R1--R12 của CONSTITUTION.
+
+\section{Hai Job trong CI}
+\label{sec:ci-jobs}
+
+\begin{center}
+\begin{longtable}{@{}p{2.8cm}p{6.0cm}p{4.4cm}@{}}
+  \toprule
+  \textbf{Job} & \textbf{Steps} & \textbf{Rule} \\
+  \midrule
+  \endhead
+  \code{firmware} & Build \code{yolo\_uno} + \code{yolo\_uno\_coreiot}
+    (sensor-node, R6), host test \code{native}, build waveshare-screen, size
+    gate & R6, R10 \\
+  \code{security} & Gitleaks, scan\_secrets, gen\_credentials --check, pytest
+    tools, check\_rulechain\_thresholds, R8 assert & R1, R3, R10, R11 \\
+  \bottomrule
+\end{longtable}
+\end{center}
+
+\section{Job firmware — build đo được (R6/R10)}
+\label{sec:ci-firmware}
+
+\begin{enumerate}
+\item \textbf{Pin PlatformIO} \code{platformio==6.1.19} và Python 3.12
+  (\code{ci.yml:28--33}) — đảm bảo tái lập build (R10), tránh "về máy tôi là
+  pass" (chú thích \code{ci.yml:28}).
+\item \textbf{Sinh credential dummy} (\code{ci.yml:37--54}): viết
+  \code{config/keys.json} với token giả \code{ci-dummy-*}, rồi chạy
+  \code{gen\_credentials.py --out .../credentials.h} cho cả 2 firmware.  Nhờ
+  thế env \code{yolo\_uno\_coreiot} build được khi KHÔNG có token thật — token
+  thật không bao giờ vào CI (R1).
+\item \textbf{Build 2 env sensor-node} (\code{yolo\_uno} + \code{yolo\_uno\_coreiot},
+  \code{ci.yml:56--62}) — bảo đảm module CoreIoT được build (R6: không dead
+  code).
+\item \textbf{Host unit test} \code{pio test -e native}
+  (\code{ci.yml:64--66}): test host DistanceFilter/thresholds (10/10).
+\item \textbf{Size gate} (\code{ci.yml:74--79}) qua \code{check\_size.py}:
+  \begin{itemize}
+  \item sensor-node \code{firmware.bin} $\le$ 1.{2}\,MB (phân vùng app
+    ~1.3\,MB);
+  \item waveshare-screen $\le$ 3.7\,MB (partition factory 4\,MB $\to$ 92.5\%).
+  \end{itemize}
+  Chặn regression kích thước \textbf{trước} khi flash (R10, "build pass" không
+  đủ).
+\end{enumerate}
+
+\section{Job security — chống leak (R1/R3/R11)}
+\label{sec:ci-security-detail}
+
+\begin{enumerate}
+\item \textbf{Gitleaks 8.24.0} (\code{ci.yml:96--101}): quét full-history với
+  \code{.gitleaks.toml}; exit 1 khi phát hiện secret — chặn mọi token/Wi-Fi pass
+  trượt vào git.
+\item \textbf{scan\_secrets.py} (\code{ci.yml:103}): quét file tracked theo
+  pattern; exit 0 = sạch.
+\item \textbf{gen\_credentials.py --check} (\code{ci.yml:106--122}): xác nhận
+  \code{config/keys.json} hợp lệ để sinh \code{credentials.h}.
+\item \textbf{pytest tools} (\code{ci.yml:124--127}): chạy
+  \code{tools/guard/test\_guard.py} (16 tests) — unit test cho chính các guard.
+\item \textbf{check\_rulechain\_thresholds.py} (\code{ci.yml:129--130}): đối
+  chiếu ngưỡng trong rule-chain (\code{100.0}/\code{30.0}) với
+  \code{thresholds.h} (R3/R11, best-effort).
+\item \textbf{R8 assert} (\code{ci.yml:132--139}): \code{git ls-files} phải
+  KHÔNG chứa \code{sdkconfig} hoặc \code{keys.json} — bảo vệ vĩnh viễn việc
+  track nhầm credential/config build.
+\end{enumerate}
+
+\section{Bộ tool guard}
+\label{sec:guards}
+
+\begin{center}
+\begin{longtable}{@{}p{5.4cm}p{2.2cm}p{5.6cm}@{}}
+  \toprule
+  \textbf{Tool} & \textbf{Dòng} & \textbf{Vai trò} \\
+  \midrule
+  \endhead
+  \code{scan\_secrets.py} & 122 & quét pattern secret trong file tracked \\
+  \code{gen\_credentials.py} & 85 & sinh \code{credentials.h} từ keys.json \\
+  \code{check\_size.py} & 72 & size-gate firmware.bin \\
+  \code{check\_rulechain\_thresholds.py} & 78 & đối chiếu ngưỡng R3/R11 \\
+  \code{test\_guard.py} & 214 & 16 unit test cho các guard \\
+  \bottomrule
+\end{longtable}
+\end{center}
+
+\noindent\textbf{Luồng bí mật (R1):}
+\code{config/keys.json} (gitignored, token do chủ tài khoản tự sinh)
+$\rightarrow$ \code{gen\_credentials.py} $\rightarrow$
+\code{credentials.h} (gitignored) $\rightarrow$ firmware.  Literal token/
+password bị \textbf{cấm} trong mọi file tracked — cổng Gitleaks + scan\_secrets
+ở CI là tuyến phòng thủ cuối.

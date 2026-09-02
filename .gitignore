@@ -68,6 +68,8 @@ node_modules/
 *.synctex.gz
 /report/*.pdf
 /report/*.log
+/report-code/*.pdf
+/report-code/*.log
 
 # ==========================================
 # Old-repo session analysis (contains leaked tokens from supersonic-warning-system)

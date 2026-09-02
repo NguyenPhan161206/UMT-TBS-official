@@ -1,0 +1,124 @@
+% =====================================================================
+% Chương 04 — Lớp Ứng dụng (Core)
+% Phân tích: waveshare-screen main.c, sensor_model.{c,h}, bsp/*rgb_lcd_port.*
+% =====================================================================
+
+\chapter{Lớp Ứng dụng — Core}
+\label{ch:application-core}
+
+Dữ liệu sau khi qua Lớp Xử lý ($\S$\ref{ch:processing}) được
+\textbf{waveshare-screen} tiếp nhận và duy trì ở một \textbf{sensor model}
+(container có mutex), sau đó màn hình LVGL đọc ra để vẽ.  Lớp này gồm ba phần:
+\textbf{entry point} (\code{main.c}), \textbf{sensor model} (trạng thái cảm biến),
+và \textbf{BSP} (khởi tạo panel LCD RGB + backlight).
+
+\section{Entry point — \code{main.c} (221 dòng)}
+\label{sec:main-c}
+
+\textbf{Luồng khởi động} (\code{app\_main}, \code{main.c:161}):
+\begin{enumerate}
+\item Khởi tạo LCD RGB: \code{waveshare\_esp32\_s3\_rgb\_lcd\_init(tear\_mode,
+  rotation, \&panel, \&touch)} + \code{waveshare\_rgb\_lcd\_backlight\_on()}
+  (\code{main.c:169--174}).
+\item Khởi tạo LVGL adapter: \code{esp\_lv\_adapter\_init(...)} với
+  \code{task\_stack\_size = 12\,KB}, \code{stack\_in\_psram = true}, rồi
+  \code{register\_display} (RGB, \code{use\_psram = true}) và touch
+  (\code{main.c:176--196}).
+\item \code{ui\_dashboard\_init()} + \code{lv\_timer\_create(espnow\_link\_watchdog\_cb,
+  500, NULL)} — watchdog link (xem $\S$\ref{sec:link-watchdog})
+  (\code{main.c:201--207}).
+\item \textbf{Hai đường dữ liệu}, đăng ký callback:
+  \begin{itemize}
+  \item \textbf{Đường phụ} CoreIoT: \code{coreiot\_client\_set\_callbacks(
+    on\_wifi\_status, on\_mqtt\_status, on\_coreiot\_data)} + \code{init}
+    (\code{main.c:213--214}).
+  \item \textbf{Đường chính} ESP-NOW: \code{espnow\_receiver\_init(on\_espnow\_rx)}
+    — phải gọi \textbf{sau} \code{esp\_wifi\_start()} (đã được
+    \code{coreiot\_client\_init()} thực hiện) (\code{main.c:218--221}).
+  \end{itemize}
+\end{enumerate}
+
+\textbf{Callback dữ liệu:}
+\begin{itemize}
+\item \code{on\_espnow\_rx} (\code{main.c:117}): chạy trên WiFi task; log RSSI;
+  lấy LVGL lock (timeout 100\,ms) rồi với mỗi slot \code{msg->valid[i]}:
+  \code{ui\_dashboard\_update\_sensor(i, distance)}; nếu \code{valid=0}
+  $\rightarrow$ \code{ui\_dashboard\_clear\_sensor(i)} (không giữ số cũ trên
+  màn hình, \code{main.c:127--135}).
+\item \code{on\_coreiot\_data} (\code{main.c:44}): parse JSON từ rule-chain; cập
+  nhật \code{distances[6]}, \code{relay}, \code{buzzer}, \code{crossing\_hazard}.
+\end{itemize}
+
+\noindent\textbf{Chọn task an toàn:} cả hai callback đều không chạy trên LVGL
+task; do đó mọi truy cập UI phải qua \code{esp\_lv\_adapter\_lock(...)} với
+timeout 100\,ms (\code{main.c:35}) để không block luồng MQTT/Wi-Fi mãi mãi.
+
+\section{Sensor Model — \code{sensor\_model.{c,h}}}
+\label{sec:sensor-model}
+
+Một container \textbf{thread-safe} đơn giản dùng mutex
+(\code{SemaphoreHandle\_t s\_mutex}).
+
+\textbf{Structure} (\code{sensor\_model.h:32}):
+\texttt{sensor\_reading\_t \{ uint16\_t distance\_cm; int16\_t offset\_deg;
+bool is\_stale; \}}.
+
+\textbf{Số cảm biến không gõ tay (R2/R4):}
+\begin{itemize}
+\item \code{sensor\_id\_t = espnow\_slot\_t} — ánh xạ thẳng enum wire slot
+  (\code{sensor\_model.h:26}).
+\item \code{SENSOR\_MODEL\_COUNT = ESPNOW\_SENSOR\_SLOT\_COUNT = SENSOR\_COUNT}
+  (nhờ \code{static\_assert} shared). Vị trí góc \code{k\_offsets\_deg[*]} khớp
+  từng slot (FRONT=0,\, REAR=180,\, LEFT\_FRONT/REAR=-90,\,
+  RIGHT\_FRONT/REAR=90, \code{sensor\_model.c:13--20}).
+\end{itemize}
+
+\textbf{API} (\code{sensor\_model.c}):
+\begin{itemize}
+\item \code{sensor\_model\_init} (row 22): tạo mutex, khởi tạo \code{distance=0},
+  \code{is\_stale=true}.
+\item \code{sensor\_model\_set\_distance(id, cm)} (row 44): clamp về
+  \code{[SENSOR\_RANGE\_MIN\_CM, SENSOR\_RANGE\_MAX\_CM]} rồi ghi + set
+  \code{is\_stale=false}.
+\item \code{sensor\_model\_clear(id)} (row 66): \code{distance=0},
+  \code{is\_stale=true} — dùng khi slot \code{valid=0}.
+\item \code{sensor\_model\_get / get\_all} (row 79 / 93): bản sao an toàn.
+\item \code{sensor\_model\_classify(distance)} (row 108): zone theo ngưỡng chung
+  \code{SENSOR\_DANGER\_CM} / \code{SENSOR\_CAUTION\_CM} (R3) — DANGER nếu
+  $< 30$, CAUTION nếu $\le 100$, SAFE nếu vượt.
+\end{itemize}
+
+\section{BSP — \code{waveshare\_rgb\_lcd\_port.c} (195 dòng)}
+\label{sec:bsp}
+
+Lớp BSP (Board Support Package) cô lập việc khởi tạo phần cứng màn hình:
+
+\textbf{Hàm chính:}
+\begin{itemize}
+\item \code{waveshare\_esp32\_s3\_rgb\_lcd\_init(tear\_mode, rotation,
+  \&panel, \&touch)}: cấu hình \code{esp\_lcd\_panel} cho RGB 800$\times$480
+  qua esp\_lcd, thiết lập touch (nếu có), trả handle để
+  \code{esp\_lv\_adapter\_register\_display} dùng.
+\item \code{waveshare\_rgb\_lcd\_backlight\_on()}: bật đèn nền qua GPIO
+  (PWM), cần gọi sau khi panel được init.
+\end{itemize}
+
+\noindent\textbf{Vai trò trong kiến trúc:} nhờ tách BSP, \code{main.c} không
+phụ thuộc trực tiếp vào GPIO/xung nhịp của bảng Waveshare — nếu đổi board, chỉ
+cần thay BSP, code ứng dụng/LVGL giữ nguyên.
+
+\section{Tóm tắt Core}
+\label{sec:core-summary}
+
+\begin{center}
+\begin{longtable}{@{}p{4.6cm}p{3.4cm}p{4.8cm}@{}}
+  \toprule
+  \textbf{Module} & \textbf{Dòng} & \textbf{Trách nhiệm} \\
+  \midrule
+  \endhead
+  \code{main.c} & 221 & entry point + 2 đường dữ liệu \\
+  \code{sensor\_model.c} + .h & 118 + 73 & trạng thái cảm biến + mutex \\
+  \code{waveshare\_rgb\_lcd\_port.c} + .h & 195 & khởi tạo LCD RGB + backlight \\
+  \bottomrule
+\end{longtable}
+\end{center}
