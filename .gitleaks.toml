@@ -10,9 +10,12 @@ title = "UMT-TBS-official gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "Benign: commit hashes, hex literals, hardware MAC addresses"
+description = "Benign: commit hashes, hex literals, hardware MAC addresses, dummy CI fixtures"
 regexes = [
   '''(?i)\b(?:commit|revision|sha)\b\s*[:=]?\s*[0-9a-f]{7,40}''',
   '''\b0x[0-9a-fA-F]{1,16}\b''',
   '''\b(?:[0-9A-F]{2}:){5}[0-9A-F]{2}\b''',
+  '''ci-dummy-[A-Za-z0-9-]+''',
+  # Fixture test trong history cũ (commit b4372f5) — chuỗi test nhân tạo, không phải secret.
+  '''ABCdef1234567890''',
 ]

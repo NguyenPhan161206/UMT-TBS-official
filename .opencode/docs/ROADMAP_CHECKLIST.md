@@ -31,7 +31,7 @@
 
 | ID | Mô tả | Trạng thái |
 |----|-------|------------|
-| B7 | GitHub Actions: build 2 env × 2 firmware + host tests + pytest tools + Gitleaks + assert sdkconfig/keys.json + size-gate + `check_rulechain_thresholds.py` | ✅ (`.github/workflows/ci.yml`; push/PR chạy) |
+| B7 | GitHub Actions: build 2 env × 2 firmware + host tests + pytest tools + Gitleaks + assert sdkconfig/keys.json + size-gate + `check_rulechain_thresholds.py` | ✅ (`.github/workflows/ci.yml`; push/PR chạy; pin `espressif32@7.0.1` để tái lập build sau lần CI đỏ đầu — xem `docs/logs/CI_FIX_LOG.md`) |
 | B7 | Protected branch `main`; PR phải xanh | ⏳ (thủ công trên GitHub — cần quyền admin) |
 
 ## Giai đoạn 4 — Cloud & Đo lường (B9 + GĐ sau)

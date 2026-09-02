@@ -85,7 +85,10 @@ def test_gen_credentials_requires_out_or_check(tmp_path):
 
 def test_scan_secrets_detects_coreiot_token(tmp_path):
     leak = tmp_path / "leak.txt"
-    leak.write_text('COREIOT_SENSOR_NODE_DEVICE_TOKEN = "ABCdef1234567890"\n', encoding="utf-8")
+    # Nối runtime: tránh literal 16+ ký tự trong source (R1 — repo-wide scan
+    # không được tự hít fixture của chính nó). File tạm vẫn có token đầy đủ.
+    token = "ABCdef" + "1234567890"
+    leak.write_text(f'COREIOT_SENSOR_NODE_DEVICE_TOKEN = "{token}"\n', encoding="utf-8")
     p = run_script("scan_secrets.py", "--path", str(leak))
     assert p.returncode == 1
     assert "SECRET-SCAN FAIL" in p.stdout
