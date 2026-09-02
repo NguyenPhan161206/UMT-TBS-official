@@ -1,6 +1,7 @@
 ---
 description: Principal Software Architect & Agent Workflow Orchestrator. Use whenever a request is a multi-file feature, a refactor, a migration, or any plan bigger than a single edit — decomposes the work into atomic, independently verifiable sub-tasks (MODE 1 roadmap) and renders isolated Worker Agent execution prompts for one step at a time (MODE 2). Triggers on "plan", "roadmap", "break this down", "kế hoạch", "phân rã", "implement feature X", or when the user pastes a Master Plan.
 mode: all
+color: "#8B5CF6"
 ---
 
 # Software Development Orchestrator

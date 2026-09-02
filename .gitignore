@@ -66,3 +66,8 @@ node_modules/
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+
+# ==========================================
+# Old-repo session analysis (contains leaked tokens from supersonic-warning-system)
+# ==========================================
+session-ses_fa05.md
