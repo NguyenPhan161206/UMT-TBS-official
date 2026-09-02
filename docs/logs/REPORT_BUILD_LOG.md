@@ -16,6 +16,7 @@
 | `report/Makefile` | tạo | `make` = 3 lượt pdflatex → `UMT_TBS_BaoCao.pdf`; `clean`; `verify` (grep từ khóa PDF). |
 | `report/README.md` | tạo | Hướng dẫn build + bảng mục lục chương. |
 | `README.md` | sửa | Viết lại từ bản cũ (giữ nội dung còn đúng): Hybrid V2, tree, quick start, build/flash ACM0/ACM1, kiểm thử, B9, R1–R12, git workflow, trạng thái lộ trình đúng. |
+| `report/chapters/05_cong_nghe.tex` | tạo | Chương 5: Công nghệ sử dụng — PlatformIO (2 core, Component Manager), CoreIoT/ThingsBoard (rule-chain 7 node + script JS), ESP-NOW, LVGL/GT911, FreeRTOS, CI; bảng nhu cầu→công nghệ. |
 | `.gitignore` | sửa | Thêm `/report/*.pdf`, `/report/*.log` (R8). |
 | `docs/roadmaps/documentation.roadmap.json` + `.state.md` | tạo | Roadmap + ledger (dev-orchestrator). |
 
@@ -27,8 +28,11 @@ make -C report clean all
 pdftotext report/UMT_TBS_BaoCao.pdf - | grep -cE "Chi tiết Hệ thống|GPIO|Rule-Chain|Cluster-EMA"
 # 19
 
+pdftotext report/UMT_TBS_BaoCao.pdf - | grep -cE "PlatformIO|CoreIoT|ThingsBoard|ESP-NOW|Component Manager|Rule-Chain"
+# 91 (keyword chương 5)
+
 wc -l report/chapters/*.tex
-# 124 / 132 / 107 / 237 — tất cả < 400 dòng (R7/SELFCHECK 6)
+# 124 / 132 / 107 / 237 / 238 — tất cả < 400 dòng (R7/SELFCHECK 6)
 
 python3 tools/guard/scan_secrets.py | tail -1
 # SECRET-SCAN OK: no secret patterns found.

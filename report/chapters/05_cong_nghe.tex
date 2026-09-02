@@ -1,0 +1,239 @@
+% =====================================================================
+% Chương 5 — Công nghệ sử dụng trong dự án
+% (PlatformIO, CoreIoT/ThingsBoard, ESP-NOW, LVGL, FreeRTOS, CI)
+% =====================================================================
+
+\chapter{Công nghệ sử dụng}
+
+Hệ thống sử dụng hai lớp công nghệ độc lập nhưng bổ trợ nhau: lớp
+\textbf{firmware} xây trên \textbf{PlatformIO} chạy trên hai board ESP32-S3,
+và lớp \textbf{cloud} xây trên \textbf{CoreIoT} (nền tảng IoT triển khai
+\textbf{ThingsBoard}) gồm broker MQTT, Rule-Chain và Dashboard. Phần còn lại
+của chương mô tả từng công nghệ cùng vai trò thực tế trong repo.
+
+\section{PlatformIO — hệ thống build đa mục tiêu}
+
+PlatformIO là hệ thống build độc lập IDE (không cần mở bất kỳ IDE nào), dùng
+file cấu hình \code{platformio.ini} và lệnh \code{pio run} / \code{pio test}.
+Mỗi firmware trong dự án có một \code{platformio.ini} riêng:
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{@{}p{5.2cm}p{11.2cm}@{}}
+\caption{Các khái niệm PlatformIO đang dùng và giá trị trong dự án.}\\
+\toprule
+\textbf{Khái niệm} & \textbf{Giá trị trong dự án} \\
+\midrule
+\endhead
+\texttt{[env]} (cấu hình build) &
+\texttt{yolo\_uno} (ESP-NOW), \texttt{yolo\_uno\_coreiot} (bật MQTT
+\texttt{USE\_COREIOT=1}), \texttt{native} (unit test host, không cần board). \\
+\texttt{platform} &
+\texttt{espressif32@7.0.1} — nền tảng Espressif ESP32 lấy từ PlatformIO
+Registry; đã \textbf{pin version} để tái lập build (R10). \\
+\texttt{board} &
+\texttt{yolo\_uno} — board definition ESP32-S3 (240\,MHz, dual-core,
+8\,MB PSRAM). \\
+\texttt{framework} &
+\texttt{arduino} (sensor-node) và \texttt{espidf} (waveshare-screen) —
+hai core C++ khác nhau trong cùng một cụm build. \\
+\texttt{build\_src\_filter} &
+\texttt{-<plugins> +<plugins/coreiot>} — chọn lọc file nguồn theo env
+(R6: CoreIoT được build ở env \texttt{*\_coreiot}). \\
+\texttt{lib\_deps} &
+\texttt{knolleary/PubSubClient@\^{}2.8} — thư viện MQTT cho Arduino
+(sensor-node). \\
+\texttt{test\_framework} &
+\texttt{unity} + \texttt{pio test -e native} — 10/10 host test (filter ngữ
+cảnh: chỉ build \texttt{distance\_filter.cpp}, không phụ thuộc Arduino). \\
+\texttt{board\_build.partitions} &
+\texttt{partitions.csv} — phân vùng flash cho waveshare-screen. \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\subsection{Hai core: Arduino vs ESP-IDF}
+
+Vì waveshare-screen cần driver RGB màn hình, cảm ứng GT911 và LVGL v9 với
+ESP-IDF $\ge 5.5$ (các trường \texttt{num\_fbs}/\texttt{bounce-buffer} của
+\texttt{esp\_lcd\_panel\_rgb}, driver \texttt{i2c\_master.h} mới,
+\texttt{esp\_lcd\_touch\_gt911}, \texttt{esp\_lvgl\_adapter}), dự án chọn
+\texttt{framework = espidf} (ESP-IDF thuần, không dính Arduino) cho screen;
+sensor-node chỉ cần giao tiếp GPIO/I2C đơn giản nên dùng
+\texttt{framework = arduino} cho nhẹ. PlatformIO cho phép cả hai trong một
+repo con, mỗi board một \texttt{platformio.ini}.
+
+\subsection{Quản lý thư viện qua ESP-IDF Component Manager}
+
+File \code{firmware/waveshare-screen/src/idf\_component.yml} khai báo các
+thành phần nền mà khi \code{pio run}, ESP-IDF Component Manager tự tải về
+\code{managed\_components/} (không track — R8):
+
+\begin{verbatim}
+dependencies:
+  lvgl/lvgl: "^9.1.0"                  # LVGL v9 GUI
+  espressif/esp_lvgl_adapter: "^0.5.2" # cau noi LVGL voi driver LCD
+  espressif/esp_lcd_touch_gt911: "^1"  # cam ung GT911 qua I2C
+  espressif/mqtt: "*"                  # MQTT ESP-IDF
+  espressif/cjson: "^1.7.19"           # JSON
+\end{verbatim}
+
+\section{CoreIoT — nền tảng cloud (bọc ThingsBoard)}
+
+CoreIoT (\code{app.coreiot.io}) là nền tảng IoT triển khai \textbf{ThingsBoard}
+làm lõi: trong repo, bản Rule-Chain snapshot
+(\code{cloud/coreiot/rule\_chain/supersonic\_rule\_chain.json}) dùng đúng các
+node rule-engine có package \code{org.thingsboard.rule.engine.*} của
+ThingsBoard.
+
+\subsection{Kết nối MQTT và bảo mật credential}
+
+\begin{itemize}
+\item Broker: \code{app.coreiot.io:1883} (MQTT chuẩn, chưa TLS).
+\item Topic telemetry: \code{v1/devices/me/telemetry} (chuẩn ThingsBoard).
+\item Xác thực: \textbf{device access token} đặt ở username, password rỗng.
+\item Token \textbf{chỉ} nằm trong \code{config/keys.json} (gitignored) hoặc
+file \code{credentials.h} sinh ra từ đó bởi
+\code{tools/guard/gen\_credentials.py} — không hardcode (R1/R11).
+\item Sensor-node publish mỗi \textbf{500\,ms}
+(\code{COREIOT\_PUBLISH\_INTERVAL\_MS} trong
+\code{firmware/sensor-node/src/plugins/coreiot/coreiot\_client.h}), payload
+JSON gồm \code{d1..d6}, \code{nearest\_cm}, \code{has\_nearest}.
+\end{itemize}
+
+\subsection{Rule-Chain — bộ não server-side}
+
+Rule-Chain (7 node) được snapshot để đối chiếu với firmware (R11). Mỗi telemetry
+message đi qua chuỗi sau:
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{@{}p{1.1cm}p{6.0cm}p{9.3cm}@{}}
+\caption{Bảy node của Rule-Chain V2 và vai trò.}\\
+\toprule
+\textbf{\#} & \textbf{Node} & \textbf{Vai trò} \\
+\midrule
+\endhead
+2 & Message Type Switch & Phân luồng theo loại message (POST\_TELEMETRY / khác). \\
+0 & Save Timeseries (sensor-node) & Lưu telemetry gốc \code{d1..d6}. \\
+1 & Save Attributes & Lưu thuộc tính thiết bị sensor-node. \\
+3 & Process Ultrasonic \& Vehicle Data (V2) & Script JS: đọc \code{d1..d6}, lấy
+\code{nearest\_cm}, so ngưỡng \textbf{30\,cm / 100\,cm} (đồng bộ
+\code{firmware/shared/thresholds.h} — R3) rồi tạo
+\code{warning\_status}, \code{vehicle\_detected}, \code{relay}, \code{buzzer}. \\
+4 & Change Originator (waveshare-screen) & Đổi chủ sở hữu message sang thiết bị
+waveshare-screen để node sau cập nhật đúng device. \\
+5 & Update Shared Attributes (notifyDevice=true) & Ghi attributes và đẩy
+real-time cho màn hình (MQTT push). \\
+6 & Save Timeseries (waveshare-screen) & Lưu giá trị cảnh báo phía màn hình. \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+Lõi node 3 là script JavaScript chạy trên server (không cần flash firmware khi
+đổi ngưỡng):
+
+\begin{verbatim}
+// V2: threshold mirror firmware/shared/thresholds.h (caution=100, danger=30)
+var dist = null;
+if (msg.has_nearest === true && msg.nearest_cm != null) {
+    dist = parseFloat(msg.nearest_cm);
+} else {
+    // lay gia tri nho nhat trong d1..d6
+    var vals = [msg.d1, msg.d2, msg.d3, msg.d4, msg.d5, msg.d6];
+    for (var i = 0; i < vals.length; i++) {
+        var v = parseFloat(vals[i]);
+        if (dist === null || (v < dist)) dist = v;
+    }
+}
+var warningStatus = (dist <= 30.0) ? "DANGER"
+                  : (dist <= 100.0) ? "CAUTION" : "NORMAL";
+return { msg: { warning_status: warningStatus,
+                vehicle_detected: (dist <= 100.0),
+                relay: (dist <= 100.0) ? "ON" : "OFF",
+                buzzer: (dist <= 100.0) ? "ON" : "OFF",
+                nearest_cm: dist, source_device: "sensor-node" },
+         metadata: metadata, msgType: "POST_ATTRIBUTES_REQUEST" };
+\end{verbatim}
+
+\subsection{Luồng một telemetry message}
+
+\begin{verbatim}
+ESP32 (sensor-node) publish {d1..d6, nearest_cm, has_nearest}
+   -> MQTT broker app.coreiot.io:1883
+   -> Rule-Chain: Save Timeseries + JS transform -> warning_status
+   -> Update Shared Attributes (notifyDevice=true)
+   -> waveshare-screen nhan real-time -> ve canh bao (duong phu)
+   -> Dashboard widget hien thi warning_status (nghiem thu B9)
+\end{verbatim}
+
+Điểm quan trọng: rule-chain chạy \textbf{song song} với ESP-NOW ở firmware;
+ESP-NOW là đường cảnh báo chính (độ trễ thấp, không phụ thuộc Internet), còn
+MQTT/cloud là đường giám sát từ xa và dashboard.
+
+\section{Các công nghệ khác trong hệ thống}
+
+\subsection{ESP-NOW — liên kết l2 cục bộ}
+
+ESP-NOW là giao thức Link Layer của Espressif: không cần điểm truy cập AP,
+độ trễ thấp. Dự án dùng ESP-NOW trên kênh 1, interval gửi 500\,ms, timeout
+1500\,ms; payload \textbf{packed 30\,B} (\code{espnow\_sensor\_msg\_t} trong
+\code{firmware/shared/espnow\_protocol.h}) với \code{static\_assert} khớp số
+cảm biến (R4). Độ trễ mục tiêu toàn tuyến dưới 50\,ms.
+
+\subsection{LVGL v9, màn hình RGB và cảm ứng GT911}
+
+Waveshare-screen dùng LVGL v9.1 (GUI), lại được kết nối qua
+\code{esp\_lvgl\_adapter} tới driver \code{esp\_lcd\_panel\_rgb} (màn hình 7"
+RGB 800x480) và \code{esp\_lcd\_touch\_gt911} (cảm ứng I2C). Toàn bộ là các
+component ESP-IDF khai báo trong \code{idf\_component.yml}.
+
+\subsection{FreeRTOS và mô hình task không blocking}
+
+Hai core ESP32-S3 chạy FreeRTOS. Client MQTT (cả Arduino lẫn ESP-IDF) dùng mô
+hình vòng lặp không \code{delay()}: thử kết nối lại WiFi/MQTT theo chu kỳ
+(\code{COREIOT\_MQTT\_RETRY\_INTERVAL\_MS = 3000}) trong
+\code{coreiotClientLoop()}, không chặn các task cảnh báo chính.
+
+\subsection{Ngôn ngữ, CI và bảo mật}
+
+\begin{itemize}
+\item \textbf{C++/C} — firmware; \textbf{Python} — \code{tools/} (script
+nghiệm thu MQTT \code{test\_mqtt\_coreiot.py}, guard scripts); \textbf{JavaScript}
+— script Rule-Chain trên ThingsBoard.
+\item \textbf{GitHub Actions} (\code{.github/workflows/ci.yml}): build 2 env
+$\times$ 2 firmware + host test + \textbf{Gitleaks} (quét secret, R1) + guard
+scripts + size-gate — mọi push/PR phải xanh (R10).
+\item \textbf{JSON} — định dạng telemetry/attributes qua \code{cjson} và
+\code{json} (Python).
+\end{itemize}
+
+\subsection{Tóm tắt: nhu cầu $\rightarrow$ công nghệ}
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{@{}p{7cm}p{9.4cm}@{}}
+\caption{Bảng ánh xạ nhu cầu kỹ thuật sang công nghệ đã chọn.}\\
+\toprule
+\textbf{Nhu cầu} & \textbf{Công nghệ} \\
+\midrule
+\endhead
+Build hai core khác nhau (Arduino / ESP-IDF) trong một repo &
+PlatformIO \code{framework=arduino} và \code{framework=espidf}. \\
+Ngưỡng cảnh báo một nguồn, đổi không cần flash &
+Rule-Chain script JS đồng bộ \code{firmware/shared/thresholds.h}. \\
+Hai board hiểu nhau ổn định &
+ESP-NOW + \code{firmware/shared/espnow\_protocol.h} (packed, static\_assert). \\
+Cảnh báo không phụ thuộc Internet &
+ESP-NOW là đường chính <50\,ms. \\
+Giám sát từ xa, dashboard &
+CoreIoT/ThingsBoard MQTT + Rule-Chain + Dashboard. \\
+Không rò secret &
+\texttt{config/keys.json} gitignored + \texttt{gen\_credentials.py} + Gitleaks
+trong CI (R1/R8/R11). \\
+\bottomrule
+\end{longtable}
+\end{center}
