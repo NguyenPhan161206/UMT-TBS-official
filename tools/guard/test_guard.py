@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""test_guard.py — pytest cho các script trong tools/guard/ (B7).
+"""test_guard.py — pytest cho các script tools/ (B7 + B9).
 
 Chạy:  python3 -m pytest tools/guard/test_guard.py -q
 Coverage: gen_credentials (validate + sinh header), scan_secrets (bắt token /
-sạch), check_rulechain_thresholds (skip best-effort), check_size (cap/missing).
+sạch), check_rulechain_thresholds (skip best-effort / OK khi có snapshot),
+check_size (cap/missing), test_mqtt_coreiot (build_payload + dry-run + snapshot
+rule-chain V2 chứa ngưỡng 100/30).
 
 KHÔNG tạo/đụng file tracked nào: toàn bộ file tạm nằm trong tmp_path.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -106,10 +110,79 @@ def test_scan_secrets_clean_file(tmp_path):
 
 
 def test_rulechain_skips_when_snapshot_missing():
-    # B0b chưa import rule-chain → best-effort, exit 0 (không chặn CI).
+    # Snapshot có thể chưa tồn tại (best-effort, exit 0 không chặn CI) hoặc
+    # đã có và khớp ngưỡng (OK). Cả hai trường hợp đều exit 0.
     p = run_script("check_rulechain_thresholds.py")
     assert p.returncode == 0
     assert "SKIP" in p.stdout or "OK" in p.stdout
+
+
+def test_rulechain_matches_sensor_threshold_defines():
+    # R3/R11 gate thật sự phải trích được SENSOR_CAUTION_CM/SENSOR_DANGER_CM
+    # trong thresholds.h và đối chiếu với snapshot rule-chain (100/30).
+    p = run_script("check_rulechain_thresholds.py")
+    assert p.returncode == 0, p.stdout
+    assert "OK" in p.stdout
+
+
+# ----------------------------------------------------------- test_mqtt_coreiot (B9)
+
+
+def load_tool_module():
+    """Import tools/test_mqtt_coreiot.py (paho được import lazy nên không cần cài)."""
+    spec = importlib.util.spec_from_file_location(
+        "test_mqtt_coreiot", ROOT / "tools" / "test_mqtt_coreiot.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_build_payload_v2_format():
+    t = load_tool_module()
+    p = t.build_payload(20.0)
+    assert {k: p[k] for k in ("d1", "d2", "d3", "d4", "d5", "d6")} == {
+        k: 20.0 for k in ("d1", "d2", "d3", "d4", "d5", "d6")
+    }
+    assert p["nearest_cm"] == 20.0
+    assert p["has_nearest"] is True
+    assert p["warning_status"] == "DANGER"
+    assert p["vehicle_detected"] is True
+
+
+def test_classify_boundaries():
+    t = load_tool_module()
+    assert t.classify(29.9) == "DANGER"
+    assert t.classify(30.0) == "DANGER"   # x <= 30
+    assert t.classify(30.1) == "CAUTION"
+    assert t.classify(100.0) == "CAUTION"  # 30 < x <= 100
+    assert t.classify(100.1) == "NORMAL"
+
+
+def test_dry_run_without_token():
+    # --dry-run không cần token/paho; in payload JSON, exit 0.
+    p = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "test_mqtt_coreiot.py"),
+         "--dry-run", "--distance", "25"],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    assert p.returncode == 0, p.stderr
+    assert '"warning_status": "DANGER"' in p.stdout
+    assert '"nearest_cm": 25.0' in p.stdout
+
+
+def test_rulechain_snapshot_has_v2_thresholds():
+    # R3/R11: snapshot rule-chain phải chứa ngưỡng zone 100/30 (mirror
+    # firmware/shared/thresholds.h) để check_rulechain_thresholds.py OK.
+    rc = (ROOT / "cloud" / "coreiot" / "rule_chain" / "supersonic_rule_chain.json").read_text(
+        encoding="utf-8"
+    )
+    nums = {
+        float(m.group(1))
+        for m in re.finditer(r"(?:caution|danger)[^0-9-]{0,40}(-?\d+(?:\.\d+)?)", rc, re.IGNORECASE)
+    }
+    assert 100.0 in nums and 30.0 in nums
 
 
 # --------------------------------------------------------------------- check_size

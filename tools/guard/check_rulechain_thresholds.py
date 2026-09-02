@@ -15,8 +15,16 @@ from pathlib import Path
 RULE_CHAIN = Path("cloud/coreiot/rule_chain/supersonic_rule_chain.json")
 THRESHOLDS_H = Path("firmware/shared/thresholds.h")
 
-# Các ngưỡng "nhạy cảm" cần đối chiếu (cm) — mở rộng khi shared/thresholds.h hoàn thiện.
-KEYS = ("caution_cm", "danger_cm", "CAUTION_CM", "DANGER_CM")
+# Các ngưỡng "nhạy cảm" cần đối chiếu (cm) — khớp với tên symbol trong
+# firmware/shared/thresholds.h (SENSOR_*> + dạng JSON "caution_cm"/"danger_cm").
+KEYS = (
+    "caution_cm",
+    "danger_cm",
+    "CAUTION_CM",
+    "DANGER_CM",
+    "SENSOR_CAUTION_CM",
+    "SENSOR_DANGER_CM",
+)
 
 
 def extract_json_numbers(text: str) -> list[float]:
@@ -38,8 +46,11 @@ def main() -> int:
     th_text = THRESHOLDS_H.read_text(encoding="utf-8", errors="replace")
     th_vals = set()
     for name in KEYS:
+        # Hỗ trợ cả "#define SENSOR_CAUTION_CM 100" lẫn "caution_cm": 100.
         m = re.search(
-            rf"\b{re.escape(name)}\s*[=:]\s*(\d+(?:\.\d+)?)", th_text, re.IGNORECASE
+            rf"\b{re.escape(name)}\s*(?:[=:]\s*|\s+)(\d+(?:\.\d+)?)",
+            th_text,
+            re.IGNORECASE,
         )
         if m:
             th_vals.add(float(m.group(1)))

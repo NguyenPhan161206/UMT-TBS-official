@@ -1,0 +1,5 @@
+# Python dependencies cho tools/ (B9 — CoreIoT acceptance).
+# Cài: pip install -r tools/requirements.txt
+# paho-mqtt chỉ bắt buộc khi chạy thật (tools/test_mqtt_coreiot.py không có
+# --dry-run); test/guard không import thư viện này (lazy import).
+paho-mqtt>=1.6,<3

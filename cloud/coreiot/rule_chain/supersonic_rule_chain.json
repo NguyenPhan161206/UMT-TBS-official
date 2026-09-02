@@ -1,0 +1,207 @@
+{
+  "ruleChain": {
+    "name": "Supersonic Sensor to Waveshare Screen Forwarding Chain",
+    "type": "CORE",
+    "firstRuleNodeId": null,
+    "root": false,
+    "debugMode": false,
+    "configuration": null,
+    "additionalInfo": {
+      "description": "Rule chain (snapshot V2, R3/R11) — ngưỡng zone lấy duy nhất từ firmware/shared/thresholds.h: caution_cm = 100, danger_cm = 30. Xử lý telemetry sensor-node V2 (d1..d6, nearest_cm) thành warning_status DANGER/CAUTION/NORMAL, đổi originator sang waveshare-screen và đẩy shared attributes (notifyDevice=true) để màn hình nhận qua CoreIoT."
+    }
+  },
+  "metadata": {
+    "version": 1,
+    "firstNodeIndex": 2,
+    "nodes": [
+      {
+        "type": "org.thingsboard.rule.engine.telemetry.TbMsgTimeseriesNode",
+        "name": "Save Timeseries (sensor-node)",
+        "debugSettings": null,
+        "singletonMode": false,
+        "queueName": null,
+        "configurationVersion": 1,
+        "configuration": {
+          "defaultTTL": 0,
+          "useServerTs": false,
+          "processingSettings": {
+            "type": "ON_EVERY_MESSAGE"
+          }
+        },
+        "additionalInfo": {
+          "layoutX": 450,
+          "layoutY": 150
+        }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.telemetry.TbMsgAttributesNode",
+        "name": "Save Attributes",
+        "debugSettings": null,
+        "singletonMode": false,
+        "queueName": null,
+        "configurationVersion": 3,
+        "configuration": {
+          "processingSettings": {
+            "type": "ON_EVERY_MESSAGE"
+          },
+          "scope": "CLIENT_SCOPE",
+          "notifyDevice": false,
+          "sendAttributesUpdatedNotification": false,
+          "updateAttributesOnlyOnValueChange": true
+        },
+        "additionalInfo": {
+          "layoutX": 450,
+          "layoutY": 250
+        }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.filter.TbMsgTypeSwitchNode",
+        "name": "Message Type Switch",
+        "debugSettings": null,
+        "singletonMode": false,
+        "queueName": null,
+        "configurationVersion": 0,
+        "configuration": {
+          "version": 0
+        },
+        "additionalInfo": {
+          "layoutX": 150,
+          "layoutY": 200
+        }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.transform.TbTransformMsgNode",
+        "name": "Process Ultrasonic & Vehicle Data (V2)",
+        "debugSettings": null,
+        "singletonMode": false,
+        "queueName": null,
+        "configurationVersion": 0,
+        "configuration": {
+          "scriptLang": "JS",
+          "jsScript": "// V2 (R3/R11): ngưỡng zone lấy từ firmware/shared/thresholds.h —\n//   caution_cm = 100, danger_cm = 30\n// Telemetry sensor-node V2: d1..d6 (6 slot) + nearest_cm + has_nearest.\nvar dist = null;\nif (typeof msg.has_nearest !== 'undefined' && msg.has_nearest === true && msg.nearest_cm != null) {\n    dist = parseFloat(msg.nearest_cm);\n} else {\n    var vals = [msg.d1, msg.d2, msg.d3, msg.d4, msg.d5, msg.d6];\n    for (var i = 0; i < vals.length; i++) {\n        if (typeof vals[i] !== 'undefined' && vals[i] !== null) {\n            var v = parseFloat(vals[i]);\n            if (dist === null || v < dist) { dist = v; }\n        }\n    }\n}\n\nvar inRange = dist !== null && dist > 0;\nvar warningStatus = (inRange && dist <= 30.0) ? \"DANGER\"\n                  : (inRange && dist <= 100.0) ? \"CAUTION\"\n                  : \"NORMAL\";\nvar isVehicleDetected = inRange && dist <= 100.0;\nvar relayState = isVehicleDetected ? \"ON\" : \"OFF\";\n// Buzzer vật lý gắn trên sensor-node; field này chỉ phản ánh trạng thái hiển thị.\nvar buzzerState = relayState;\n\nvar newMsg = {\n    \"vehicle_detected\": isVehicleDetected,\n    \"warning_status\": warningStatus,\n    \"relay\": relayState,\n    \"buzzer\": buzzerState,\n    \"nearest_cm\": dist,\n    \"source_device\": \"sensor-node\"\n};\n\nreturn { msg: newMsg, metadata: metadata, msgType: \"POST_ATTRIBUTES_REQUEST\" };\n",
+          "tbelScript": "return {msg: msg, metadata: metadata, msgType: msgType};"
+        },
+        "additionalInfo": {
+          "description": "Standardizes ultrasonic distance, temperature, humidity, vehicle detection, and relay state.",
+          "layoutX": 450,
+          "layoutY": 350
+        }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.transform.TbChangeOriginatorNode",
+        "name": "Change Originator to waveshare-screen",
+        "debugSettings": null,
+        "singletonMode": false,
+        "queueName": null,
+        "configurationVersion": 1,
+        "configuration": {
+          "originatorSource": "ENTITY",
+          "preserveOriginatorIfCustomer": false,
+          "entityType": "DEVICE",
+          "entityNamePattern": "waveshare-screen",
+          "relationsQuery": {
+            "direction": "FROM",
+            "maxLevel": 1,
+            "filters": [
+              {
+                "relationType": "Contains",
+                "entityTypes": [],
+                "negate": false
+              }
+            ],
+            "fetchLastLevelOnly": false
+          }
+        },
+        "additionalInfo": {
+          "description": "Changes the message originator to waveshare-screen device (ID: 30287b60-8a67-11f1-84a8-c17e50898235)",
+          "layoutX": 750,
+          "layoutY": 350
+        }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.telemetry.TbMsgAttributesNode",
+        "name": "Update Shared Attributes (notifyDevice=true)",
+        "debugSettings": null,
+        "singletonMode": false,
+        "queueName": null,
+        "configurationVersion": 3,
+        "configuration": {
+          "processingSettings": {
+            "attributes": {
+              "type": "ON_EVERY_MESSAGE"
+            },
+            "webSockets": {
+              "type": "ON_EVERY_MESSAGE"
+            },
+            "calculatedFields": {
+              "type": "ON_EVERY_MESSAGE"
+            },
+            "type": "ADVANCED"
+          },
+          "scope": "SHARED_SCOPE",
+          "notifyDevice": true,
+          "sendAttributesUpdatedNotification": false,
+          "updateAttributesOnlyOnValueChange": false
+        },
+        "additionalInfo": {
+          "description": "Pushes updated telemetry & status to waveshare-screen via MQTT shared attributes",
+          "layoutX": 1050,
+          "layoutY": 350
+        }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.telemetry.TbMsgTimeseriesNode",
+        "name": "Save Timeseries (waveshare-screen)",
+        "debugSettings": null,
+        "singletonMode": false,
+        "queueName": null,
+        "configurationVersion": 1,
+        "configuration": {
+          "defaultTTL": 0,
+          "useServerTs": false,
+          "processingSettings": {
+            "type": "ON_EVERY_MESSAGE"
+          }
+        },
+        "additionalInfo": {
+          "description": "Saves historical timeseries for waveshare-screen",
+          "layoutX": 1050,
+          "layoutY": 450
+        }
+      }
+    ],
+    "connections": [
+      {
+        "fromIndex": 2,
+        "toIndex": 0,
+        "type": "Post telemetry"
+      },
+      {
+        "fromIndex": 2,
+        "toIndex": 1,
+        "type": "Post attributes"
+      },
+      {
+        "fromIndex": 2,
+        "toIndex": 3,
+        "type": "Post telemetry"
+      },
+      {
+        "fromIndex": 3,
+        "toIndex": 4,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 4,
+        "toIndex": 5,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 4,
+        "toIndex": 6,
+        "type": "Success"
+      }
+    ],
+    "ruleChainConnections": null
+  }
+}

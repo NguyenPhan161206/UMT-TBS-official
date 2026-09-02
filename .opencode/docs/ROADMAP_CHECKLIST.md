@@ -38,7 +38,7 @@
 
 | ID | Mô tả | Trạng thái |
 |----|-------|------------|
-| B9 | Nghiệm thu CoreIoT: `tools/test_mqtt_coreiot.py` token mới → rule-chain → dashboard `warning_status` | ⏳ |
+| B9 | Nghiệm thu CoreIoT: `tools/test_mqtt_coreiot.py` token mới → rule-chain → dashboard `warning_status` | 🔨 port xong: tool V2 + rule-chain snapshot V2 (field `d1..d6/nearest_cm`, zone 100/30), gate R11 OK, 16/16 pytest; ⏳ cần user tạo token MỚI → điền `config/keys.json` → flash → nghiệm thu dashboard |
 | T5.x | Đo lường hiệu năng (baseline, latency, soak…) — làm sau khi firmware ổn định | ⏳ |
 
 ## Thứ tự ưu tiên
