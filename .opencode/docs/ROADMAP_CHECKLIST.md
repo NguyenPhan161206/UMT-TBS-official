@@ -16,14 +16,14 @@
 
 | ID | Mô tả | Trạng thái |
 |----|-------|------------|
-| B2 | `firmware/shared/espnow_protocol.h` (packed struct + channel + slot enum + MAC) | ⏳ |
-| B2 | `firmware/shared/thresholds.h` (zone enum + ngưỡng + `SENSOR_PINS` + `SENSOR_COUNT` + static_assert) | ⏳ |
+| B2 | `firmware/shared/espnow_protocol.h` (packed struct + channel + slot enum + MAC) | ✅ (66 dòng; packed 30B; static_assert khớp SENSOR_COUNT) |
+| B2 | `firmware/shared/thresholds.h` (zone enum + ngưỡng + `SENSOR_PINS` + `SENSOR_COUNT` + static_assert) | ✅ (119 dòng; C11+C++17 build; scan_secrets OK) |
 
 ## Giai đoạn 2 — Firmware scaffold (B3–B5)
 
 | ID | Mô tả | Trạng thái |
 |----|-------|------------|
-| B3 | `sensor-node`: sensor/filter/shared_state/buzzer/espnow + `plugins/coreiot` (USE_COREIOT, env `yolo_uno_coreiot`); unit test host; `static_assert` R4 | ⏳ |
+| B3 | `sensor-node`: sensor/filter/shared_state/buzzer/espnow + `plugins/coreiot` (USE_COREIOT, env `yolo_uno_coreiot`); unit test host; `static_assert` R4 | ✅ (build 2 env OK, 10/10 host test, log) |
 | B4 | `waveshare-screen`: sensor_model + ui_dashboard (tách <400 dòng) + coreiot_client; size-gate | ⏳ |
 | B5 | Nối ESP-NOW qua shared header; xoá define trùng (grep == 1); flash-and-observe | ⏳ |
 

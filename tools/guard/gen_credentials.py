@@ -43,7 +43,7 @@ def load_keys(keys_path: Path) -> dict:
         print(f"ERROR: {keys_path} not found. Run: cp config/keys.template.json config/keys.json", file=sys.stderr)
         sys.exit(2)
     data = json.loads(keys_path.read_text(encoding="utf-8"))
-    missing = [k for k in REQUIRED_FIELDS if data.get(k, "").startswith("<")]
+    missing = [k for k in REQUIRED_FIELDS if str(data.get(k, "")).startswith("<")]
     if missing:
         print(f"ERROR: keys.json missing/placeholder fields: {', '.join(missing)}", file=sys.stderr)
         sys.exit(2)
