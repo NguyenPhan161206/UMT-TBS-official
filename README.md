@@ -61,18 +61,68 @@ docs/logs/         Nhật ký triển khai từng nhiệm vụ
 - **Phần cứng**: 2 board ESP32-S3; 6× JSN-SR04T; Waveshare 7" RGB LCD; buzzer; máy Windows/Linux (cổng `/dev/ttyACM0` sensor, `/dev/ttyACM1` screen).
 - **Phần mềm**: Python 3.12+, PlatformIO Core (`espressif32@7.0.1` đã pin); `paho-mqtt` (chỉ khi nghiệm thu cloud: `pip install -r tools/requirements.txt`); LVGL v9/GT911 qua `idf_component.yml` (tự tải khi build); Node ≥20 (plugin guard opencode).
 
-## Cài đặt nhanh
+## Cấu hình local (trước khi làm việc)
+
+### Bước 1 — Clone & cài dependencies
 
 ```bash
-# 1. Key local (gitignored — KHÔNG commit)
-cp config/keys.template.json config/keys.json   # điền token CoreIoT MỚI (R11)
-
-# 2. Guard tools (Python)
-python3 tools/guard/gen_credentials.py --check
-
-# 3. PlatformIO (cả 2 firmware)
-pip install platformio
+git clone git@github.com:NguyenPhan161206/UMT-TBS-official.git
+cd UMT-TBS-official
+pip install platformio                    # build firmware
+pip install -r tools/requirements.txt     # paho-mqtt (chỉ khi nghiệm thu B9)
 ```
+
+### Bước 2 — Tạo file secret cá nhân
+
+```bash
+cp config/keys.template.json config/keys.json
+```
+
+Mở `config/keys.json` và điền **token thật** (KHÔNG commit):
+
+```json
+{
+  "COREIOT_BROKER": "app.coreiot.io",
+  "COREIOT_PORT": 1883,
+  "SENSOR_NODE_DEVICE_TOKEN": "<token_sensor_từ_CoreIoT>",
+  "WAVESHARE_SCREEN_DEVICE_TOKEN": "<token_screen_từ_CoreIoT>",
+  "COREIOT_TELEMETRY_TOPIC": "v1/devices/me/telemetry",
+  "WIFI_SSID": "<tên_wifi>",
+  "WIFI_PASSWORD": "<mật khẩu_wifi>"
+}
+```
+
+> **Cách lấy token (R11):** đăng nhập `app.coreiot.io` → Devices → tạo 2 device
+> `sensor-node` và `waveshare-screen` → copy Access Token. **KHÔNG** tái dùng
+> token cũ từ repo `supersonic-warning-system`.
+
+### Bước 3 — Sinh credentials.h cho firmware
+
+```bash
+python3 tools/guard/gen_credentials.py --out firmware/sensor-node/include/credentials.h
+python3 tools/guard/gen_credentials.py --out firmware/waveshare-screen/components/coreiot_client/include/credentials.h
+```
+
+### Bước 4 — Verify
+
+```bash
+python3 tools/guard/gen_credentials.py --check    # keys.json hợp lệ?
+python3 tools/guard/scan_secrets.py               # không có secret trong tracked file?
+```
+
+### Luồng secret (R1)
+
+```
+config/keys.json          ← bạn điền token thật (gitignored, KHÔNG commit)
+        │
+        ├──→ gen_credentials.py ──→ credentials.h   (firmware đọc, gitignored)
+        │
+        ├──→ test_mqtt_coreiot.py   (tool Python đọc trực tiếp)
+        │
+        └──→ CI (tự generate dummy keys.json, không dùng token thật)
+```
+
+**Tất cả file secret đều gitignored.** Không có token/password nào nằm trong tracked file.
 
 ## Build & Flash
 
