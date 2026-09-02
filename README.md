@@ -6,6 +6,11 @@ JSN-SR04T** + màn hình **Waveshare 7" RGB LVGL v9** (GT911). Kế thừa từ 
 `supersonic-warning-system` (V1) và sửa các lỗi kiến trúc cũ (hợp đồng copy-paste,
 ngưỡng rải rác, secret hardcode, thiếu CI/kiểm thử).
 
+<p align="center">
+  <img src="docs/images/sr04t.png" alt="Cảm biến siêu âm chống nước JSN-SR04T" width="260"/>
+  <em>Cảm biến siêu âm JSN-SR04T (6× quanh xe)</em>
+</p>
+
 ## Kiến trúc Hybrid (V2)
 
 | Đường | Vai trò | Giao thức | Độ trễ mục tiêu |
@@ -27,6 +32,11 @@ ngưỡng rải rác, secret hardcode, thiếu CI/kiểm thử).
  │  Waveshare Screen Node    │ firmware/waveshare-screen — LVGL v9, ESP-NOW + MQTT
  └──────────────────────────┘
 ```
+
+<p align="center">
+  <img src="docs/images/architecture.png" alt="Sơ đồ kiến trúc Hybrid V2: sensor-node → ESP-NOW/MQTT → waveshare-screen" width="850"/>
+  <em>Sơ đồ kiến trúc hệ thống Hybrid V2</em>
+</p>
 
 Hợp đồng dùng chung giữa 2 board **chỉ nằm ở `firmware/shared/`** (R2/R3/R4):
 - `espnow_protocol.h` — payload ESP-NOW packed (30 B), kênh, MAC, slot, `static_assert`;
@@ -107,6 +117,16 @@ python3 tools/test_mqtt_coreiot.py --distance 60              # → CAUTION
 python3 tools/test_mqtt_coreiot.py --distance 150             # → NORMAL
 python3 tools/test_mqtt_coreiot.py --loop --interval 2        # diễn biến liên tục
 ```
+
+<p align="center">
+  <img src="docs/images/rule-chain.png" alt="Sơ đồ Rule-Chain Supersonic (7 nút: TS → Attr → TypeSwitch → JS Transform → ChangeOriginator → Shared Attr/Save TS)" width="760"/>
+  <em>Rule-Chain CoreIoT xử lý telemetry thành `warning_status`</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/dashboard-screen-img.jpg" alt="Dashboard CoreIoT hiển thị warning_status DANGER/CAUTION/NORMAL" width="760"/>
+  <em>Dashboard giám sát từ xa (CoreIoT / ThingsBoard)</em>
+</p>
 
 ## Quy tắc bắt buộc (tóm tắt R1–R12 — đầy đủ ở `.opencode/docs/CONSTITUTION.md`)
 
