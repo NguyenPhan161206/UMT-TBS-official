@@ -31,8 +31,8 @@
 
 | ID | Mô tả | Trạng thái |
 |----|-------|------------|
-| B7 | GitHub Actions: build 2 env × 2 firmware + host tests + pytest tools + Gitleaks + assert sdkconfig/keys.json + size-gate + `check_rulechain_thresholds.py` | ⏳ |
-| B7 | Protected branch `main`; PR phải xanh | ⏳ |
+| B7 | GitHub Actions: build 2 env × 2 firmware + host tests + pytest tools + Gitleaks + assert sdkconfig/keys.json + size-gate + `check_rulechain_thresholds.py` | ✅ (`.github/workflows/ci.yml`; push/PR chạy) |
+| B7 | Protected branch `main`; PR phải xanh | ⏳ (thủ công trên GitHub — cần quyền admin) |
 
 ## Giai đoạn 4 — Cloud & Đo lường (B9 + GĐ sau)
 

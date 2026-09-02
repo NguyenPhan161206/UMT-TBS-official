@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PY_COLORS: "1"
+
+jobs:
+  firmware:
+    name: Firmware build + host tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Pin trùng version local để tái lập build (R10).
+      - name: Install PlatformIO Core
+        run: |
+          pip install --upgrade pip
+          pip install -U platformio==6.1.19
+          pio --version
+
+      # R1: credential KHÔNG commit. Ở CI chỉ cần giá trị dummy để build
+      # env *_coreiot; keys.json/credentials.h đều gitignored (không vào git).
+      - name: Generate dummy CI credentials (gitignored)
+        run: |
+          python3 - <<'EOF'
+          import json
+          keys = {
+              "COREIOT_BROKER": "app.coreiot.io",
+              "COREIOT_PORT": 1883,
+              "SENSOR_NODE_DEVICE_TOKEN": "ci-dummy-sensor-9f8e7d6c5b4a",
+              "WAVESHARE_SCREEN_DEVICE_TOKEN": "ci-dummy-screen-1a2b3c4d5e6f",
+              "COREIOT_TELEMETRY_TOPIC": "v1/devices/me/telemetry",
+              "WIFI_SSID": "ci-dummy-wifi",
+              "WIFI_PASSWORD": "ci-dummy-pass-012345",
+          }
+          with open("config/keys.json", "w", encoding="utf-8") as f:
+              json.dump(keys, f, indent=2)
+          EOF
+          python3 tools/guard/gen_credentials.py --out firmware/sensor-node/include/credentials.h
+          python3 tools/guard/gen_credentials.py --out firmware/waveshare-screen/components/coreiot_client/include/credentials.h
+
+      - name: Build sensor-node (ESP-NOW only)
+        working-directory: firmware/sensor-node
+        run: pio run -e yolo_uno
+
+      - name: Build sensor-node (CoreIoT, R6)
+        working-directory: firmware/sensor-node
+        run: pio run -e yolo_uno_coreiot
+
+      - name: Host unit tests sensor-node (R10)
+        working-directory: firmware/sensor-node
+        run: pio test -e native
+
+      - name: Build waveshare-screen
+        working-directory: firmware/waveshare-screen
+        run: pio run -e yolo_uno
+
+      # Size-gate: sensor-node app partition ~1.3MB (arduino default) → cap 1.2MB.
+      # waveshare-screen partition factory 4MB → cap 3.7MB (92.5%).
+      - name: Size gate (R10)
+        run: |
+          python3 tools/guard/check_size.py \
+            firmware/sensor-node/.pio/build/yolo_uno/firmware.bin 1200000 \
+            firmware/sensor-node/.pio/build/yolo_uno_coreiot/firmware.bin 1200000 \
+            firmware/waveshare-screen/.pio/build/yolo_uno/firmware.bin 3700000
+
+  security:
+    name: Secrets + repo guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Gitleaks (binary, không cần license action; full-history scan).
+      - name: Gitleaks secret scan (R1)
+        run: |
+          GITLEAKS_VERSION=8.24.0
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o /tmp/gitleaks.tgz
+          tar -xzf /tmp/gitleaks.tgz -C /tmp
+          /tmp/gitleaks detect --source . --config .gitleaks.toml --no-banner --exit-code 1
+
+      - name: scan_secrets.py (R1)
+        run: python3 tools/guard/scan_secrets.py
+
+      - name: gen_credentials.py --check (keys.json hợp lệ)
+        run: |
+          python3 - <<'EOF'
+          import json
+          keys = {
+              "COREIOT_BROKER": "app.coreiot.io",
+              "COREIOT_PORT": 1883,
+              "SENSOR_NODE_DEVICE_TOKEN": "ci-dummy-sensor-9f8e7d6c5b4a",
+              "WAVESHARE_SCREEN_DEVICE_TOKEN": "ci-dummy-screen-1a2b3c4d5e6f",
+              "COREIOT_TELEMETRY_TOPIC": "v1/devices/me/telemetry",
+              "WIFI_SSID": "ci-dummy-wifi",
+              "WIFI_PASSWORD": "ci-dummy-pass-012345",
+          }
+          with open("config/keys.json", "w", encoding="utf-8") as f:
+              json.dump(keys, f, indent=2)
+          EOF
+          python3 tools/guard/gen_credentials.py --check
+
+      - name: pytest tools (R10)
+        run: |
+          pip install pytest
+          python3 -m pytest tools/guard/test_guard.py -q
+
+      - name: check_rulechain_thresholds.py (R3/R11, best-effort)
+        run: python3 tools/guard/check_rulechain_thresholds.py
+
+      - name: R8 asserts — sdkconfig / keys.json không được track
+        run: |
+          tracked=$(git ls-files | grep -E '(^|/)sdkconfig|(^|/)keys\.json$' || true)
+          if [ -n "$tracked" ]; then
+            echo "::error::R8 violation — các file sau đang bị track: $tracked"
+            exit 1
+          fi
+          echo "R8 OK: no sdkconfig / keys.json tracked"
