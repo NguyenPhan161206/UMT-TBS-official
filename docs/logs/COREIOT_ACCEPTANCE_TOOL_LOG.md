@@ -45,3 +45,25 @@ python3 tools/test_mqtt_coreiot.py --dry-run --distance 15.5
 ## Ghi chú / hạn chế
 - Phần flash + kiểm tra dashboard thật là **B9-B**, cần token/user thao tác trên console CoreIoT.
 - `check_rulechain_thresholds.py` (best-effort) giờ gate thật: CI sẽ đỏ nếu snapshot lệch ngưỡng 100/30.
+
+## 📌 Note — Trạng thái B9 (2026-09-02, sau khi user hỏi "đã làm gì / còn gì")
+
+### ✅ ĐÃ XONG (B9-A — phần local/CI, commit `0032169` đã push)
+1. Rule-chain snapshot V2 — `cloud/coreiot/rule_chain/supersonic_rule_chain.json` (field `d1..d6`/`nearest_cm`/`has_nearest`, zone DANGER≤30 / CAUTION≤100 theo R3).
+2. Tool `tools/test_mqtt_coreiot.py` (payload format sensor-node V2, token từ `config/keys.json`, `--dry-run`/`--loop`/`--distance`).
+3. `tools/requirements.txt` (`paho-mqtt`).
+4. Fix gate R11 `check_rulechain_thresholds.py` → `CHECK-RULECHAIN OK` (trước luôn SKIP).
+5. +5 pytest → **16/16 passed**; scan_secrets OK; gitleaks 0 finding.
+
+### ⏳ CÒN LẠI (B9-B — cần user / có board)
+| # | Việc | Ai làm |
+|---|------|--------|
+| 1 | Tạo/sinh **token MỚI** trên `app.coreiot.io` (2 device: sensor + screen) — KHÔNG tái dùng token cũ (R11) | **USER** |
+| 2 | Import `cloud/coreiot/rule_chain/supersonic_rule_chain.json` lên CoreIoT (gán root chain sensor-node) + đảm bảo dashboard `warning_status` | **USER** |
+| 3 | Điền `config/keys.json` (token mới + Wi-Fi thật); cấm hardcode token | **USER** (hoặc agent assist) |
+| 4 | Chạy nghiệm thu không cần board: `pip install -r tools/requirements.txt`; `python3 tools/test_mqtt_coreiot.py --distance 15.5` (DANGER) / `60` (CAUTION) / `150` (NORMAL) | **USER** |
+| 5 | Flash 2 board + bật CoreIoT → nghiệm thu dashboard thật (port `/dev/ttyACM0`/`/dev/ttyACM1`) | **USER** (máy dev chưa có board) |
+| 6 | Xác nhận CI run của `0032169` xanh | AGENT (khi có quyền) |
+| 7 | Ghi log nghiệm thu B9-B + cập nhật ROADMAP_CHECKLIST B9 → ✅ | AGENT (sau khi có kết quả) |
+
+**Kết luận:** code + gate kiểm thử B9 xong ~100%; còn lại là thao tác trên CoreIoT + test thực địa, **3 bước đầu do user chặn đứng** — cần token mới trước tiên.
