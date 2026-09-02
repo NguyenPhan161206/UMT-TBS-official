@@ -121,6 +121,11 @@ void build_header(lv_obj_t *parent)
     lv_label_set_text(lbl2, "SYSTEM");
     lv_obj_center(lbl2);
 
+    s_lbl_espnow_status = lv_label_create(header);
+    lv_label_set_text(s_lbl_espnow_status, "ESP-NOW: --");
+    lv_obj_set_style_text_color(s_lbl_espnow_status, lv_color_hex(COLOR_TEXT), 0);
+    lv_obj_align(s_lbl_espnow_status, LV_ALIGN_RIGHT_MID, -140, 0);
+
     s_lbl_wifi_status = lv_label_create(header);
     lv_label_set_text(s_lbl_wifi_status, LV_SYMBOL_WIFI " --");
     lv_obj_set_style_text_color(s_lbl_wifi_status, lv_color_hex(COLOR_DANGER), 0);

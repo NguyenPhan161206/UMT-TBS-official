@@ -17,6 +17,7 @@ extern lv_obj_t *s_tab_btn_system;
 extern lv_obj_t *s_page_collision;
 extern lv_obj_t *s_page_system;
 extern lv_obj_t *s_lbl_wifi_status;
+extern lv_obj_t *s_lbl_espnow_status;
 extern lv_obj_t *s_lbl_mqtt_status;
 extern lv_obj_t *s_lbl_hazard_overall;
 extern lv_obj_t *s_lbl_crossing_risk;

@@ -24,6 +24,7 @@ lv_obj_t *s_tab_btn_system;
 lv_obj_t *s_page_collision;
 lv_obj_t *s_page_system;
 lv_obj_t *s_lbl_wifi_status;
+lv_obj_t *s_lbl_espnow_status;
 lv_obj_t *s_lbl_mqtt_status;
 lv_obj_t *s_lbl_hazard_overall;
 lv_obj_t *s_lbl_crossing_risk;
@@ -322,10 +323,10 @@ void ui_dashboard_set_buzzer_state(bool buzzer_on)
 
 void ui_dashboard_set_espnow_status(bool linked)
 {
-    if (!s_lbl_mqtt_status) {
+    if (!s_lbl_espnow_status) {
         return;
     }
 
-    lv_label_set_text(s_lbl_mqtt_status, linked ? "ESP-NOW: LINKED" : "ESP-NOW: NO LINK");
-    lv_obj_set_style_text_color(s_lbl_mqtt_status, linked ? lv_color_hex(COLOR_SAFE) : lv_color_hex(COLOR_DANGER), 0);
+    lv_label_set_text(s_lbl_espnow_status, linked ? "ESP-NOW: LINKED" : "ESP-NOW: NO LINK");
+    lv_obj_set_style_text_color(s_lbl_espnow_status, linked ? lv_color_hex(COLOR_SAFE) : lv_color_hex(COLOR_DANGER), 0);
 }

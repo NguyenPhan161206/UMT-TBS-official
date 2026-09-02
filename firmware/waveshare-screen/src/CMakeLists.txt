@@ -17,6 +17,7 @@ idf_component_register(
         cjson
         sensor_model
         coreiot_client
+        espnow_receiver
         ui_dashboard
         nvs_flash
         esp_wifi
