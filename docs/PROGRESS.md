@@ -17,12 +17,12 @@
 | B3 | Scaffold sensor-node (sensor/filter/shared_state/buzzer/espnow/coreiot) | ✅ XONG | build 2 env, 10/10 host test |
 | B4 | Scaffold waveshare-screen (sensor_model/ui_dashboard/coreiot_client) | ✅ XONG | build OK, RAM 12.8%/Flash 31.2% |
 | B5 | Nối ESP-NOW qua shared header | ✅ XONG | grep define ngoài shared = 0 |
-| B4n | Backlight waveshare: kiến trúc HYBRID fallback (màn lên KHÔNG phụ thuộc CH422G; kiểm soát backlight khi CH422G ACK; macro `CONFIG_WAVESHARE_BACKLIGHT_FALLBACK` 1/0) | 🟢 CODE XONG, build OK cả 2 branch (RAM 12.8%/Flash 31.3%) | ⏳ flash-and-observe chờ board — xem `docs/logs/WAVESHARE_SCREEN_BACKLIGHT_ARCH_FALLBACK_LOG.md` |
+| B4n | Backlight waveshare: kiến trúc HYBRID fallback (màn lên KHÔNG phụ thuộc CH422G; kiểm soát backlight khi CH422G ACK; macro `CONFIG_WAVESHARE_BACKLIGHT_FALLBACK` 1/0) | ✅ XONG + **flash-and-observe: màn SÁNG, UI hiển thị** (2026-09-03) | commit `42976d8`; log `docs/logs/WAVESHARE_SCREEN_BACKLIGHT_ARCH_FALLBACK_LOG.md` |
 | B6e | Guard tools (`tools/guard/*.py`) | ✅ XONG | scan/gen/check_rulechain/check_size |
 | B7 | CI GitHub Actions (build 2 env × 2 fw + test + Gitleaks + size-gate + asserts) | ✅ XONG | CI liên tục xanh (run gần nhất success) |
 | B7b | Protected branch `main` (PR phải xanh) | ⏳ CHỜ | cần quyền admin GitHub |
 | B9a | Tool `test_mqtt_coreiot.py` V2 + rule-chain snapshot V2 (zone 100/30) | ✅ XONG | gate R11 OK, 16/16 pytest |
-| B9b | Nghiệm thu CoreIoT: token MỚI → flash → dashboard `warning_status` | ⏳ CHỜ | **cần token MỚI** → điền keys.json → flash |
+| B9b | Nghiệm thu CoreIoT: token MỚI → flash → dashboard `warning_status` | 🟡 MỘT PHẦN (2026-09-03) | token MỚI đã dùng; sensor-node flash env `yolo_uno_coreiot`, **`[NET] MQTT connected`** → device **Active** trên dashboard; còn nghiệm thu `warning_status`/buzzer đầy đủ |
 | T5.x | Đo hiệu năng (baseline, latency, soak) | ⏳ CHỜ | sau khi firmware ổn định / có board |
 
 ## Nhóm việc đang xử lý
@@ -33,11 +33,10 @@
 - ✅ Báo cáo `report/` (5 chương) + `report-code/` (8 chương chi tiết 4 lớp IoT).
 
 ### Chờ user / phần cứng
-- 🔑 **B0b/B9b:** tạo token CoreIoT MỚI trên `app.coreiot.io` (**Devices** `/devices`
-  → Manage Credentials → Access Token) → điền `config/keys.json` (xem cấp 3
-  `docs/TEST_PROTOCOL.md`).
-- 🔌 **B5/B9b/T5.x:** flash board thật, quan sát, đo.
+- 🔑 **B0b/B9b:** token MỚI đã tạo + điền `config/keys.json` (2026-09-03) ✅ → còn **nghiệm thu dashboard `warning_status`/buzzer** (B9b đầy đủ).
+- 🔌 **T5.x:** đo hiệu năng (baseline, latency, soak) — sau firmware ổn định.
 - 🛡️ **B7b:** bật protected branch trên GitHub (admin).
+- 🐛 **Lưu ý:** log cảm biến sensor-node `REJECT` tràn màn hình khi chưa gắn vật — làm khó đọc MQTT; có thể giảm verbose nếu cần.
 
 ## Ngưỡng & quy ước (R3/R4)
 
@@ -50,3 +49,4 @@
 ## Lịch sử cập nhật
 
 - 2026-09-02: tạo file; đánh dấu B0–B7, B9a XONG; B9b/B0b/B7b/T5.x CHỜ.
+- 2026-09-03: màn waveshare SÁNG (hybrid fallback, commit `42976d8`); token MỚI; sensor-node env coreiot `MQTT connected` → **Active** (B9b một phần).

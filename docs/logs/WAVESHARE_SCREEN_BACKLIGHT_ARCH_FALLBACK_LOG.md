@@ -3,8 +3,8 @@
 > **Mục tiêu:** Làm màn waveshare 7" lên UI, **KHÔNG phụ thuộc CH422G** (fallback để EXIO2/DISP
 > default high — giống repo paulhamsh), NHƯNG **giữ khả năng điều khiển backlight** (on/off/dim)
 > khi CH422G hoạt động đúng addr.
-> **Trạng thái 🟢 CODE ĐÃ IMPLEMENT + BUILD XANH (cả 2 branch); ⏳ flash-and-observe chờ board.**
-> Ngày tạo: 2026-09-03. Cập nhật implement: 2026-09-03.
+> **Trạng thái ✅ ĐÃ NGHIỆM THU (2026-09-03): màn waveshare SÁNG + UI hiển thị.** CODE + flash-and-observe OK; commit `42976d8`. Log khởi tạo xác nhận: RGB panel OK, UI dashboard OK, GT911/CH422G không ACK nhưng màn vẫn lên (hybrid fallback đúng).
+> Ngày tạo: 2026-09-03. Cập nhật implement: 2026-09-03. Cập nhật nghiệm thu: 2026-09-03.
 
 ---
 

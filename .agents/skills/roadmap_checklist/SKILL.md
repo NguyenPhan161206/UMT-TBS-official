@@ -30,7 +30,7 @@ description: Lộ trình chuẩn V2 (B0-B9, T5, CI) và thứ tự ưu tiên. G�
 |----|-------|------------|
 | B3 | `sensor-node`: sensor/filter/shared_state/buzzer/espnow + `plugins/coreiot` (USE_COREIOT, env `yolo_uno_coreiot`); unit test host; `static_assert` R4 | ✅ (build 2 env OK, 10/10 host test, log) |
 | B4 | `waveshare-screen`: sensor_model + ui_dashboard (tách <400 dòng) + coreiot_client; size-gate | ✅ (build OK: RAM 12.8% / Flash 31.2%; scan_secrets OK; R2/R3/R7 OK; log) |
-| B4b | Backlight waveshare: kiến trúc HYBRID fallback (màn lên KHÔNG phụ thuộc CH422G; kiểm soát backlight khi CH422G ACK; macro `CONFIG_WAVESHARE_BACKLIGHT_FALLBACK` 1/0) | 🟢 CODE XONG, build OK cả 2 branch (RAM 12.8%/Flash 31.3%) — ⏳ flash-and-observe chờ board (`docs/logs/WAVESHARE_SCREEN_BACKLIGHT_ARCH_FALLBACK_LOG.md`) |
+| B4b | Backlight waveshare: kiến trúc HYBRID fallback (màn lên KHÔNG phụ thuộc CH422G; kiểm soát backlight khi CH422G ACK; macro `CONFIG_WAVESHARE_BACKLIGHT_FALLBACK` 1/0) | ✅ XONG + **flash-and-observe: màn SÁNG** (commit `42976d8`; `docs/logs/WAVESHARE_SCREEN_BACKLIGHT_ARCH_FALLBACK_LOG.md`) |
 | B5 | Nối ESP-NOW qua shared header; xoá define trùng (grep == 1); flash-and-observe | ✅ (component espnow_receiver; grep==0 define ngoài shared; build OK: RAM 12.8%/Flash 31.3%; flash-and-observe chờ board — log) |
 
 ## Giai đoạn 3 — CI cứng (B7)
@@ -45,7 +45,7 @@ description: Lộ trình chuẩn V2 (B0-B9, T5, CI) và thứ tự ưu tiên. G�
 | ID | Mô tả | Trạng thái |
 |----|-------|------------|
 | B9a | Tool CoreIoT V2: `tools/test_mqtt_coreiot.py` (field `d1..d6/nearest_cm`, zone 100/30), rule-chain snapshot V2, gate R11 | ✅ XONG (tool V2 + rule-chain snapshot; gate R11 OK, 16/16 pytest) |
-| B9b | Nghiệm thu CoreIoT: token MỚI → flash → dashboard `warning_status` | ⏳ cần user tạo token MỚI → điền `config/keys.json` → flash → nghiệm thu (xem `docs/TEST_PROTOCOL.md` cấp 3) |
+| B9b | Nghiệm thu CoreIoT: token MỚI → flash → dashboard `warning_status` | 🟡 MỘT PHẦN (2026-09-03): token MỚI + sensor-node env `yolo_uno_coreiot` `[NET] MQTT connected` → device **Active**; còn nghiệm thu `warning_status`/buzzer |
 | T5.x | Đo lường hiệu năng (baseline, latency, soak…) — làm sau khi firmware ổn định | ⏳ |
 
 ## Tài liệu vận hành / kiểm thử
