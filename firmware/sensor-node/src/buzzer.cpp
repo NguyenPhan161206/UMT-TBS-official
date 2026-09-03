@@ -7,16 +7,27 @@
 void buzzerInit()
 {
     pinMode(BUZZER_PIN, OUTPUT);
+    noTone(BUZZER_PIN);
     digitalWrite(BUZZER_PIN, LOW);
 }
 
-// Non-blocking: dùng millis() để toggle còi theo chu kỳ mà không chặn task.
+static void buzzerToneOn()
+{
+    tone(BUZZER_PIN, BUZZER_TONE_HZ);
+}
+
+static void buzzerToneOff()
+{
+    noTone(BUZZER_PIN);
+    digitalWrite(BUZZER_PIN, LOW);
+}
+
 void buzzerTask(void *pvParameters)
 {
     (void)pvParameters;
     buzzerInit();
 
-    uint32_t lastBeepStartMs = 0;
+    uint32_t lastBeepStartMs = millis();
     bool beeping = false;
 
     for (;;)
@@ -43,19 +54,19 @@ void buzzerTask(void *pvParameters)
         {
             if (beeping)
             {
-                digitalWrite(BUZZER_PIN, LOW);
+                buzzerToneOff();
                 beeping = false;
             }
         }
         else if (!beeping && (now - lastBeepStartMs >= period))
         {
-            digitalWrite(BUZZER_PIN, HIGH);
+            buzzerToneOn();
             beeping = true;
             lastBeepStartMs = now;
         }
         else if (beeping && (now - lastBeepStartMs >= BUZZER_BEEP_ON_MS))
         {
-            digitalWrite(BUZZER_PIN, LOW);
+            buzzerToneOff();
             beeping = false;
         }
 
