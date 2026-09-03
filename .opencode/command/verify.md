@@ -12,7 +12,7 @@ python3 tools/guard/check_rulechain_thresholds.py   # best-effort, bỏ qua nế
 ```
 
 Nếu `$ARGUMENTS` có phạm vi (file/folder), quét thêm `--path <scope>`.
-Sau đó tự trả lời `.opencode/docs/SELFCHECK.md` (10 câu) và xuất kết luận:
+Sau đó gọi skill `selfcheck` (10 câu, R1–R12) và xuất kết luận:
 `PASS — sẵn sàng commit` hoặc `FAIL — <R# nào, file nào, cách sửa>`.
 
 Không bao giờ kết luận PASS nếu `scan_secrets.py` khác 0.

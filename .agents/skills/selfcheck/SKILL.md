@@ -1,3 +1,8 @@
+---
+name: selfcheck
+description: 10 câu kiểm tra trước khi tuyên bố DONE hoặc commit (R1-R12). Gọi skill này mỗi khi hoàn thành một task/fix/refactor để đảm bảo đủ Definition of Done và không vi phạm CONSTITUTION.
+---
+
 # SELFCHECK — Kiểm tra trước khi báo DONE
 
 > Trả lời 10 câu trước khi tuyên bố một task hoàn thành. Nếu **bất kỳ** câu nào là "không"/"ngoại lệ",

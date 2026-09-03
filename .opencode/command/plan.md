@@ -4,7 +4,7 @@ agent: plan
 ---
 
 Gọi skill `dev-orchestrator` ở **MODE 1 — Decomposition**. Trước hết đọc:
-- `AGENTS.md` và `.opencode/docs/ROADMAP_CHECKLIST.md` (ưu tiên B0–B9)
+- `AGENTS.md` và gọi skill `roadmap_checklist` (ưu tiên B0–B9)
 - `.opencode/docs/CONSTITUTION.md` (R1–R12 — DoD phải tôn trọng)
 
 Tạo `docs/roadmaps/<slug>.roadmap.json` (theo `references/roadmap-schema.json` của skill) và xuất

@@ -14,7 +14,7 @@ Trước khi làm bất kỳ mode nào, đọc đầy đủ quy trình chuẩn t
 - `read .claude/skills/dev-orchestrator/SKILL.md` — 2 MODE, rules, anti-patterns, schema
 - `read .claude/skills/dev-orchestrator/references/roadmap-schema.json` — contract + validation cho roadmap JSON
 - `read .claude/skills/dev-orchestrator/references/worker-prompt-template.md` — template prompt Worker MODE 2
-- `read AGENTS.md` (repo root) và `.opencode/docs/ROADMAP_CHECKLIST.md` — build commands, cổng `/dev/ttyACM0`/`/dev/ttyACM1`, thứ tự ưu tiên B0–B9
+- `read AGENTS.md` (repo root) và gọi skill `roadmap_checklist` — build commands, cổng `/dev/ttyACM0`/`/dev/ttyACM1`, thứ tự ưu tiên B0–B9
 
 Tuân theo skill gốc ở trên; tóm tắt các quy tắc cốt lõi:
 

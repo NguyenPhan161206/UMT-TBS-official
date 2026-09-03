@@ -1,3 +1,8 @@
+---
+name: roadmap_checklist
+description: Lộ trình chuẩn V2 (B0-B9, T5, CI) và thứ tự ưu tiên. Gọi skill này khi tra cứu tiến độ dự án, phân rã kế hoạch (/plan), hoặc đối chiếu checklist trước khi nhận việc.
+---
+
 # ROADMAP_CHECKLIST — Lộ trình V2 (Bản chuẩn cho Agent)
 
 > Nguồn chuẩn hoá lộ trình. Mọi agent đối chiếu checklist này khi nhận việc. Thứ tự ưu tiên:
