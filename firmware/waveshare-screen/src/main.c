@@ -171,7 +171,11 @@ void app_main(void)
         rotation,
         &panel_handle,
         &touch_handle));
-    ESP_ERROR_CHECK(waveshare_rgb_lcd_backlight_on());
+    /* DEBUG DEMO (R5): board này CH422G hiện không ACK (phần cứng) -> không abort.
+     * Revert ESP_ERROR_CHECK sau khi backlight hardware khôi phục. */
+    if (waveshare_rgb_lcd_backlight_on() != ESP_OK) {
+        ESP_LOGW(TAG, "Backlight over CH422G failed (bus 8/9 no CH422G ACK) -> continuing for UI debug");
+    }
 
     esp_lv_adapter_config_t adapter_config = ESP_LV_ADAPTER_DEFAULT_CONFIG();
     adapter_config.task_stack_size = 12 * 1024;
