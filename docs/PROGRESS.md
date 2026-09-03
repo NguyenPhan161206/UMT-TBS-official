@@ -28,10 +28,13 @@
 
 ### Đang triển khai (agent)
 - ✅ Tài liệu: `docs/TEST_PROTOCOL.md` + `docs/PROGRESS.md` (mở PR/commit này).
+- ✅ B6: hướng dẫn tạo token CoreIoT từng bước (`/devices`) vào README + TEST_PROTOCOL.
 - ✅ Báo cáo `report/` (5 chương) + `report-code/` (8 chương chi tiết 4 lớp IoT).
 
 ### Chờ user / phần cứng
-- 🔑 **B0b/B9b:** tạo token CoreIoT MỚI trên `app.coreiot.io` → điền `config/keys.json`.
+- 🔑 **B0b/B9b:** tạo token CoreIoT MỚI trên `app.coreiot.io` (**Devices** `/devices`
+  → Manage Credentials → Access Token) → điền `config/keys.json` (xem cấp 3
+  `docs/TEST_PROTOCOL.md`).
 - 🔌 **B5/B9b/T5.x:** flash board thật, quan sát, đo.
 - 🛡️ **B7b:** bật protected branch trên GitHub (admin).
 

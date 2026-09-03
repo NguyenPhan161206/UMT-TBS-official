@@ -161,7 +161,7 @@ cd firmware/sensor-node && pio test -e native       # 10/10 host test (firmware)
 
 ## Nghiệm thu CoreIoT (B9)
 
-1. Tạo **token MỚI** trên `app.coreiot.io` cho 2 device (sensor + screen) — **không tái dùng token đã lộ ở repo cũ** (R11).
+1. Tạo **token MỚI** cho 2 device trên `app.coreiot.io` — **không tái dùng token đã lộ ở repo cũ** (R11). Hướng dẫn từng bước (kèm đường dẫn UI chính xác) xem **cấp 3** trong [`docs/TEST_PROTOCOL.md`](docs/TEST_PROTOCOL.md) — tóm tắt: **Devices** (`/devices`) → tạo `sensor-node` + `waveshare-screen` → **Manage Credentials** → copy **Access Token** → điền `config/keys.json`.
 2. Import `cloud/coreiot/rule_chain/supersonic_rule_chain.json` làm root rule-chain của sensor-node.
 3. Điền `config/keys.json` (token + Wi-Fi) rồi thử:
 ```bash

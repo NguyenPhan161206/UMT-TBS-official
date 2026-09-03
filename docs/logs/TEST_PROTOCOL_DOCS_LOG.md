@@ -5,6 +5,10 @@ Bổ sung 2 tài liệu còn thiếu trong ROADMAP_CHECKLIST (DOC-A `TEST_PROTOC
 DOC-B `PROGRESS.md`) và đồng bộ link trong README, trạng thái
 `ROADMAP_CHECKLIST.md`, đảm bảo DoD đo được (R10).
 
+> Bước B6 (sau): bổ sung hướng dẫn **tạo token CoreIoT** từng bước (đường dẫn UI
+> chính xác: `/devices` chứ không phải `/home`) vào README + TEST_PROTOCOL; không
+> ghi token thật (R1/R11). Xem phần "Vòng 2 — B6" bên dưới.
+
 ## File đã sửa / tạo
 - `docs/TEST_PROTOCOL.md` — quy trình test 3 cấp:
   - Cấp 1: host/unit không cần board (`scan_secrets.py`,
@@ -33,3 +37,15 @@ DOC-B `PROGRESS.md`) và đồng bộ link trong README, trạng thái
 - Bước tiếp theo (B9b): user tạo token CoreIoT MỚI → điền `config/keys.json` →
   `gen_credentials.py --check` → flash 2 board → chạy `test_mqtt_coreiot.py
   --loop --interval 2` → kiểm tra `warning_status` trên dashboard.
+
+## Vòng 2 — B6: hướng dẫn tạo token CoreIoT
+- Mục tiêu: cập nhật cả README + TEST_PROTOCOL để user tạo token/device đúng nơi
+  (`/devices`, **không** phải `/home`).
+- File sửa:
+  - `README.md` (mục "Nghiệm thu CoreIoT B9"): link chi tiết sang TEST_PROTOCOL
+    cấp 3 + tóm tắt 5 bước tạo token.
+  - `docs/TEST_PROTOCOL.md` (mục 3.1): mở rộng thành 7 bước kèm đường dẫn UI
+    (`/devices`, `/ruleChains`), sinh `credentials.h`, import rule-chain.
+- Verify: `scan_secrets.py` exit 0; gitleaks no leaks; R7 (README 222d,
+  TEST_PROTOCOL 149d < 400); link `docs/TEST_PROTOCOL.md` tồn tại.
+- Trạng thái B9b: vẫn ⏳ chờ user điền token MỚI vào `config/keys.json` + board.

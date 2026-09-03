@@ -75,20 +75,39 @@ slot không lắp phần cứng (giữ `valid=0`).
 ## Cấp 3 — Nghiệm thu Mạng/Cloud (CoreIoT B9, cần token + Internet)
 
 ### 3.1 Chuẩn bị token CoreIoT (R11 — token MỚI, không tái dùng repo cũ)
-1. Đăng nhập `app.coreiot.io` → **Devices** → **+** tạo 2 device:
-   `sensor-node`, `waveshare-screen`.
-2. Mỗi device → **Manage Credentials** → copy **Access Token**.
-3. Điền vào `config/keys.json` (`SENSOR_NODE_DEVICE_TOKEN` /
+
+> `https://app.coreiot.io` là nền tảng **CoreIoT** (fork ThingsBoard). Trang chủ
+> sau đăng nhập là `/home` (dashboard tổng) — **không phải** nơi tạo token.
+> Token thiết bị được tạo trong menu **Devices** (`/devices`).
+
+Từng bước:
+
+1. **Đăng nhập** `https://app.coreiot.io` — dùng Google/GitHub/Apple hoặc email
+   đăng ký tài khoản.
+2. Menu trái chọn **Devices** (URL `…/devices`) — danh sách terminal
+   thiết bị.
+3. Bấm nút **+** (góc phải trên bảng) để thêm device mới:
+   - Tên: `sensor-node` → bật **"Is device"** → lưu.
+   - Lặp lại tạo `waveshare-screen`.
+4. Với **mỗi device**, bấm vào tên để mở chi tiết, rồi nút biểu tượng **máy
+   chìa khóa / Manage Credentials**:
+   - Chọn tab **Access Token** → nút **generate** (hoặc sao chép token hiện có).
+   - Đây là **Device Access Token** MỚI — copy cẩn thận, chưa bao giờ commit.
+5. Điền token vào `config/keys.json` (`SENSOR_NODE_DEVICE_TOKEN` /
    `WAVESHARE_SCREEN_DEVICE_TOKEN`) + Wi-Fi SSID/password.
-4. Sinh header firmware + verify:
+6. Sinh header firmware + verify:
+
 ```bash
 python3 tools/guard/gen_credentials.py --out firmware/sensor-node/include/credentials.h
 python3 tools/guard/gen_credentials.py --out firmware/waveshare-screen/components/coreiot_client/include/credentials.h
 python3 tools/guard/gen_credentials.py --check
 ```
-5. Import rule-chain vào CoreIoT (nếu chưa): **Rule Chains → + → Import** chọn
-   `cloud/coreiot/rule_chain/supersonic_rule_chain.json`, set làm root của
-   `sensor-node`.
+
+7. Import rule-chain vào CoreIoT (nếu chưa):
+   - Menu trái **Rule Chains** (URL `…/ruleChains`) → **+** → **Import**.
+   - Chọn `cloud/coreiot/rule_chain/supersonic_rule_chain.json` → lưu.
+   - Vào device `sensor-node` → **Manage Credentials / Rule Chain** (hoặc tab
+     liên quan) → chọn rule-chain vừa import làm **root** cho device này.
 
 > LƯU Ý: chạy CoreIoT cần env build có cờ:
 > `pio run -e yolo_uno_coreiot` (sensor-node). Waveshare-screen dùng MQTT qua
