@@ -64,8 +64,25 @@ static esp_err_t touch_reset_gpio_init(void)
 
 static esp_err_t ch422g_init_for_output(void)
 {
-    uint8_t write_buf = 0x01;
-    return i2c_master_write_to_device_ng(0x24, &write_buf, 1);
+    /* CH422G proper init (from official esp_io_expander driver, reset()):
+     * 1) WR-SET: set IO_OE -> IO0..IO7 become outputs.
+     * 2) WR-OC:  OC pins push-pull output, output value 0x0F (SD_CS/USB_SEL high).
+     * 3) WR-IO:  IO0..IO7 output value 0xFF -> LCD_BL (IO2) HIGH => backlight on,
+     *            and USB_SEL (IO5) HIGH => keeps USB serial alive.
+     * NOTE: old code wrote WR-IO 0x1E which pulled IO5(USB_SEL) LOW -> USB dropped;
+     *       0xFF keeps all IO high as the waveshare board expects. */
+    uint8_t wr_set = CH422G_WR_SET_VAL_OUTPUT;
+    esp_err_t err = i2c_master_write_to_device_ng(CH422G_REG_WR_SET, &wr_set, 1);
+    if (err != ESP_OK) {
+        return err;
+    }
+    uint8_t wr_oc = 0x0F;
+    err = i2c_master_write_to_device_ng(CH422G_REG_WR_OC, &wr_oc, 1);
+    if (err != ESP_OK) {
+        return err;
+    }
+    uint8_t wr_io = CH422G_IO_WR_VAL_DEFAULT;
+    return i2c_master_write_to_device_ng(CH422G_REG_WR_IO, &wr_io, 1);
 }
 
 #if CONFIG_WAVESHARE_BACKLIGHT_FALLBACK
@@ -78,47 +95,39 @@ static esp_err_t ch422g_init_for_output(void)
 
 static esp_err_t waveshare_esp32_s3_touch_reset(void)
 {
-    /* Only GT911 reset via GPIO must succeed; CH422G/GT911 I2C is optional. */
+    /* GT911 reset via GPIO4; CH422G/GT911 I2C is NOT touched here so it does
+     * not disturb the expander that already enabled the backlight. */
     esp_err_t err = touch_reset_gpio_init();
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "touch_reset: touch reset GPIO init fail 0x%x (tolerated)", err);
         return err;
     }
 
-    (void)i2c_master_init_if_needed();
-    uint8_t write_buf = 0x2C;
-    (void)ch422g_init_for_output();                       /* optional */
-    (void)i2c_master_write_to_device_ng(0x38, &write_buf, 1); /* optional */
-
     esp_rom_delay_us(100 * 1000);
     gpio_set_level(EXAMPLE_TOUCH_RESET_GPIO, 0);
     esp_rom_delay_us(100 * 1000);
-    write_buf = 0x2E;
-    (void)i2c_master_write_to_device_ng(0x38, &write_buf, 1); /* optional */
+    gpio_set_level(EXAMPLE_TOUCH_RESET_GPIO, 1);
     esp_rom_delay_us(200 * 1000);
     return ESP_OK;
 }
 
 esp_err_t waveshare_rgb_lcd_backlight_on(void)
 {
-    uint8_t write_buf = 0x1E;
-
+    /* Backlight is CH422G pin IO2 (LCD_BL). Properly init the expander so it
+     * drives IO2 HIGH (backlight on) and keeps IO5 (USB_SEL) HIGH so the USB
+     * serial stays alive. Best-effort: on I2C failure we log and return ESP_OK
+     * so the RGB LCD/UI still come up. */
     esp_err_t err = i2c_master_init_if_needed();
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "backlight: I2C bus init fail 0x%x -> HW default high (screen stays on)", err);
+        ESP_LOGW(TAG, "backlight: I2C bus init fail 0x%x -> screen stays as HW default", err);
         return ESP_OK;
     }
     err = ch422g_init_for_output();
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "backlight: CH422G init fail 0x%x -> HW default high (screen stays on)", err);
+        ESP_LOGW(TAG, "backlight: CH422G init fail 0x%x -> screen stays on, USB_SEL kept high", err);
         return ESP_OK;
     }
-    err = i2c_master_write_to_device_ng(0x38, &write_buf, 1);
-    if (err != ESP_OK) {
-        ESP_LOGW(TAG, "backlight: write 0x38 0x1E fail 0x%x -> HW default high (screen stays on)", err);
-        return ESP_OK;
-    }
-    ESP_LOGI(TAG, "backlight: CH422G backlight ON (controlled)");
+    ESP_LOGI(TAG, "backlight: CH422G IO2(LCD_BL) HIGH via WR-IO 0xFF (backlight on)");
     return ESP_OK;
 }
 
@@ -126,27 +135,21 @@ esp_err_t waveshare_rgb_lcd_backlight_on(void)
 
 static esp_err_t waveshare_esp32_s3_touch_reset(void)
 {
-    uint8_t write_buf = 0x2C;
-
     ESP_ERROR_CHECK(ch422g_init_for_output());
     ESP_ERROR_CHECK(touch_reset_gpio_init());
-    ESP_ERROR_CHECK(i2c_master_write_to_device_ng(0x38, &write_buf, 1));
     esp_rom_delay_us(100 * 1000);
     gpio_set_level(EXAMPLE_TOUCH_RESET_GPIO, 0);
     esp_rom_delay_us(100 * 1000);
-    write_buf = 0x2E;
-    ESP_ERROR_CHECK(i2c_master_write_to_device_ng(0x38, &write_buf, 1));
+    gpio_set_level(EXAMPLE_TOUCH_RESET_GPIO, 1);
     esp_rom_delay_us(200 * 1000);
     return ESP_OK;
 }
 
 esp_err_t waveshare_rgb_lcd_backlight_on(void)
 {
-    uint8_t write_buf = 0x1E;
-
     ESP_ERROR_CHECK(i2c_master_init_if_needed());
     ESP_ERROR_CHECK(ch422g_init_for_output());
-    return i2c_master_write_to_device_ng(0x38, &write_buf, 1);
+    return ESP_OK;
 }
 
 #endif /* CONFIG_WAVESHARE_BACKLIGHT_FALLBACK */

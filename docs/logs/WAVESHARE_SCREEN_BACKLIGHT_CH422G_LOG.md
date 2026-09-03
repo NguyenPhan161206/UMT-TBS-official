@@ -109,3 +109,73 @@ Xem log qua: USB-Serial-JTAG console (production waveshare đọc qua ttyACM1).
 1. Thực hiện **Bước 1** ở trên (bỏ phụ thuộc CH422G trong backlight + touch reset), build, flash ttyACM1, quan sát màn.
 2. Nếu sáng → chốt + nghiệm thu (Bước 3). Nếu tối → Bước 2 (probe addr 1 cặp 8/9).
 3. Sau khi nghiệm thu xong: revert DEBUG DEMO, cập nhật log này + PROGRESS + ROADMAP, rồi mới tính commit/push.
+
+---
+
+## ⚡ BỔ SUNG THỰC NGHIỆM (session 2026-09-03 — QUAN TRỌNG, đọc trước khi làm tiếp)
+
+### 7.1 Bỏ HOÀN TOÀN CH422G → màn VẪN TỐI
+- Đã flash đúng firmware waveshare vào đúng board (ttyACM1, MAC ec:da:3b:51:77:94) — UI/LVGL init OK.
+- Sửa `backlight_on()` thành **không chạm I2C/CH422G chút nào** (đúng cách paulhamsh — "hardware default high"):
+  - Log: `backlight: hardware default high (EXIO2/DISP), no CH422G I2C access`
+  - Touch reset cũng bỏ ghi CH422G (chỉ GPIO4 reset GT911).
+- **KẾT QUẢ: màn VẪN TỐI.**
+- ⟹ **BÁC BỎ giả thuyết "bỏ CH422G là đủ (paulhamsh)".** Board này KHÔNG tự sáng khi không lập trình CH422G;
+  nó CẦN lập trình CH422G để đẩy EXIO2/DISP lên high (hoặc CH422G đang giữ DISP ở mức tối khi chưa cấu hình).
+
+### 7.2 Probe I2C 1 cặp 8/9 → làm mất ổn định USB (KHÔNG khả thi an toàn)
+- Đã viết probe **CHỈ 1 cặp 8/9, 1-pass** (bỏ hẳn 7 cặp) cho `prototypes/i2c_probe/`.
+- **KẾT QUẢ: vẫn gây USB-JTAG re-enumerate liên tục** (ttyACM1 mất/đổi) — đúng bài học mục 1.
+- Firmware production (mở I2C 1 lần cho GT911 rồi fail) thì **USB ổn định** ⟹ thủ phạm là **LOOP quét I2C**
+  nhiều lần, không chỉ là "nhiều cặp chân".
+- Kết luận: **KHÔNG chạy probe loop quét I2C trên board này qua USB.** Muốn tìm addr CH422G đúng, chỉ nên thử
+  theo **1-pass kiểm soát trong production** (mỗi lần 1 addr, không loop).
+
+### 7.3 Hướng an toàn tiếp theo (chưa thử)
+- Trong `backlight_on()` production (đã ổn định), thử **1-pass** lần lượt từng addr CH422G hợp lệ trong băng
+  `0x24, 0x20..0x27, 0x30..0x3f`: với mỗi addr ghi `ch422g_init(addr)` (0x01) + `0x38<-0x1E`, dừng, quan sát màn.
+  Dùng đúng luồng production (không loop) → giữ USB ổn định.
+- Hoặc xác minh **GPIO backlight** trực tiếp (nếu board có chân enable).
+
+> **Trạng thái board hiện tại:** đã flash lại firmware waveshare ổn định, USB OK (cả 2 cổng sống), màn VẪN TỐI.
+> Board KHÔNG hỏng (flash/init/LVGL/UI/Wi-Fi/CoreIoT đều OK — chỉ LED nền không lên).
+
+---
+
+## ✅ 8. NGUYÊN NHÂN GỐC ĐÃ TÌM RA + MÀN SÁNG (session 2026-09-03 — ĐÃ GIẢI QUYẾT)
+
+### 8.1 Nguyên nhân gốc (soi source chính thức + paulhamsh ref)
+Backlight waveshare 7" do **CH422G I/O expander** điều khiển qua **pin IO2 (LCD_BL)**, KHÔNG phải
+"EXIO2/DISP" hay ghi `0x38<-0x1E` như V2 cũ giả định. CH422G có **addr riêng từng register**:
+- `WR-SET = 0x48>>1 = 0x24` (control: IO_OE/OD_EN/SLEEP)
+- `WR-OC  = 0x46>>1 = 0x23` (OC pin output)
+- `WR-IO  = 0x70>>1 = 0x38` (IO0..IO7 output levels) ← **đây là addr "0x38" V2 từng ghi SAI**
+- `RD-IO  = 0x4D>>1 = 0x26`
+
+**V2 ghi sai WR-IO = 0x1E** (thay vì `0xFF`):
+- bit1/2/3/4 (IO1..IO4) = 1, nhưng **bit0 & bit5..7 = 0**
+- **IO2 = LCD_BL (bit2)** — 0x1E có bit2=1 (may mắn), nhưng cấu trúc và **IO5/USB_SEL (bit5)=0**
+  → **kéo USB_SEL LOW → mất USB** (giải thích bài học "probe mất USB"!). Và chuỗi init thiếu WR-OC
+  + không đặt đúng toàn bộ → LCD_BL không được giữ HIGH → màn tối.
+
+### 8.2 Sửa đúng protocol (dựa trên `esp_io_expander_ch422g.c` chính thức)
+`ch422g_init_for_output()` làm chuỗi init đúng:
+1. `WR-SET (0x24) = 0x01` → set IO_OE → IO0..7 thành output
+2. `WR-OC (0x23) = 0x0F` → OC push-pull output, SD_CS/USB_SEL HIGH
+3. `WR-IO (0x38) = 0xFF` → **IO0..IO7 HIGH ⇒ LCD_BL(IO2) HIGH (backlight on) + USB_SEL(IO5) HIGH**
+
+### 8.3 Kết quả
+- ✅ **FLASH-AND-OBSERVE: MÀN SÁNG + UI DASHBOARD HIỂN THỊ** trên board waveshare thật.
+- USB giữ ổn định (WR-IO 0xFF giữ IO5/USB_SEL HIGH). Cả 2 board đều sống (lưu ý cổng có thể đổi: waveshare hiện ttyACM0).
+
+### 8.4 File đã sửa trong PR này
+- `firmware/waveshare-screen/src/bsp/waveshare_rgb_lcd_port.h`: thêm defines CH422G register addr + pin map + WR-IO 0xFF.
+- `firmware/waveshare-screen/src/bsp/waveshare_rgb_lcd_port.c`: `ch422g_init_for_output()` chuỗi init đúng;
+  `backlight_on` (fallback + legacy) và `touch_reset` dùng đúng protocol, không còn ghi 0x38<-0x1E.
+- `prototypes/i2c_probe/src/main.c`: thu gọn an toàn chỉ 1 cặp 8/9 (không dùng cho quét loop nữa).
+- `docs/PROGRESS.md`, `docs/logs/WAVESHARE_SCREEN_BACKLIGHT_CH422G_LOG.md`: cập nhật.
+
+### 8.5 Đã verify
+- `scan_secrets.py` → OK (R1).
+- Build waveshare `yolo_uno` → SUCCESS (R6), không còn warning `ch422g_init_for_output`.
+- Màn sáng + UI lên (R10 flash-and-observe).

@@ -63,6 +63,21 @@ extern "C" {
 #define I2C_MASTER_FREQ_HZ (400 * 1000)
 #define I2C_MASTER_TIMEOUT_MS (1000)
 
+// CH422G I/O expander register I2C addresses (each register has its own address;
+// derived from the official esp_io_expander_ch422g driver, values are addr>>1).
+#define CH422G_REG_WR_SET (0x48 >> 1)   /* WR-SET: control (IO_OE, OD_EN, SLEEP) */
+#define CH422G_REG_WR_OC  (0x46 >> 1)   /* WR-OC:  OC pin output values (SD_CS/USB_SEL) */
+#define CH422G_REG_WR_IO  (0x70 >> 1)   /* WR-IO:  IO0..IO7 output values */
+#define CH422G_REG_RD_IO  (0x4D >> 1)   /* RD-IO:  IO read */
+
+// CH422G pin map on Waveshare 7" (paulhamsh ref): IO2 = LCD_BL (backlight).
+// WR-IO byte bit N drives IO_N; ALL IO default to 0xFF (high) after init.
+#define CH422G_IO_WR_VAL_DEFAULT (0xFF)  /* IO0..IO7 high -> LCD_BL(IO2) HIGH */
+
+// WR-SET control bits
+#define CH422G_WR_SET_BIT_IO_OE (1U << 0)  /* output-enable for IO0..IO7 */
+#define CH422G_WR_SET_VAL_OUTPUT (CH422G_WR_SET_BIT_IO_OE)
+
 #define GPIO_INPUT_PIN_SEL (1ULL << EXAMPLE_TOUCH_RESET_GPIO)
 #define EXAMPLE_TOUCH_RESET_GPIO (GPIO_NUM_4)
 
