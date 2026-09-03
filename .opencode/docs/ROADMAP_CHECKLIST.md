@@ -3,14 +3,14 @@
 > Nguồn chuẩn hoá lộ trình. Mọi agent đối chiếu checklist này khi nhận việc. Thứ tự ưu tiên:
 > **config/enforcement (B0–B1) → contract (B2) → firmware đo được (B3–B5) → CI (B7) → cloud demo (B9)**.
 
-## Giai đoạn 0 — Nền & Config (B0–B1) ✅ ĐANG LÀM (commit đầu trong phạm vi này)
+## Giai đoạn 0 — Nền & Config (B0–B1) ✅ XONG
 
 | ID | Mô tả | Trạng thái |
 |----|-------|------------|
-| B0 | Repo `UMT-TBS-official` (Greenfield, 1 remote), git config, Node ≥20, PlatformIO | ✅ dir+init; ⏳ push |
-| B0b | CoreIoT cách b: tạo tài khoản miễn phí, 2 device, token MỚI vào `config/keys.json`, import rule-chain | ⏳ (thủ công, cần user) |
-| B1 | Cấu hiến: CONSTITUTION R1–R12, SELFCHECK, ROADMAP_CHECKLIST V2, opencode.json (instructions+permission), agent (dev-orchestrator/arch-guard/secrets-responder), command (plan/step/scaffold/verify/commit/build/flash/test), plugin guard, skills port | 🔨 trong PR này |
-| B6e | Enforcement: `tools/guard/*.py` + plugin guard | 🔨 trong PR này |
+| B0 | Repo `UMT-TBS-official` (Greenfield, 1 remote), git config, Node ≥20, PlatformIO | ✅ XONG (dir+init+push, 1 remote origin) |
+| B0b | CoreIoT cách b: tạo tài khoản miễn phí, 2 device, token MỚI vào `config/keys.json`, import rule-chain | 🟡 MỘT PHẦN: rule-chain import OK (snapshot); ⏳ chờ token MỚI (R11) |
+| B1 | Cấu hiến: CONSTITUTION R1–R12, SELFCHECK, ROADMAP_CHECKLIST V2, opencode.json (instructions+permission), agent (dev-orchestrator/arch-guard/secrets-responder), command (plan/step/scaffold/verify/commit/build/flash/test), plugin guard, skills port | ✅ XONG (commit đầu) |
+| B6e | Enforcement: `tools/guard/*.py` + plugin guard | ✅ XONG (scan/gen/check_rulechain/check_size + CI gates) |
 
 ## Giai đoạn 1 — Shared contract (B2)
 
@@ -38,8 +38,16 @@
 
 | ID | Mô tả | Trạng thái |
 |----|-------|------------|
-| B9 | Nghiệm thu CoreIoT: `tools/test_mqtt_coreiot.py` token mới → rule-chain → dashboard `warning_status` | 🔨 port xong: tool V2 + rule-chain snapshot V2 (field `d1..d6/nearest_cm`, zone 100/30), gate R11 OK, 16/16 pytest; ⏳ cần user tạo token MỚI → điền `config/keys.json` → flash → nghiệm thu dashboard |
+| B9a | Tool CoreIoT V2: `tools/test_mqtt_coreiot.py` (field `d1..d6/nearest_cm`, zone 100/30), rule-chain snapshot V2, gate R11 | ✅ XONG (tool V2 + rule-chain snapshot; gate R11 OK, 16/16 pytest) |
+| B9b | Nghiệm thu CoreIoT: token MỚI → flash → dashboard `warning_status` | ⏳ cần user tạo token MỚI → điền `config/keys.json` → flash → nghiệm thu (xem `docs/TEST_PROTOCOL.md` cấp 3) |
 | T5.x | Đo lường hiệu năng (baseline, latency, soak…) — làm sau khi firmware ổn định | ⏳ |
+
+## Tài liệu vận hành / kiểm thử
+
+| ID | Mô tả | Trạng thái |
+|----|-------|------------|
+| DOC-A | `docs/TEST_PROTOCOL.md` — quy trình test 3 cấp (host / flash-and-observe / cloud) | ✅ XONG |
+| DOC-B | `docs/PROGRESS.md` — bảng trạng thái tiến độ chi tiết (B0–B9, T5, CI) | ✅ XONG |
 
 ## Thứ tự ưu tiên
 1. **Config + enforcement** (B0–B1, B6e) — đang thực thi.

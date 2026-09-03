@@ -155,6 +155,10 @@ make -C report                                      # build báo cáo LaTeX (tù
 cd firmware/sensor-node && pio test -e native       # 10/10 host test (firmware)
 ```
 
+> Quy trình test đầy đủ (3 cấp: host / flash-and-observe / cloud) xem
+> [`docs/TEST_PROTOCOL.md`](docs/TEST_PROTOCOL.md). Trạng thái chi tiết xem
+> [`docs/PROGRESS.md`](docs/PROGRESS.md).
+
 ## Nghiệm thu CoreIoT (B9)
 
 1. Tạo **token MỚI** trên `app.coreiot.io` cho 2 device (sensor + screen) — **không tái dùng token đã lộ ở repo cũ** (R11).
@@ -212,5 +216,8 @@ Sau mỗi nhiệm vụ bắt buộc ghi `docs/logs/<COMPONENT>_<TASK>_LOG.md`.
 ## Báo cáo & tài liệu
 
 - `report/` — **Báo cáo LaTeX** (Cấu trúc Dự án, Cấu trúc Thư mục, Báo cáo Dự án, Báo cáo Chi tiết Hệ thống): `make -C report` → `report/UMT_TBS_BaoCao.pdf`.
+- `report-code/` — **Báo cáo chi tiết code theo 4 lớp IoT** (8 chương): `make -C report-code` → `report-code/UMT_TBS_CodeDetail.pdf`.
+- `docs/TEST_PROTOCOL.md` — quy trình kiểm thử 3 cấp (host / flash-and-observe / cloud).
+- `docs/PROGRESS.md` — trạng thái tiến độ dự án chi tiết (B0–B9, T5, CI).
 - `docs/logs/` — nhật ký triển khai từng bước (CI, scaffold, ESP-NOW link, CoreIoT tool...).
 - `CONTRIBUTING.md` / `SECURITY.md` / `.opencode/docs/*` — quy trình đóng góp, bảo mật, cấu hiến.
