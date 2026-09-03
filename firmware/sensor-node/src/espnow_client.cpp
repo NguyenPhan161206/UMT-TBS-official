@@ -25,6 +25,9 @@ void EspNowClient::begin()
 
     esp_now_register_send_cb(onDataSent);
 
+    // Broadcast (ESPNOW_PEER_MAC = FF:FF:FF:FF:FF:FF) không bắt buộc add_peer,
+    // esp_now_send() tới broadcast làm việc trực tiếp. Cố gắng add_peer tương
+    // thích (một vài IDF chấp nhận); nếu fail thì chỉ cảnh báo, không dừng.
     esp_now_peer_info_t peerInfo = {};
     memcpy(peerInfo.peer_addr, ESPNOW_PEER_MAC, 6);
     peerInfo.channel = ESPNOW_CHANNEL;
@@ -32,7 +35,7 @@ void EspNowClient::begin()
 
     if (esp_now_add_peer(&peerInfo) != ESP_OK)
     {
-        Serial.println("[ESPNOW] Add peer failed");
+        Serial.println("[ESPNOW] Add peer failed (bỏ qua: broadcast vẫn gửi được)");
     }
 }
 

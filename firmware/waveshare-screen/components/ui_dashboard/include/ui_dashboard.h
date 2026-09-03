@@ -36,9 +36,14 @@ void ui_dashboard_update_sensor(uint8_t sensor_id, uint16_t dist_cm);
 void ui_dashboard_clear_sensor(uint8_t sensor_id);
 
 /**
- * @brief Update Wi-Fi / MQTT status badges (header + system page).
+ * @brief Update Wi-Fi status badge (header + system page). Chỉ tác động Wi-Fi.
  */
-void ui_dashboard_set_iot_status(bool is_connected, const char *ip);
+void ui_dashboard_set_wifi_status(bool is_connected, const char *ip);
+
+/**
+ * @brief Update MQTT/CoreIoT status badge (header + system page). Chỉ tác động MQTT.
+ */
+void ui_dashboard_set_mqtt_status(bool is_connected);
 
 /**
  * @brief Force/clear the pedestrian crossing hazard banner.

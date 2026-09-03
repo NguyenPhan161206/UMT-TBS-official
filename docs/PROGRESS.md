@@ -17,7 +17,9 @@
 | B3 | Scaffold sensor-node (sensor/filter/shared_state/buzzer/espnow/coreiot) | ✅ XONG | build 2 env, 10/10 host test |
 | B4 | Scaffold waveshare-screen (sensor_model/ui_dashboard/coreiot_client) | ✅ XONG | build OK, RAM 12.8%/Flash 31.2% |
 | B5 | Nối ESP-NOW qua shared header | ✅ XONG | grep define ngoài shared = 0 |
-| B4n | Backlight waveshare: kiến trúc HYBRID fallback (màn lên KHÔNG phụ thuộc CH422G; kiểm soát backlight khi CH422G ACK; macro `CONFIG_WAVESHARE_BACKLIGHT_FALLBACK` 1/0) | ✅ XONG + **flash-and-observe: màn SÁNG, UI hiển thị** (2026-09-03) | commit `42976d8`; log `docs/logs/WAVESHARE_SCREEN_BACKLIGHT_ARCH_FALLBACK_LOG.md` |
+| B5f | Fix ESP-NOW NO LINK: `ESPNOW_PEER_MAC` unicast sai (MAC sensor-node) → **broadcast FF:FF:FF:FF:FF:FF**; `espnow_client` bỏ bắt buộc `add_peer`. (2026-09-03) | ✅ XONG (code+build+test) / 🔌 chờ nghiệm thu end-to-end (thiếu sensor-node enum) | `docs/logs/WAVESHARE_SCREEN_ESPNOW_LINK_LOG.md` |
+| B9m | Fix MQTT up/down liên tục trên waveshare: tách `set_iot_status` → `set_wifi_status`/`set_mqtt_status` (hết overwrite lẫn nhau) + debounce MQTT DOWN 6s trong `coreiot_client`. (2026-09-03) | ✅ XONG + flash waveshare OK | log boot: MQTT connect OK; drop ~10s vẫn xảy ra do **mạng/broker NAT** (không phải bug fw); debounce giúp UI ổn định 
+| B4n | Backlight waveshare: **init CH422G ĐÚNG protocol** (WR-SET→WR-OC→WR-IO=0xFF → LCD_BL/IO2 HIGH; trước đây ghi sai WR-IO=0x1E làm màn tối + kéo USB_SEL/IO5 LOW mất USB). Macro `CONFIG_WAVESHARE_BACKLIGHT_FALLBACK` 1/0. | ✅ XONG + **flash-and-observe: màn SÁNG, UI hiển thị** (2026-09-03) | nguyên nhân gốc từ `esp_io_expander_ch422g.c` chính thức + paulhamsh ref; log `docs/logs/WAVESHARE_SCREEN_BACKLIGHT_CH422G_LOG.md` |
 | B6e | Guard tools (`tools/guard/*.py`) | ✅ XONG | scan/gen/check_rulechain/check_size |
 | B7 | CI GitHub Actions (build 2 env × 2 fw + test + Gitleaks + size-gate + asserts) | ✅ XONG | CI liên tục xanh (run gần nhất success) |
 | B7b | Protected branch `main` (PR phải xanh) | ⏳ CHỜ | cần quyền admin GitHub |
@@ -50,3 +52,4 @@
 
 - 2026-09-02: tạo file; đánh dấu B0–B7, B9a XONG; B9b/B0b/B7b/T5.x CHỜ.
 - 2026-09-03: màn waveshare SÁNG (hybrid fallback, commit `42976d8`); token MỚI; sensor-node env coreiot `MQTT connected` → **Active** (B9b một phần).
+- 2026-09-03: fix ESP-NOW broadcast (B5f) + tách MQTT label debounce (B9m); build 3 env + 10/10 host test + flash waveshare OK. **Chặn**: sensor-node chưa enum trong kernel → chưa nghiệm thu LINKED.

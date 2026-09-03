@@ -25,9 +25,16 @@ extern "C" {
 /* Cả 2 board phải ở cùng WiFi channel cố định. */
 #define ESPNOW_CHANNEL 1
 
-/* MAC đích (waveshare-screen, receiver) mà sensor-node gửi tới.
- * Cập nhật theo docs/architecture/ESPNOW_NETWORK.md nếu board đổi. */
-static const uint8_t ESPNOW_PEER_MAC[6] = {0x64, 0xe8, 0x33, 0x7c, 0x3f, 0xe0};
+/* Địa chỉ ESP-NOW đích mà sensor-node gửi tới.
+ *
+ * BROADCAST (FF:FF:FF:FF:FF:FF): waveshare-screen (`espnow_receiver`) nhận mọi
+ * gói, kể cả broadcast, nên không cần khớp MAC waveshare theo board/cổng (board
+ * tháo/cắm hoặc đổi cổng USB sẽ đổi MAC Wi-Fi → unicast dễ lỗi). Mạng 2-node
+ * cục bộ, broadcast là lựa chọn robust (quyết định 2026-09-03).
+ *
+ * Cả 2 board phải ở cùng WiFi channel (ESPNOW_CHANNEL) để nhận được.
+ */
+static const uint8_t ESPNOW_PEER_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 /* Tần suất gửi ESP-NOW (tách biệt MEASURE_INTERVAL_MS - vòng đo/lọc cục bộ). */
 #define ESPNOW_SEND_INTERVAL_MS 500

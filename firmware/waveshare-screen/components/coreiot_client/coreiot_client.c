@@ -30,6 +30,49 @@ static coreiot_wifi_status_cb_t s_wifi_cb = NULL;
 static coreiot_mqtt_status_cb_t s_mqtt_cb = NULL;
 static coreiot_data_cb_t s_data_cb = NULL;
 
+/* Debounce MQTT "DOWN" để tránh nhấp nháy UP/DOWN trên màn khi esp-mqtt
+ * auto-reconnect nhanh (broker/network drop TCP định kỳ ~10s):
+ * - MQTT_EVENT_CONNECTED  -> báo UP ngay, huỷ timer debounce.
+ * - MQTT_EVENT_DISCONNECTED -> chỉ báo DOWN nếu không reconnect được trong
+ *   MQTT_DOWN_DEBOUNCE_MS. Nếu reconnect xong trước đó -> giữ UP. */
+#define MQTT_DOWN_DEBOUNCE_MS (6000)
+static esp_timer_handle_t s_mqtt_down_timer = NULL;
+static bool s_mqtt_reported_up = false;
+
+static void mqtt_debounce_timer_cb(void *arg)
+{
+    (void)arg;
+    /* Hết hạn debounce mà vẫn chưa reconnect -> báo DOWN một lần. */
+    if (s_mqtt_reported_up && s_mqtt_cb) {
+        s_mqtt_reported_up = false;
+        s_mqtt_cb(false);
+    }
+}
+
+static void mqtt_debounce_arm(void)
+{
+    if (s_mqtt_down_timer == NULL) {
+        esp_timer_create_args_t args = {
+            .callback = mqtt_debounce_timer_cb,
+            .name = "mqtt_down_debounce",
+        };
+        if (esp_timer_create(&args, &s_mqtt_down_timer) != ESP_OK) {
+            s_mqtt_down_timer = NULL;
+        }
+    }
+    if (s_mqtt_down_timer != NULL) {
+        esp_timer_stop(s_mqtt_down_timer);
+        esp_timer_start_once(s_mqtt_down_timer, MQTT_DOWN_DEBOUNCE_MS * 1000);
+    }
+}
+
+static void mqtt_debounce_cancel(void)
+{
+    if (s_mqtt_down_timer != NULL) {
+        esp_timer_stop(s_mqtt_down_timer);
+    }
+}
+
 void coreiot_client_set_callbacks(coreiot_wifi_status_cb_t wifi_cb,
                                    coreiot_mqtt_status_cb_t mqtt_cb,
                                    coreiot_data_cb_t data_cb)
@@ -59,7 +102,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT Connected to CoreIoT (%s)", s_broker_uri);
-        if (s_mqtt_cb) {
+        mqtt_debounce_cancel();
+        if (!s_mqtt_reported_up && s_mqtt_cb) {
+            s_mqtt_reported_up = true;
             s_mqtt_cb(true);
         }
 
@@ -77,9 +122,8 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGW(TAG, "MQTT Disconnected");
-        if (s_mqtt_cb) {
-            s_mqtt_cb(false);
-        }
+        /* Debounce: chưa báo DOWN ngay — chờ reconnect trong MQTT_DOWN_DEBOUNCE_MS. */
+        mqtt_debounce_arm();
         break;
 
     case MQTT_EVENT_DATA:

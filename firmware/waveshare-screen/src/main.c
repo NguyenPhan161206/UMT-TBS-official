@@ -95,7 +95,7 @@ static void on_wifi_status(bool is_connected, const char *ip)
     if (esp_lv_adapter_lock(LV_LOCK_TIMEOUT_TICKS) != ESP_OK) {
         return;
     }
-    ui_dashboard_set_iot_status(is_connected, ip);
+    ui_dashboard_set_wifi_status(is_connected, ip);
     esp_lv_adapter_unlock();
 }
 
@@ -104,7 +104,7 @@ static void on_mqtt_status(bool is_connected)
     if (esp_lv_adapter_lock(LV_LOCK_TIMEOUT_TICKS) != ESP_OK) {
         return;
     }
-    ui_dashboard_set_iot_status(is_connected, NULL);
+    ui_dashboard_set_mqtt_status(is_connected);
     esp_lv_adapter_unlock();
 }
 

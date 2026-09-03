@@ -243,7 +243,7 @@ void ui_dashboard_clear_sensor(uint8_t sensor_id)
     evaluate_hazard();
 }
 
-void ui_dashboard_set_iot_status(bool is_connected, const char *ip)
+void ui_dashboard_set_wifi_status(bool is_connected, const char *ip)
 {
     wifi_ap_record_t ap_info;
     bool have_ap_info = is_connected && (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK);
@@ -262,11 +262,6 @@ void ui_dashboard_set_iot_status(bool is_connected, const char *ip)
         }
     }
 
-    if (s_lbl_mqtt_status) {
-        lv_label_set_text(s_lbl_mqtt_status, is_connected ? "MQTT: UP" : "MQTT: DOWN");
-        lv_obj_set_style_text_color(s_lbl_mqtt_status, is_connected ? lv_color_hex(COLOR_SAFE) : lv_color_hex(COLOR_DANGER), 0);
-    }
-
     if (s_lbl_sys_wifi) {
         if (is_connected) {
             lv_label_set_text_fmt(s_lbl_sys_wifi, "Wi-Fi: %s | %s | RSSI %d dBm",
@@ -278,6 +273,15 @@ void ui_dashboard_set_iot_status(bool is_connected, const char *ip)
         }
         lv_obj_set_style_text_color(s_lbl_sys_wifi, is_connected ? lv_color_hex(COLOR_SAFE) : lv_color_hex(COLOR_TEXT), 0);
     }
+}
+
+void ui_dashboard_set_mqtt_status(bool is_connected)
+{
+    if (s_lbl_mqtt_status) {
+        lv_label_set_text(s_lbl_mqtt_status, is_connected ? "MQTT: UP" : "MQTT: DOWN");
+        lv_obj_set_style_text_color(s_lbl_mqtt_status, is_connected ? lv_color_hex(COLOR_SAFE) : lv_color_hex(COLOR_DANGER), 0);
+    }
+
     if (s_lbl_sys_mqtt) {
         lv_label_set_text_fmt(s_lbl_sys_mqtt, "MQTT/CoreIoT: %s", is_connected ? "up" : "down");
         lv_obj_set_style_text_color(s_lbl_sys_mqtt, is_connected ? lv_color_hex(COLOR_SAFE) : lv_color_hex(COLOR_TEXT), 0);
