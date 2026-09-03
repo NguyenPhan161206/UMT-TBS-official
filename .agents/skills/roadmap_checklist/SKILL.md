@@ -30,6 +30,7 @@ description: Lộ trình chuẩn V2 (B0-B9, T5, CI) và thứ tự ưu tiên. G�
 |----|-------|------------|
 | B3 | `sensor-node`: sensor/filter/shared_state/buzzer/espnow + `plugins/coreiot` (USE_COREIOT, env `yolo_uno_coreiot`); unit test host; `static_assert` R4 | ✅ (build 2 env OK, 10/10 host test, log) |
 | B4 | `waveshare-screen`: sensor_model + ui_dashboard (tách <400 dòng) + coreiot_client; size-gate | ✅ (build OK: RAM 12.8% / Flash 31.2%; scan_secrets OK; R2/R3/R7 OK; log) |
+| B4b | Backlight waveshare: kiến trúc HYBRID fallback (màn lên KHÔNG phụ thuộc CH422G; kiểm soát backlight khi CH422G ACK; macro `CONFIG_WAVESHARE_BACKLIGHT_FALLBACK` 1/0) | 🟢 CODE XONG, build OK cả 2 branch (RAM 12.8%/Flash 31.3%) — ⏳ flash-and-observe chờ board (`docs/logs/WAVESHARE_SCREEN_BACKLIGHT_ARCH_FALLBACK_LOG.md`) |
 | B5 | Nối ESP-NOW qua shared header; xoá define trùng (grep == 1); flash-and-observe | ✅ (component espnow_receiver; grep==0 define ngoài shared; build OK: RAM 12.8%/Flash 31.3%; flash-and-observe chờ board — log) |
 
 ## Giai đoạn 3 — CI cứng (B7)

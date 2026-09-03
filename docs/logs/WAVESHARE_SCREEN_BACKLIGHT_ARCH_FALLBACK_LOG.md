@@ -3,8 +3,8 @@
 > **Mục tiêu:** Làm màn waveshare 7" lên UI, **KHÔNG phụ thuộc CH422G** (fallback để EXIO2/DISP
 > default high — giống repo paulhamsh), NHƯNG **giữ khả năng điều khiển backlight** (on/off/dim)
 > khi CH422G hoạt động đúng addr.
-> **Trạng thái:** KẾ HOẠCH — sẵn sàng thực thi khi mở lại session.
-> Ngày tạo: 2026-09-03. File nhiệm vụ tiếp theo sau khi out session.
+> **Trạng thái 🟢 CODE ĐÃ IMPLEMENT + BUILD XANH (cả 2 branch); ⏳ flash-and-observe chờ board.**
+> Ngày tạo: 2026-09-03. Cập nhật implement: 2026-09-03.
 
 ---
 
@@ -24,6 +24,41 @@ if (ch422g_backlight_on() != ESP_OK) {
 }
 return ESP_OK;       /* màn SÁNG + kiểm soát backlight khi CH422G OK */
 ```
+
+---
+
+## A2. ✅ IMPLEMENTED (2026-09-03) — kiến trúc kết hợp chính thức
+
+> Code đã viết xong, **build OK cả 2 branch**; chưa flash (chờ board `/dev/ttyACM1`).
+
+### File đã sửa
+| File | Thay đổi |
+|------|----------|
+| `firmware/waveshare-screen/src/bsp/waveshare_rgb_lcd_port.h` | Thêm macro `CONFIG_WAVESHARE_BACKLIGHT_FALLBACK` (1=hybrid mặc định / 0=legacy) + doc contract cho `backlight_on()`. |
+| `firmware/waveshare-screen/src/bsp/waveshare_rgb_lcd_port.c` | Tách 2 nhánh `#if CONFIG_WAVESHARE_BACKLIGHT_FALLBACK` với đúng logic hybrid. |
+
+### `waveshare_rgb_lcd_backlight_on()` — HYBRID (default, `=1`)
+```c
+esp_err_t err = i2c_master_init_if_needed();   if (err != ESP_OK) { log; return ESP_OK; }
+err = ch422g_init_for_output();                if (err != ESP_OK) { log; return ESP_OK; }
+err = i2c_master_write_to_device_ng(0x38,0x1E);if (err != ESP_OK) { log; return ESP_OK; }
+return ESP_OK;   /* màn luôn SÁNG dù CH422G NACK + kiểm soát backlight khi OK */
+```
+
+### `waveshare_esp32_s3_touch_reset()` — HYBRID
+- Chỉ **bắt buộc** `touch_reset_gpio_init()` (GPIO4 reset GT911).
+- CH422G / GT911 I2C ghi `0x2C`/`0x2E` đều **optional** (`(void)` + chấp nhận fail).
+
+### `waveshare_esp32_s3_rgb_lcd_init()` — HYBRID
+- RGB panel init vẫn `ESP_ERROR_CHECK` (nhánh quan trọng — màn phải lên).
+- Khối touch GT911: mọi step I2C đều **best-effort**, fail → log + `*touch_handle=NULL` + return `ESP_OK`. Màn/UI vẫn lên dù touch/CH422G không ACK.
+
+### LEGACY (`=0`) — giữ nguyên `ESP_ERROR_CHECK` stock (R5, không xoá code)
+
+### Kết quả verify
+- `pio run -e yolo_uno` (hybrid): **SUCCESS** — RAM 12.8% / Flash 31.3%.
+- `pio run -e yolo_uno` với `-DCONFIG_WAVESHARE_BACKLIGHT_FALLBACK=0` (legacy): **SUCCESS** — RAM 12.8% / Flash 31.3%.
+- `scan_secrets.py`: OK (R1). Line count: `port.c` 296 / `port.h` 110 (R7 < 400).
 
 ---
 

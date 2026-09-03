@@ -3,7 +3,7 @@
 > Bảng trạng thái chi tiết hơn README. Cập nhật sau mỗi nhiệm vụ (R10).
 > Quy trình test: xem `docs/TEST_PROTOCOL.md`.
 
-- **Cập nhật lần cuối**: 2026-09-02
+- **Cập nhật lần cuối**: 2026-09-03
 - **Branch**: `main`
 
 ## Bảng trạng thái tổng hợp
@@ -17,6 +17,7 @@
 | B3 | Scaffold sensor-node (sensor/filter/shared_state/buzzer/espnow/coreiot) | ✅ XONG | build 2 env, 10/10 host test |
 | B4 | Scaffold waveshare-screen (sensor_model/ui_dashboard/coreiot_client) | ✅ XONG | build OK, RAM 12.8%/Flash 31.2% |
 | B5 | Nối ESP-NOW qua shared header | ✅ XONG | grep define ngoài shared = 0 |
+| B4n | Backlight waveshare: kiến trúc HYBRID fallback (màn lên KHÔNG phụ thuộc CH422G; kiểm soát backlight khi CH422G ACK; macro `CONFIG_WAVESHARE_BACKLIGHT_FALLBACK` 1/0) | 🟢 CODE XONG, build OK cả 2 branch (RAM 12.8%/Flash 31.3%) | ⏳ flash-and-observe chờ board — xem `docs/logs/WAVESHARE_SCREEN_BACKLIGHT_ARCH_FALLBACK_LOG.md` |
 | B6e | Guard tools (`tools/guard/*.py`) | ✅ XONG | scan/gen/check_rulechain/check_size |
 | B7 | CI GitHub Actions (build 2 env × 2 fw + test + Gitleaks + size-gate + asserts) | ✅ XONG | CI liên tục xanh (run gần nhất success) |
 | B7b | Protected branch `main` (PR phải xanh) | ⏳ CHỜ | cần quyền admin GitHub |

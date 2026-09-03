@@ -67,7 +67,33 @@ extern "C" {
 #define EXAMPLE_TOUCH_RESET_GPIO (GPIO_NUM_4)
 
 /**
- * @brief Initialize CH422G I2C IO expander and turn on LCD backlight
+ * @brief Backlight strategy selector.
+ *
+ *   1 = HYBRID FALLBACK (default, target): the RGB LCD + UI MUST come up even
+ *       if the CH422G I2C expander does not ACK. `backlight_on()` tries CH422G
+ *       and, on any I2C failure, falls back to leaving the hardware default
+ *       (EXIO2/DISP pulled high) so the screen stays lit. Touch reset no
+ *       longer hard-depends on CH422G.
+ *
+ *   0 = LEGACY CH422G-DIRECT: hard-require CH422G (abort on failure), as the
+ *       stock Espressif example. Kept in git (R5) for boards whose CH422G
+ *       reliably ACKs.
+ *
+ * Rationale: the waveshare 7" board (paulhamsh ref) lights up WITHOUT touching
+ * CH422G; this macro lets production control backlight when CH422G works and
+ * stay resilient when it does not.
+ */
+#ifndef CONFIG_WAVESHARE_BACKLIGHT_FALLBACK
+#define CONFIG_WAVESHARE_BACKLIGHT_FALLBACK 1
+#endif
+
+/**
+ * @brief Turn on LCD backlight.
+ *
+ * In HYBRID FALLBACK mode this never aborts: if CH422G I2C fails it returns
+ * ESP_OK leaving the hardware default high (screen stays on), and controls
+ * the backlight only when CH422G actually ACKs. In LEGACY mode it aborts via
+ * ESP_ERROR_CHECK on any I2C failure.
  */
 esp_err_t waveshare_rgb_lcd_backlight_on(void);
 
