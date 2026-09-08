@@ -68,42 +68,89 @@ static esp_err_t ch422g_init_for_output(void)
     return i2c_master_write_to_device_ng(0x24, &write_buf, 1);
 }
 
+#if CONFIG_WAVESHARE_BACKLIGHT_FALLBACK
+/* ---------------------------------------------------------------------------
+ * HYBRID FALLBACK MODE (default)
+ * Screen + UI MUST come up even if CH422G fails to ACK. All CH422G/GT911 I2C
+ * operations are best-effort: on failure we log and return ESP_OK so the RGB
+ * LCD still lights using the hardware default (EXIO2/DISP high, paulhamsh ref).
+ * ------------------------------------------------------------------------ */
+
 static esp_err_t waveshare_esp32_s3_touch_reset(void)
 {
-    /* DEBUG DEMO (R5): tolerate CH422G/GT911 I2C failure so RGB LCD + UI still
-     * come up even if the touch/backlight expander does not ACK. */
-    uint8_t write_buf = 0x2C;
-    esp_err_t err;
+    /* Only GT911 reset via GPIO must succeed; CH422G/GT911 I2C is optional. */
+    esp_err_t err = touch_reset_gpio_init();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "touch_reset: touch reset GPIO init fail 0x%x (tolerated)", err);
+        return err;
+    }
 
-    err = ch422g_init_for_output();
-    if (err != ESP_OK) { ESP_LOGW(TAG, "touch_reset: CH422G init fail 0x%x (tolerated)", err); }
-    err = touch_reset_gpio_init();
-    if (err != ESP_OK) { ESP_LOGW(TAG, "touch_reset: GPIO init fail 0x%x (tolerated)", err); }
-    err = i2c_master_write_to_device_ng(0x38, &write_buf, 1);
-    if (err != ESP_OK) { ESP_LOGW(TAG, "touch_reset: GT911 w 0x2C fail 0x%x (tolerated)", err); }
+    (void)i2c_master_init_if_needed();
+    uint8_t write_buf = 0x2C;
+    (void)ch422g_init_for_output();                       /* optional */
+    (void)i2c_master_write_to_device_ng(0x38, &write_buf, 1); /* optional */
+
     esp_rom_delay_us(100 * 1000);
     gpio_set_level(EXAMPLE_TOUCH_RESET_GPIO, 0);
     esp_rom_delay_us(100 * 1000);
     write_buf = 0x2E;
-    err = i2c_master_write_to_device_ng(0x38, &write_buf, 1);
-    if (err != ESP_OK) { ESP_LOGW(TAG, "touch_reset: GT911 w 0x2E fail 0x%x (tolerated)", err); }
+    (void)i2c_master_write_to_device_ng(0x38, &write_buf, 1); /* optional */
     esp_rom_delay_us(200 * 1000);
     return ESP_OK;
 }
 
-#endif
+esp_err_t waveshare_rgb_lcd_backlight_on(void)
+{
+    uint8_t write_buf = 0x1E;
+
+    esp_err_t err = i2c_master_init_if_needed();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "backlight: I2C bus init fail 0x%x -> HW default high (screen stays on)", err);
+        return ESP_OK;
+    }
+    err = ch422g_init_for_output();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "backlight: CH422G init fail 0x%x -> HW default high (screen stays on)", err);
+        return ESP_OK;
+    }
+    err = i2c_master_write_to_device_ng(0x38, &write_buf, 1);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "backlight: write 0x38 0x1E fail 0x%x -> HW default high (screen stays on)", err);
+        return ESP_OK;
+    }
+    ESP_LOGI(TAG, "backlight: CH422G backlight ON (controlled)");
+    return ESP_OK;
+}
+
+#else /* LEGACY CH422G-DIRECT MODE — stock Espressif behavior, kept for R5 */
+
+static esp_err_t waveshare_esp32_s3_touch_reset(void)
+{
+    uint8_t write_buf = 0x2C;
+
+    ESP_ERROR_CHECK(ch422g_init_for_output());
+    ESP_ERROR_CHECK(touch_reset_gpio_init());
+    ESP_ERROR_CHECK(i2c_master_write_to_device_ng(0x38, &write_buf, 1));
+    esp_rom_delay_us(100 * 1000);
+    gpio_set_level(EXAMPLE_TOUCH_RESET_GPIO, 0);
+    esp_rom_delay_us(100 * 1000);
+    write_buf = 0x2E;
+    ESP_ERROR_CHECK(i2c_master_write_to_device_ng(0x38, &write_buf, 1));
+    esp_rom_delay_us(200 * 1000);
+    return ESP_OK;
+}
 
 esp_err_t waveshare_rgb_lcd_backlight_on(void)
 {
     uint8_t write_buf = 0x1E;
-    esp_err_t err;
 
-    err = i2c_master_init_if_needed();
-    if (err != ESP_OK) { ESP_LOGW(TAG, "backlight: I2C bus init fail 0x%x (tolerated)", err); }
-    err = ch422g_init_for_output();
-    if (err != ESP_OK) { ESP_LOGW(TAG, "backlight: CH422G init fail 0x%x (tolerated)", err); }
+    ESP_ERROR_CHECK(i2c_master_init_if_needed());
+    ESP_ERROR_CHECK(ch422g_init_for_output());
     return i2c_master_write_to_device_ng(0x38, &write_buf, 1);
 }
+
+#endif /* CONFIG_WAVESHARE_BACKLIGHT_FALLBACK */
+#endif /* CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_GT911 */
 
 esp_err_t waveshare_esp32_s3_rgb_lcd_init(esp_lv_adapter_tear_avoid_mode_t tear_mode,
                                           esp_lv_adapter_rotation_t rotation,
@@ -172,8 +219,14 @@ esp_err_t waveshare_esp32_s3_rgb_lcd_init(esp_lv_adapter_tear_avoid_mode_t tear_
     ESP_ERROR_CHECK(esp_lcd_panel_init(*panel_handle));
 
 #if CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_GT911
-    /* DEBUG DEMO (R5): tolerate touch I2C failure; continue without touch. */
-    ESP_ERROR_CHECK(i2c_master_init_if_needed());
+#if CONFIG_WAVESHARE_BACKLIGHT_FALLBACK
+    /* Hybrid: touch is optional. Try to init; on any I2C failure continue
+     * WITHOUT touch so the RGB LCD + UI still come up (CH422G may not ACK). */
+    if (i2c_master_init_if_needed() != ESP_OK) {
+        ESP_LOGW(TAG, "GT911 I2C bus init fail -> continue without touch");
+        *touch_handle = NULL;
+        return ESP_OK;
+    }
     (void)waveshare_esp32_s3_touch_reset();
 
     esp_lcd_panel_io_handle_t tp_io_handle = NULL;
@@ -181,9 +234,8 @@ esp_err_t waveshare_esp32_s3_rgb_lcd_init(esp_lv_adapter_tear_avoid_mode_t tear_
     tp_io_config.scl_speed_hz = 400 * 1000;
     ESP_LOGI(TAG, "Initialize I2C panel IO");
 
-    esp_err_t io_err = esp_lcd_new_panel_io_i2c(s_i2c_bus_handle, &tp_io_config, &tp_io_handle);
-    if (io_err != ESP_OK) {
-        ESP_LOGW(TAG, "GT911 panel IO init fail 0x%x -> continue without touch (DEBUG DEMO)", io_err);
+    if (esp_lcd_new_panel_io_i2c(s_i2c_bus_handle, &tp_io_config, &tp_io_handle) != ESP_OK) {
+        ESP_LOGW(TAG, "GT911 panel IO init fail -> continue without touch");
         *touch_handle = NULL;
         return ESP_OK;
     }
@@ -204,11 +256,40 @@ esp_err_t waveshare_esp32_s3_rgb_lcd_init(esp_lv_adapter_tear_avoid_mode_t tear_
             .mirror_y = 0,
         },
     };
-    esp_err_t tp_err = esp_lcd_touch_new_i2c_gt911(tp_io_handle, &tp_cfg, touch_handle);
-    if (tp_err != ESP_OK) {
-        ESP_LOGW(TAG, "GT911 touch init fail 0x%x -> continue without touch (DEBUG DEMO)", tp_err);
+    if (esp_lcd_touch_new_i2c_gt911(tp_io_handle, &tp_cfg, touch_handle) != ESP_OK) {
+        ESP_LOGW(TAG, "GT911 touch init fail -> continue without touch");
         *touch_handle = NULL;
+        return ESP_OK;
     }
+#else  /* LEGACY CH422G-DIRECT */
+    ESP_ERROR_CHECK(i2c_master_init_if_needed());
+    ESP_ERROR_CHECK(waveshare_esp32_s3_touch_reset());
+
+    esp_lcd_panel_io_handle_t tp_io_handle = NULL;
+    esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
+    tp_io_config.scl_speed_hz = 400 * 1000;
+    ESP_LOGI(TAG, "Initialize I2C panel IO");
+
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(s_i2c_bus_handle, &tp_io_config, &tp_io_handle));
+
+    ESP_LOGI(TAG, "Initialize touch controller GT911");
+    const esp_lcd_touch_config_t tp_cfg = {
+        .x_max = EXAMPLE_LCD_H_RES,
+        .y_max = EXAMPLE_LCD_V_RES,
+        .rst_gpio_num = EXAMPLE_PIN_NUM_TOUCH_RST,
+        .int_gpio_num = EXAMPLE_PIN_NUM_TOUCH_INT,
+        .levels = {
+            .reset = 0,
+            .interrupt = 0,
+        },
+        .flags = {
+            .swap_xy = 0,
+            .mirror_x = 0,
+            .mirror_y = 0,
+        },
+    };
+    ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_gt911(tp_io_handle, &tp_cfg, touch_handle));
+#endif /* CONFIG_WAVESHARE_BACKLIGHT_FALLBACK */
 #endif
 
     return ESP_OK;
