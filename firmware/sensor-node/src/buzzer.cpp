@@ -38,11 +38,11 @@ void buzzerTask(void *pvParameters)
         uint32_t period = 0;
         if (hasNearest && nearestCm > 0.0f)
         {
-            if (nearestCm < BUZZER_DANGER_DISTANCE_CM)
+            if (nearestCm <   SENSOR_DANGER_CM)
             {
                 period = BUZZER_DANGER_PERIOD_MS;
             }
-            else if (nearestCm <= BUZZER_WARNING_DISTANCE_CM)
+            else if (nearestCm <= SENSOR_CAUTION_CM)
             {
                 period = BUZZER_WARNING_PERIOD_MS;
             }
