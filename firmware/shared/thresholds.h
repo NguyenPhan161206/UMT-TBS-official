@@ -50,10 +50,7 @@ typedef enum {
 
 #define BUZZER_PIN 11
 #define BUZZER_TONE_HZ 2500
-#define BUZZER_WARNING_DISTANCE_CM 50.0f
-#define BUZZER_DANGER_DISTANCE_CM 20.0f
-#define BUZZER_WARNING_PERIOD_MS 3000
-#define BUZZER_DANGER_PERIOD_MS 1000
+#define BUZZER_WARNING_PERIOD_MS 1000
 #define BUZZER_BEEP_ON_MS 120
 
 /* ==================================================================

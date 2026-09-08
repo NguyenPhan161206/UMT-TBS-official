@@ -25,10 +25,12 @@ void test_zone_thresholds(void)
 
 void test_buzzer_thresholds(void)
 {
-    // Buzzer (sensor-node local): 50/20
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, 50.0f, BUZZER_WARNING_DISTANCE_CM);
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, 20.0f, BUZZER_DANGER_DISTANCE_CM);
+    // Buzzer (sensor-node local): DANGER liên tục, CAUTION 1 lần/giây (R3: vùng zone)
     TEST_ASSERT_EQUAL_INT(11, BUZZER_PIN);
+    TEST_ASSERT_EQUAL_INT(1000, BUZZER_WARNING_PERIOD_MS);
+    TEST_ASSERT_EQUAL_INT(120, BUZZER_BEEP_ON_MS);
+    TEST_ASSERT_EQUAL_INT(30, SENSOR_DANGER_CM);
+    TEST_ASSERT_EQUAL_INT(100, SENSOR_CAUTION_CM);
 }
 
 void test_sensor_pins_map_to_slots(void)

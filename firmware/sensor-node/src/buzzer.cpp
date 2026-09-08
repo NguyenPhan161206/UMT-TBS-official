@@ -29,45 +29,55 @@ void buzzerTask(void *pvParameters)
 
     uint32_t lastBeepStartMs = millis();
     bool beeping = false;
+    bool continuous = false;
 
     for (;;)
     {
         float nearestCm = 0.0f;
         bool hasNearest = sharedStateGetNearest(nearestCm);
 
-        uint32_t period = 0;
-        if (hasNearest && nearestCm > 0.0f)
-        {
-            if (nearestCm <   SENSOR_DANGER_CM)
-            {
-                period = BUZZER_DANGER_PERIOD_MS;
-            }
-            else if (nearestCm <= SENSOR_CAUTION_CM)
-            {
-                period = BUZZER_WARNING_PERIOD_MS;
-            }
-        }
+        bool danger = hasNearest && nearestCm > 0.0f && nearestCm < SENSOR_DANGER_CM;
+        bool caution = hasNearest && nearestCm > 0.0f && nearestCm <= SENSOR_CAUTION_CM;
 
         uint32_t now = millis();
 
-        if (period == 0)
+        if (danger)
         {
-            if (beeping)
+            if (!continuous)
+            {
+                buzzerToneOn();
+                continuous = true;
+                beeping = true;
+                lastBeepStartMs = now;
+            }
+        }
+        else
+        {
+            if (continuous)
+            {
+                buzzerToneOff();
+                continuous = false;
+                beeping = false;
+            }
+            if (caution)
+            {
+                if (!beeping && (now - lastBeepStartMs >= BUZZER_WARNING_PERIOD_MS))
+                {
+                    buzzerToneOn();
+                    beeping = true;
+                    lastBeepStartMs = now;
+                }
+                else if (beeping && (now - lastBeepStartMs >= BUZZER_BEEP_ON_MS))
+                {
+                    buzzerToneOff();
+                    beeping = false;
+                }
+            }
+            else if (beeping)
             {
                 buzzerToneOff();
                 beeping = false;
             }
-        }
-        else if (!beeping && (now - lastBeepStartMs >= period))
-        {
-            buzzerToneOn();
-            beeping = true;
-            lastBeepStartMs = now;
-        }
-        else if (beeping && (now - lastBeepStartMs >= BUZZER_BEEP_ON_MS))
-        {
-            buzzerToneOff();
-            beeping = false;
         }
 
         vTaskDelay(pdMS_TO_TICKS(20));
