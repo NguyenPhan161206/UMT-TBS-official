@@ -1,0 +1,328 @@
+% =====================================================================
+% Chương 6 — Lộ trình nhánh tiếp theo (Next Branch Roadmap)
+% Nguồn thực thi: docs/roadmaps/next-branch.roadmap.json + .state.md
+% =====================================================================
+
+\chapter{Lộ trình nhánh tiếp theo}
+
+Chương này trình bày lộ trình chi tiết cho nhánh phát triển tiếp theo của
+dự án, xây dựng từ kết quả đối chiếu master plan hiện hành. Lộ trình được chia
+thành \textbf{4 giai đoạn} ưu tiên theo đúng nguyên tắc ``đo được trước, sửa
+lỗi ưu tiên cao, rồi mới thêm tính năng'':
+
+\begin{enumerate}[label=\textbf{G\arabic*.}]
+\item \textbf{G1 — Mở khả năng kiểm thử} (T1.1, T1.2, T1.3, T1.4): đưa các
+thành phần phần mềm lên chạy/kiểm thử trên máy tính, không phụ thuộc board.
+\item \textbf{G2 — Yêu cầu P0 còn lại} (T2.3, T3.4, T2.4): khôi phục cảnh báo
+xe cắt ngang, thống nhất ngưỡng buzzer theo \code{FIRMWARE/SHARED}, nghiệm thu
+link và dữ liệu cũ trên board.
+\item \textbf{G3 — Tính năng đề xuất} (T3.1, T3.2, T3.3): biểu tượng vật thể,
+sơ đồ xe tải EX8, mạch khuếch đại buzzer 5V.
+\item \textbf{G4 — Vệ sinh \& đo lường} (T5.2, T5.3, T5.5--T5.9): nút
+calibrate, comment sai, baseline, độ trễ, soak test.
+\end{enumerate}
+
+\section{Trạng thái kế thừa và nguyên tắc thiết kế}
+
+Nhánh này kế thừa một số quyết định đã ghi nhận trong quá khứ, quyết định cả
+cách phát triển:
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{@{}p{6.6cm}p{9.8cm}@{}}
+\caption{Trạng thái kế thừa ảnh hưởng lộ trình.}\\
+\toprule
+\textbf{Trạng thái} & \textbf{Ảnh hưởng tới nhánh này} \\
+\midrule
+\endhead
+Mã nguồn đang ở \code{origin/main} (\code{6326682}), chưa có nhánh riêng
+cho lộ trình. &
+Tạo nhánh mới ngay từ commit này; mỗi giai đoạn một nhóm commit
+conventional (R9). \\
+Fix ESP-NOW (chủ động giữ kênh khi \code{WiFi.begin()} chạy song song,
+tắt modem-sleep) \textbf{đã bị revert} theo yêu cầu. &
+Không bóc tách sửa ``thử nghiệm''; đưa thành bước chính thức (G2) kèm
+nghiệm thu board để tránh quay vòng revert. \\
+\textbf{Buzzer:} \code{GPIO11} không thể xuất 5\,V và dòng đủ lớn —
+cần transistor + rail 5\,V; \code{BUZZER\_PIN=11} (đã tránh GPIO47/48
+xung đột PSRAM). &
+G3.3 tài liệu mạch transistor, không cấp thẳng 5\,V từ GPIO. Cần người
+dùng xác nhận buzzer \emph{active} hay \emph{passive}. \\
+\textbf{CoreIoT:} sensor-node Inactive từ 14:59:36 (không publish MQTT). &
+Xác nhận trước khi nghiệm thu G2: serial có \code{[NET] MQTT connected},
+board đang flash env nào, telemetry \code{d1..d6} latest. \\
+\textbf{Cảnh báo cắt ngang:} thuật toán cục bộ trong
+\code{ui\_dashboard.c} chạy, nhưng nguồn ép từ rule-chain
+(\code{crossing\_hazard}) là \emph{dead path} do node JS không xuất field. &
+G2.5 gắn lại field \code{crossing\_hazard} đầu cuối, thống nhất macro
+\code{CROSSING\_*} dùng chung trong \code{FIRMWARE/SHARED}. \\
+Heuristic thực thi: \code{front\_close} \textless{} 150\,cm +
+\code{side\_changing\_fast} (delta $\ge$ 40\,cm). &
+Không đổi thông số cảnh báo, chỉ nối dead path và thêm test. \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{Toàn cảnh 15 bước và chuỗi phụ thuộc}
+
+Chuỗi phụ thuộc cốt lõi: \textbf{G1 độc lập} → \textbf{G2 cần tìm board} →
+\textbf{G3 tính năng cần simulator (G2.4)} → \textbf{G4 đo lường cần
+record/replay (G2.3) và độ trễ (G4.14)}.
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=5mm and 12mm,
+  box/.style={draw, rounded corners=2pt, align=center,
+              minimum height=7mm, font=\footnotesize, inner sep=1.5mm,
+              fill=blue!5},
+  pha/.style={font=\footnotesize\bfseries, draw=none, fill=none},
+  arr/.style={-{Stealth[length=2.5mm]}, thick}
+]
+  % ---- Cột G1 ----
+  \node[pha] (g1) {G1 — Kiểm thử};
+  \node[box, below=1.5mm of g1] (s1) {1. T1.1 MQTT scenario};
+  \node[box, below=2mm of s1] (s2) {2. T1.3a classify test};
+  \node[box, below=2mm of s2] (s3) {3. T1.4 record/replay};
+  \node[box, below=2mm of s3] (s4) {4. T1.2 LVGL SDL sim};
+  % ---- Cột G2 ----
+  \node[pha, right=18mm of g1] (g2) {G2 — P0 còn lại};
+  \node[box, below=1.5mm of g2] (s5) {5. T2.3 crossing hazard};
+  \node[box, below=2mm of s5] (s6) {6. T3.4 buzzer DANGER-only};
+  \node[box, below=2mm of s6] (s7) {7. Nghiệm thu board};
+  % ---- Cột G3 ----
+  \node[pha, right=18mm of g2] (g3) {G3 — Tính năng};
+  \node[box, below=1.5mm of g3] (s8) {8. T3.1 biểu tượng};
+  \node[box, below=2mm of s8] (s9) {9. T3.2 sơ đồ EX8};
+  \node[box, below=2mm of s9] (s10) {10. T3.3 buzzer 5V};
+  % ---- Cột G4 ----
+  \node[pha, right=18mm of g3] (g4) {G4 — Đo \& vệ sinh};
+  \node[box, below=1.5mm of g4] (s11) {11. T5.2 calibrate};
+  \node[box, below=2mm of s11] (s12) {12. T5.3 comment};
+  \node[box, below=2mm of s12] (s13) {13. T5.5+5.6 baseline};
+  \node[box, below=2mm of s13] (s14) {14. T5.7 latency};
+  \node[box, below=2mm of s14] (s15) {15. T5.8+5.9 soak \& miss};
+
+  \draw[arr] (s1.south) -- (s2.north);
+  \draw[arr] (s2.south) -- (s3.north);
+  \draw[arr] (s5.south) -- (s6.north);
+  \draw[arr] (s6.south) -- (s7.north);
+  \draw[arr] (s4.east) -- (s8.west);
+  \draw[arr] (s7.east) -- (s11.west);
+  \draw[arr] (s3.east) -- (s13.west);
+  \draw[arr] (s13.south) -- (s14.north);
+  \draw[arr] (s14.south) -- (s15.north);
+\end{tikzpicture}
+\captionof{figure}{Chuỗi phụ thuộc 15 bước của nhánh tiếp theo.}
+\end{center}
+
+\section{Bảng chi tiết từng bước}
+
+Mỗi bước gồm nhóm file đích, định nghĩa hoàn thành (DoD) và lệnh xác minh
+chạy được trên máy dev \textbf{không cần board} (trừ các bước ghi rõ).
+
+\begin{center}
+\footnotesize
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{@{}p{3.4cm}p{4.4cm}p{8.6cm}@{}}
+\caption{Khuôn mẫu DoD (R10) áp dụng mọi bước trong lộ trình.}\\
+\toprule
+\textbf{Thành phần} & \textbf{Nội dung} \\
+\midrule
+\endhead
+\textbf{DoD phải đo được} &
+Mỗi bước chỉ \textsc{Done} khi chạy được lệnh xác minh của chính bước đó
+(\code{verification\_command}) và đầu ra như mô tả — \emph{``nhìn được''} là
+không đủ. \\
+\textbf{Kiểm tra lại hằng số} &
+Sau mỗi bước sửa ngưỡng: chạy \code{check\_rulechain\_thresholds.py} và
+\code{scan\_secrets.py} (R3/R11). \\
+\textbf{Commit} &
+Mỗi bước 1 nhóm commit conventional; cấm \code{git add -A}; chạy \code{/verify}
+trước commit (R9). \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\subsection{G1 — Mở khả năng kiểm thử (bước 1--4)}
+
+\begin{center}
+\footnotesize
+\renewcommand{\arraystretch}{1.3}
+\begin{longtable}{@{}p{0.8cm}p{4.2cm}p{4.0cm}p{7.4cm}@{}}
+\caption{G1 — các bước đưa phần mềm lên máy tính (không phụ thuộc board).}\\
+\toprule
+\textbf{\#} & \textbf{Nhiệm vụ} & \textbf{File đích} & \textbf{DoD (đo được)} \\
+\midrule
+\endhead
+1 &
+T1.1: \code{test\_mqtt\_coreiot.py} thêm \code{--scenario}
+(\code{approach}/\code{crossing}/\code{slam}/\code{normal}) tự đặt chuỗi
+khoảng cách theo thời gian, payload đúng schema V2
+(\code{d1..d6} + \code{nearest\_cm} + \code{has\_nearest}). &
+\code{tools/test\_mqtt\_coreiot.py}, \code{tools/guard/test\_guard.py} &
+\code{python3 tools/test\_mqtt\_coreiot.py --scenario approach --dry-run
+--distance 30} in 1 payload JSON đủ key; unit test guard pass. \\
+2 &
+T1.3: host test
+\code{sensor\_model\_classify} tại ranh giới 30/100/0 (R3); thêm env
+\code{native} cho waveshare. &
+\code{firmware/waveshare-screen/test/test\_sensor\_model.cpp},
+\code{platformio.ini} &
+\code{pio test -e native} pass $\ge$ 6 case classify; không ảnh hưởng build
+firmware thật. \\
+3 &
+T1.4: ghi \& phát lại telemetry JSONL — tái hiện cảnh không cần board. &
+\code{tools/record\_telemetry.py}, \code{tools/replay\_telemetry.py} &
+Ghi 10\,s ra \code{/tmp/tb.jsonl}, replay \code{--dry-run} không lỗi schema;
+script có \code{--in/--out/--seconds/--topic}. \\
+4 &
+T1.2: simulator LVGL v9 + SDL2 render dashboard waveshare trên PC. &
+\code{firmware/waveshare-screen/host\_sim/CMakeLists.txt},
+\code{host\_sim/main.c}, \code{ui\_dashboard.h} &
+\code{cmake -S ... -B /tmp/host\_sim \&\& cmake --build ...} thành công; chạy
+được cửa sổ SDL (headless: xvfb) hoặc exit 0. \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\subsection{G2 — P0 còn lại (bước 5--7)}
+
+\begin{center}
+\footnotesize
+\renewcommand{\arraystretch}{1.3}
+\begin{longtable}{@{}p{0.8cm}p{4.2cm}p{4.0cm}p{7.4cm}@{}}
+\caption{G2 — cảnh báo cắt ngang, thống nhất buzzer, nghiệm thu board.}\\
+\toprule
+\textbf{\#} & \textbf{Nhiệm vụ} & \textbf{File đích} & \textbf{DoD (đo được)} \\
+\midrule
+\endhead
+5 &
+T2.3: nối dead path \code{crossing\_hazard}. Node 3 rule-chain xuất thêm bool
+JS (\code{FRONT $\le$ 150} \&\&\ \code{side delta $\ge$ 40}); firmware đọc tại
+\code{main.c:84-87}; macro \code{CROSSING\_*} dùng chung qua
+\code{firmware/shared}. &
+\code{cloud/coreiot/rule\_chain/supersonic\_rule\_chain.json},
+\code{firmware/waveshare-screen/components/ui\_dashboard/ui\_dashboard.c},
+\code{firmware/waveshare-screen/src/main.c} &
+\code{pio run -e yolo\_uno} OK; \code{grep crossing\_hazard .../rule\_chain/*.json}
+hiện node JS; không còn phụ thuộc biến ép chết. \\
+6 &
+T3.4: thống nhất ngưỡng buzzer theo \code{FIRMWARE/SHARED} — bỏ
+\code{BUZZER\_WARNING\_DISTANCE\_CM}/\code{BUZZER\_DANGER\_DISTANCE\_CM};
+kêu khi \code{nearest\_cm $\le$ SENSOR\_DANGER\_CM} (30), im khi còn lại. &
+\code{firmware/shared/thresholds.h},
+\code{firmware/sensor-node/src/buzzer.cpp},
+\code{firmware/sensor-node/test/test\_thresholds.cpp} &
+2 env build OK; \code{pio test -e native} 10/10; grep 2 macro cũ = 0 (trừ
+\code{.pio/}). \\
+7 &
+T2.4 + nghiệm thu: flash 2 board (sensor-node \code{yolo\_uno\_coreiot},
+waveshare \code{yolo\_uno}), cùng AP. Xác nhận \code{LINKED} ổn định; slot
+quá hạn về \code{--} cm; buzzer chỉ kêu $\le$ 30\,cm; crossing bật qua
+rule-chain. &
+\code{docs/PROGRESS.md}, \code{docs/logs/NEXT\_BRANCH\_ACCEPTANCE\_LOG.md} &
+\emph{Flash-and-observe} ghi serial ngày-giờ; grep hàng DONE trong
+\code{PROGRESS.md}. \textbf{Cần board + token thật.} \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\subsection{G3 — Tính năng đề xuất (bước 8--10)}
+
+\begin{center}
+\footnotesize
+\renewcommand{\arraystretch}{1.3}
+\begin{longtable}{@{}p{0.8cm}p{4.2cm}p{4.0cm}p{7.4cm}@{}}
+\caption{G3 — các tính năng sau khi đã đo được (cần simulator bước 4).}\\
+\toprule
+\textbf{\#} & \textbf{Nhiệm vụ} & \textbf{File đích} & \textbf{DoD (đo được)} \\
+\midrule
+\endhead
+8 &
+T3.1: biểu tượng vật thể tại vị trí tương đối từng cảm biến trên canvas giữa
+thay vì text. &
+\code{firmware/waveshare-screen/components/ui\_dashboard/ui\_dashboard\_layout.c},
+\code{ui\_dashboard.c} &
+Simulator hiển thị icon di chuyển theo dữ liệu giả; firmware build OK; không
+đổi log cảnh báo. \\
+9 &
+T3.2: sơ đồ xe tải \textbf{EX8} theo hồ sơ (hết ``hình gắn cứng''): vị trí 6
+cảm biến + cung cảnh báo theo toạ độ profile. &
+Như bước 8 + \code{firmware/shared/thresholds.h} &
+Simulator hiển thị sơ đồ EX8; not chứa chuỗi \code{FRONT HOOD}/\code{REAR
+TRUNK} trong mã nguồn (grep = 0 ngoài assets). \\
+10 &
+T3.3: mạch khuếch đại buzzer 5\,V qua transistor NPN/MOS —
+\code{GPIO11} chỉ điều khiển (3.3\,V), buzzer ăn rail 5\,V; tài liệu sơ đồ
+đấu dây. &
+\code{firmware/shared/thresholds.h},
+\code{docs/INSTALLATION\_SENSOR\_NODE.md},
+\code{docs/HARDWARE\_INSTALLATION.md} &
+2 env build OK; \code{INSTALLATION} có sơ đồ transistor (R 1\,k + pull-down
+10\,k + rail 5\,V); bảng dây cập nhật. \emph{Cần trả lời: buzzer active/passive.} \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\subsection{G4 — Đo lường \& vệ sinh (bước 11--15)}
+
+\begin{center}
+\footnotesize
+\renewcommand{\arraystretch}{1.3}
+\begin{longtable}{@{}p{0.8cm}p{4.2cm}p{4.0cm}p{7.4cm}@{}}
+\caption{G4 — các phép đo định lượng và vệ sinh cuối nhánh.}\\
+\toprule
+\textbf{\#} & \textbf{Nhiệm vụ} & \textbf{File đích} & \textbf{DoD (đo được)} \\
+\midrule
+\endhead
+11 &
+T5.2: nút \code{Calibrate} — hoặc gắn callback có ích (reset sensor về
+nodata + log), hoặc bỏ nút. &
+\code{ui\_dashboard\_layout.c}, \code{ui\_dashboard.c} &
+Grep \code{calib\_btn} \code{add\_event\_cb} có (hoặc nút đã bỏ); build OK. \\
+12 &
+T5.3: đối chiếu comment ID cảm biến —
+\code{sensor\_model.h} vs \code{espnow\_slot\_t}. &
+\code{firmware/waveshare-screen/components/sensor\_model/include/sensor\_model.h},
+\code{firmware/shared/espnow\_protocol.h} &
+Grep 2 file mô tả cùng một thứ tự slot; label map không đổi thứ tự. \\
+13 &
+T5.5 + T5.6: đo baseline 6 khoảng cách (raw vs filter), tầm phản xạ ở 3 chiều
+cao gá, búp thực tế vs \code{SENSOR\_BEAM\_FOV\_DEG} (75). &
+\code{docs/PROGRESS.md}, \code{docs/TEST\_PROTOCOL.md} &
+PROGRESS có bảng baseline $n=3$, ngày đo; kết quả cao/góc. \textbf{Cần board.} \\
+14 &
+T5.7: độ trễ đầu--cuối 2 nhánh (ESP-NOW vs MQTT) → \textbf{chốt T0.2} (nhánh
+chính thức). &
+\code{docs/PROGRESS.md} &
+PROGRESS có bảng latency theo 2 nhánh + phương pháp đo timestamp (ESP-NOW
+rssi\_frame, MQTT rule-chain). \textbf{Cần board.} \\
+15 &
+T5.8 + T5.9: soak 24/72\,h (heap, reset, link drop) và tỷ lệ báo nhầm/spot sót
+trên tập replay đã gán nhãn (bước 3). &
+\code{docs/PROGRESS.md} &
+PROGRESS có mục soak (heap min, reset, uptime) + kết quả miss/false. \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\section{Rủi ro và điểm chặn chính}
+
+\begin{itemize}
+\item \textbf{Buzzer (bước 6, 10):} cần câu trả lời \emph{active/passive} và việc
+lắp transistor trước khi tài liệu mạch 5\,V — nếu bỏ quên, chỉ thống nhất
+ngưỡng phần mềm (bước 6), trễ mạch điện (bước 10).
+\item \textbf{Bước 7 (nghiệm thu):} phụ thuộc board vật lý + token thật từ
+\code{config/keys.json} (R1). Vấn đề ESP-NOW đã revert cần nghiệm thu trên hiện
+trường, không quay vòng sửa-đoán.
+\item \textbf{Bước 4 (simulator):} rủi ro phiên bản LVGL/SDL trong
+\code{managed\_components}; không gộp simulator vào CMake firmware thật, giữ
+thành project riêng \code{host\_sim/}.
+\item \textbf{Bước 13--15 (đo):} tốn board + không gian; có thể hoãn 13--15
+sang nhánh sau nếu tài nguyên không cho phép — luôn giữ G1 (1--4) làm tiền đề
+đo mới mà không cần board.
+\item \textbf{Quy tắc tập trung:} tối thiểu thay đổi ngoài phạm vi — mỗi bước
+chỉ sửa đúng file đích đã khai; tránh ``sửa lan'' gây revert (bài học từ fix
+ESP-NOW).
+\end{itemize}

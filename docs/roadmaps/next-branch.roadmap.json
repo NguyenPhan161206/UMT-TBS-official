@@ -1,0 +1,218 @@
+{
+  "project_name": "Nhánh tiếp theo — Mở kiểm thử → P0 còn lại → Tính năng (UMT-TBS V2)",
+  "total_steps": 15,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "T1.1 Nâng cấp test_mqtt_coreiot.py: schema V2 + --scenario",
+      "target_files": [
+        "tools/test_mqtt_coreiot.py",
+        "tools/guard/test_guard.py"
+      ],
+      "prerequisites": [],
+      "objective": "Bổ sung tham số `--scenario` (approach/crossing/slam/normal) tự đặt chuỗi khoảng cách theo thời gian; payload phải khớp schema V2 (d1..d6 + nearest_cm + has_nearest) như rule-chain 3. Tham số kết hợp --distance/--loop/--interval như cũ.",
+      "definition_of_done": "`test_mqtt_coreiot.py --scenario approach --dry-run --distance 30` in ra 1 payload JSON hợp lệ có đủ key d1..d6/nearest_cm/has_nearest; pytest test_guard.py pass (16 test trước đó không vỡ).",
+      "verification_command": "python3 tools/test_mqtt_coreiot.py --scenario approach --dry-run --distance 30 && python3 -m unittest tools.guard.test_guard -v || python3 tools/guard/test_guard.py",
+      "risk": "low",
+      "notes": "T1.1 trong master plan: 'sửa trình giả lập MQTT cho đúng schema và thêm tham số scenario'. Schema đã đúng ở V2; thiếu scenario có tên."
+    },
+    {
+      "step_id": 2,
+      "task_title": "T1.3a Host unit test cho sensor_model_classify",
+      "target_files": [
+        "firmware/waveshare-screen/test/test_sensor_model.cpp",
+        "firmware/waveshare-screen/platformio.ini",
+        "firmware/waveshare-screen/test/test_runner.cpp"
+      ],
+      "prerequisites": [],
+      "objective": "Tạo tầng test host (env native) cho waveshare-screen: test sensor_model_classify tại ranh giới 30/100/0-valid như R3 (20=SAFE?, 100=CAUTION, 30=DANGER). Thêm env [env:native] trong platformio.ini build_unflags/framework cho test.",
+      "definition_of_done": "`pio test -e native` trong firmware/waveshare-screen pass và in đủ tối thiểu 6 case classify; không build vào firmware thật.",
+      "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio test -e native",
+      "risk": "low",
+      "notes": "T1.3 bổ sung: DistanceFilter đã có test bên sensor-node (10/10); thiếu half classify bên waveshare."
+    },
+    {
+      "step_id": 3,
+      "task_title": "T1.4 Tool ghi & phát lại dữ liệu thật",
+      "target_files": [
+        "tools/record_telemetry.py",
+        "tools/replay_telemetry.py"
+      ],
+      "prerequisites": [],
+      "objective": "record_telemetry.py: Paho MQTT subscribe topic v1/devices/me/telemetry của sensor-node, ghi JSONL theo timestamp (board flash yolo_uno_coreiot). replay_telemetry.py: đọc JSONL publish lại đúng nhịp để tái hiện cảnh (test phân loại/UI) không cần board.",
+      "definition_of_done": "record 10s ra /tmp/tb.jsonl rồi replay --dry-run không lỗi schema; script có --in/--out/--seconds/--topic.",
+      "verification_command": "python3 tools/record_telemetry.py --seconds 10 --out /tmp/tb.jsonl && python3 tools/replay_telemetry.py --in /tmp/tb.jsonl --dry-run",
+      "risk": "low",
+      "notes": "Phần ghi cần board (sensor-node + token thật); phát lại chạy máy tính. Điều kiện tiên quyết cho T3.5 (cân lọc), T5.9 (báo nhầm/spot sót)."
+    },
+    {
+      "step_id": 4,
+      "task_title": "T1.2 LVGL SDL simulator trên máy tính (host)",
+      "target_files": [
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt",
+        "firmware/waveshare-screen/host_sim/main.c",
+        "firmware/waveshare-screen/components/ui_dashboard/include/ui_dashboard.h"
+      ],
+      "prerequisites": [],
+      "objective": "Dựng executable host dùng LVGL v9 (managed_components) + backend SDL2 render dashboard waveshare với dữ liệu giả (dummy espnow_sensor_msg_t) ngay trên máy dev — không cần board. Đòn bẩy lớn nhất: test UI sau này không phụ thuộc board.",
+      "definition_of_done": "cmake + make host_sim thành công, chạy được cửa sổ SDL hiển thị dashboard (hoặc exit 0 trong môi trường headless/xvfb); không ảnh hưởng build firmware hiện tại.",
+      "verification_command": "cmake -S firmware/waveshare-screen/host_sim -B /tmp/host_sim && cmake --build /tmp/host_sim && xvfb-run -a /tmp/host_sim/umt_dash_sim || /tmp/host_sim/umt_dash_sim --exit-after 3",
+      "risk": "medium",
+      "notes": "Rủi ro: phiên bản LVGL/sdl trong managed_components; giới hạn true-size 800x480. Có thể chỉ cần build host riêng (không gộp vào CMake firmware)."
+    },
+    {
+      "step_id": 5,
+      "task_title": "T2.3 Khôi phục heuristic cảnh báo xe cắt ngang",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c",
+        "cloud/coreiot/rule_chain/supersonic_rule_chain.json",
+        "firmware/waveshare-screen/src/main.c"
+      ],
+      "prerequisites": [],
+      "objective": "Sửa dead-path crossing_hazard: rule-chain node 3 xuất thêm `crossing_hazard` bool (JS: FRONT<=150 && side delta>=40 từ d1..d6) để main.c:84-87 nhận; keep umbrella framing ux local. Thống nhất macro CROSSING_* dùng chung.",
+      "definition_of_done": "grep crossing_hazard trong supersonic_rule_chain.json có node JS xuất field; waveshare build OK; ui_dashboard.c:culling heuristic không còn phụ thuộc s_forced_crossing_warning chết.",
+      "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && grep -n 'crossing_hazard' cloud/coreiot/rule_chain/supersonic_rule_chain.json",
+      "risk": "medium",
+      "notes": "T2.3 P0. Rule-chain là snapshot track (R11) và thay đổi cần import lại trên CoreIoT console khi nghiệm thu."
+    },
+    {
+      "step_id": 6,
+      "task_title": "T3.4 Thống nhất ngưỡng buzzer theo zone (DANGER-only)",
+      "target_files": [
+        "firmware/shared/thresholds.h",
+        "firmware/sensor-node/src/buzzer.cpp",
+        "firmware/sensor-node/test/test_thresholds.cpp"
+      ],
+      "prerequisites": [],
+      "objective": "Bỏ BUZZER_WARNING_DISTANCE_CM(50)/BUZZER_DANGER_DISTANCE_CM(20); buzzer kêu khi nearestCm <= SENSOR_DANGER_CM(30), im khi CAUTION/SAFE/invalid. Giữ BUZZER_PIN/TONE_HZ/PERIOD/BEEP_ON. Cập nhật test_thresholds theo R3.",
+      "definition_of_done": "Build yolo_uno + yolo_uno_coreiot OK; pio test -e native 10/10; grep BUZZER_WARNING_DISTANCE_CM/BUZZER_DANGER_DISTANCE_CM trong firmware/ (trừ .pio) = 0.",
+      "verification_command": "cd firmware/sensor-node && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno_coreiot && /home/binhnguyen/.venv-pio/bin/pio test -e native && (grep -rn 'BUZZER_WARNING_DISTANCE_CM\\|BUZZER_DANGER_DISTANCE_CM' firmware/ --include=*.h --include=*.cpp | grep -v '.pio/' || echo 'ZERO refs OK')",
+      "risk": "medium",
+      "notes": "Đây chính là yêu cầu người dùng: 'buzzer kêu khi Danger, tắt khi vàng/xanh'. Buzzer vật lý nằm trên sensor-node, cần flash-and-observe THÊM khi có board."
+    },
+    {
+      "step_id": 7,
+      "task_title": "T2.4+x Nghiệm thu link/data-cũ + buzzer trên board",
+      "target_files": [
+        "docs/PROGRESS.md",
+        "docs/logs/NEXT_BRANCH_ACCEPTANCE_LOG.md"
+      ],
+      "prerequisites": [5, 6],
+      "objective": "Flash 2 board (sensor-node yolo_uno_coreiot, waveshare yolo_uno), cùng AP iPhone. Xác nhận: LINKED ổn định; slot quá hạn ESPNOW_LINK_TIMEOUT_MS về -- cm; buzzer chỉ kêu khi <=30cm; crossing hazard bật được qua rule-chain.",
+      "definition_of_done": "PROGRESS.md cập nhật hàng B5f/B9b/T2.3/T3.4 với kết quả flash-and-observe; log acceptance có serial ngày-giờ.",
+      "verification_command": "grep -n 'LINKED\\|buzzer\\|crossing\\|DONE' docs/PROGRESS.md | head -20",
+      "risk": "high",
+      "notes": "Phụ thuộc board vật lý + token thật (config/keys.json). Flash-and-observe DoD bắt buộc (AGENTS.md). Nguyên nhân ESP-NOW mất link đã phân tích (race WiFi vs channel) — ghi kết quả thật."
+    },
+    {
+      "step_id": 8,
+      "task_title": "T3.1 Biểu tượng vật thể tại vị trí phát hiện (LVGL)",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c"
+      ],
+      "prerequisites": [4],
+      "objective": "Hiển thị biểu tượng ô-tô/vật thể tại vị trí tương đối từng cảm biến (toạ độ từ readings[] + offset_deg) trên center canvas thay vì chỉ số text; dùng host simulator để kiểm tra bố cục.",
+      "definition_of_done": "Host sim render có icon di chuyển theo dữ liệu giả; waveshare build OK; không thay đổi log warning.",
+      "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && cmake --build /tmp/host_sim && xvfb-run -a /tmp/host_sim/umt_dash_sim --exit-after 3",
+      "risk": "medium",
+      "notes": "T3.1 hiện 'chưa đạt yêu cầu' đề xuất. Phải có T1.2 (sim) để kiểm chứng bố cục nhanh."
+    },
+    {
+      "step_id": 9,
+      "task_title": "T3.2 Sơ đồ xe tải EX8 theo hồ sơ (không gắn cứng)",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c",
+        "firmware/shared/thresholds.h"
+      ],
+      "prerequisites": [8],
+      "objective": "Thay hình `car 160x260` cứng bằng sơ đồ Hyundai Mighty EX8 (tỷ lệ từ kích thước hồ sơ xe trong shared); vị trí 6 cảm biến + 6 cung cảnh báo vẽ theo toạ độ profile.",
+      "definition_of_done": "Host sim hiển thị sơ đồ EX8; build waveshare OK; không còn chuỗi 'FRONT HOOD' cứng trong code (grep = 0 ngoài assets).",
+      "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && grep -rn 'FRONT HOOD\\|REAR TRUNK' firmware/ --include=*.c --include=*.h | grep -v '.pio/' || echo 'hardcoded layout replaced'",
+      "risk": "medium",
+      "notes": "T4.1 sẽ đưa hồ sơ xe thành struct riêng; bước này chỉ dựng EX8 cứng trước để có hình đúng."
+    },
+    {
+      "step_id": 10,
+      "task_title": "T3.3 Cảnh báo âm thanh cabin: mạch khuếch đại buzzer 5V",
+      "target_files": [
+        "firmware/shared/thresholds.h",
+        "docs/INSTALLATION_SENSOR_NODE.md",
+        "docs/HARDWARE_INSTALLATION.md"
+      ],
+      "prerequisites": [6],
+      "objective": "Tài liệu hoá + đấu buzzer qua transistor NPN/N-MOS để GPIO11 chỉ điều khiển (3.3V), buzzer ăn 5V từ rail đủ to (user yêu cầu 'cấp hẳn 5V'). Active→tone() giữ; passive→giữ tone 2500Hz qua transistor. Cập nhật 2 file docs + xác nhận BUZZER_PIN=11 không trùng PSRAM.",
+      "definition_of_done": "INSTALLATION_SENSOR_NODE.md có sơ đồ mạch transistor (R 1k + pull-down 10k + 5V rail); HARDWARE_INSTALLATION.md bảng dây cập nhật; build 2 env OK.",
+      "verification_command": "grep -n 'transistor\\|5V\\|GPIO11' docs/INSTALLATION_SENSOR_NODE.md docs/HARDWARE_INSTALLATION.md && cd firmware/sensor-node && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno_coreiot",
+      "risk": "medium",
+      "notes": "BUZZER_PIN hiện =11 (đã tránh GPIO47/48 PSRAM). Cần hỏi user loại buzzer (active/passive) để chốt tone() vs digital HIGH."
+    },
+    {
+      "step_id": 11,
+      "task_title": "T5.2 Nút Calibrate: callback hoạt động hoặc bỏ",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c"
+      ],
+      "prerequisites": [],
+      "objective": "Nút 'Calibrate' hiện chỉ là label (không add_event_cb). Hoặc gắn callback (vd reset toàn bộ sensor_model về nodata + log) hoặc xoá nút. Quyết định + implement.",
+      "definition_of_done": "grep lv_obj_add_event_cb trên calib_btn có (hoặc calib_btn bị xoá); waveshare build OK.",
+      "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && (grep -n 'calib_btn' components/ui_dashboard/ui_dashboard_layout.c | grep -c 'add_event_cb' || echo 'btn removed')",
+      "risk": "low",
+      "notes": "T5.2 P1 vệ sinh. Không demo trong production (R5): nếu làm callback phải hữu ích thật."
+    },
+    {
+      "step_id": 12,
+      "task_title": "T5.3 Sửa comment sai về ID cảm biến",
+      "target_files": [
+        "firmware/waveshare-screen/components/sensor_model/include/sensor_model.h",
+        "firmware/shared/espnow_protocol.h"
+      ],
+      "prerequisites": [],
+      "objective": "Đối chiếu nhãn comment slot với espnow_slot_t: hiện sensor_model.h ghi 'FRONT=0, REAR=1, LEFT_FRONT=2' — xác minh khớp espnow_protocol.h (FRONT=0, REAR=1, LEFT_FRONT=2,...) và sửa comment lệch nếu có; thống nhất wording với SENSOR_PINS/thresholds.h.",
+      "definition_of_done": "Comment 2 file mô tả cùng 1 thứ tự; grep label map của ui_dashboard_theme.h.k_sensor_labels không đổi thứ tự.",
+      "verification_command": "grep -n 'FRONT\\|REAR\\|LEFT_FRONT\\|RIGHT_FRONT' firmware/waveshare-screen/components/sensor_model/include/sensor_model.h firmware/shared/espnow_protocol.h",
+      "risk": "low"
+    },
+    {
+      "step_id": 13,
+      "task_title": "T5.5+T5.6 Đo baseline độ chính xác + tầm sử dụng/góc búp",
+      "target_files": [
+        "docs/PROGRESS.md",
+        "docs/TEST_PROTOCOL.md"
+      ],
+      "prerequisites": [3],
+      "objective": "Theo TEST_PROTOCOL: đo 6 khoảng cách (raw vs filter), tầm phản xạ mặt đường ở 3 chiều cao gá, góc búp thực tế (SENSOR_BEAM_FOV_DEG 75 vs đo). Ghi số vào PROGRESS.",
+      "definition_of_done": "PROGRESS.md có bảng baseline 6 khoảng cách + kết quả chiều cao/góc với ngày đo và n=3 lần lặp.",
+      "verification_command": "grep -n 'baseline\\|FOV\\|phản xạ\\|6.*khoảng' docs/PROGRESS.md | head -10",
+      "risk": "high",
+      "notes": "T5.5/5.6 cần board + không gian đo. Dùng replay (step 3) để tái lập kịch bản."
+    },
+    {
+      "step_id": 14,
+      "task_title": "T5.7 Đo độ trễ đầu-cuối 2 nhánh (chốt T0.2)",
+      "target_files": [
+        "docs/PROGRESS.md"
+      ],
+      "prerequisites": [13],
+      "objective": "Đo latency từ vật vào vùng → màn đổi màu, tách công đoạn (sensor→lọc→ESP-NOW; sensor→MQTT→rule-chain→screen). Nhánh ESP-NOW mục tiêu <50ms; MQTT 100-500ms. Dùng số liệu chốt nhánh chính thức (T0.2).",
+      "definition_of_done": "PROGRESS.md ghi table latency theo 2 nhánh kèm phương pháp đo timestamp (ESP-NOW rssi_frame, MQTT rule-chain).",
+      "verification_command": "grep -n 'latency\\|độ trễ\\|T0.2' docs/PROGRESS.md | head -10",
+      "risk": "high",
+      "notes": "Kết quả này quyết định T0.2 (chốt nhánh chính thức) theo master plan."
+    },
+    {
+      "step_id": 15,
+      "task_title": "T5.8+T5.9 Soak test 24/72h + tỷ lệ báo nhầm/spot sót",
+      "target_files": [
+        "docs/PROGRESS.md"
+      ],
+      "prerequisites": [14],
+      "objective": "Chạy liên tục 24h rồi 72h: theo dõi heap, số reset, link drop. T5.9 dùng tập replay đã gán nhãn (step 3) đo false/alarm vs miss.",
+      "definition_of_done": "PROGRESS.md có mục soak 24h và (nếu có thời gian) 72h: heap min, số lần reset, uptime; kết quả báo nhầm/spot sót.",
+      "verification_command": "grep -n 'soak\\|24h\\|72h\\|heap\\|reset\\|miss\\|false' docs/PROGRESS.md | head -15",
+      "risk": "high",
+      "notes": "Deferred nếu tài nguyên; T5.9 cần T1.4 đã xong (step 3)."
+    }
+  ]
+}
