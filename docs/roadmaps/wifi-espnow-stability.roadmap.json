@@ -1,0 +1,88 @@
+{
+  "project_name": "Fix WiFi/MQTT + ESP-NOW stability (waveshare-screen + sensor-node)",
+  "total_steps": 7,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Cập nhật WiFi credential trong config/keys.json",
+      "target_files": ["config/keys.json"],
+      "prerequisites": [],
+      "objective": "Đổi WIFI_SSID='iPhone' và WIFI_PASSWORD='anh131106' trong config/keys.json (giữ nguyên broker/token). File gitignored, là nguồn duy nhất của credential (R1).",
+      "definition_of_done": "gen_credentials.py --check thoát 0; WIFI_SSID == 'iPhone' và WIFI_PASSWORD == 'anh131106' trong keys.json.",
+      "verification_command": "python3 tools/guard/gen_credentials.py --check && grep -E '\"(WIFI_SSID|WIFI_PASSWORD)\"' config/keys.json",
+      "risk": "low",
+      "notes": "Không commit keys.json (R1). Giá trị do người dùng xác nhận: SSID 'iPhone', pass 'anh131106'."
+    },
+    {
+      "step_id": 2,
+      "task_title": "Sinh lại credentials.h cho cả 2 firmware",
+      "target_files": [
+        "firmware/sensor-node/include/credentials.h",
+        "firmware/waveshare-screen/components/coreiot_client/include/credentials.h"
+      ],
+      "prerequisites": [1],
+      "objective": "Chạy tools/guard/gen_credentials.py với --out lần lượt cho 2 đường dẫn trên để tái sinh credentials.h từ keys.json (không sửa tay). Cả 2 file gitignored.",
+      "definition_of_done": "Cả 2 file chứa chuỗi 'iPhone' và 'anh131106'; python3 tools/guard/scan_secrets.py thoát 0 (không credential nào nằm trong file tracked).",
+      "verification_command": "python3 tools/guard/gen_credentials.py --out firmware/sensor-node/include/credentials.h && python3 tools/guard/gen_credentials.py --out firmware/waveshare-screen/components/coreiot_client/include/credentials.h && python3 tools/guard/scan_secrets.py && grep -c '\"iPhone\"' firmware/sensor-node/include/credentials.h firmware/waveshare-screen/components/coreiot_client/include/credentials.h",
+      "risk": "low"
+    },
+    {
+      "step_id": 3,
+      "task_title": "Thêm log channel WiFi thực tế sau GOT_IP",
+      "target_files": ["firmware/waveshare-screen/components/coreiot_client/coreiot_client.c"],
+      "prerequisites": [2],
+      "objective": "Trong wifi_event_handler nhánh IP_EVENT_STA_GOT_IP, sau khi log IP hãy gọi esp_wifi_get_channel(&primary, &secondary) và ESP_LOGI dòng 'channel primary=...'. Mục đích: xác định channel thật của hotspot iPhone để bước 4 căn chỉnh ESPNOW_CHANNEL.",
+      "definition_of_done": "waveshare-screen build OK; sau khi flash và kết nối được WiFi, serial log có dòng channel primary=<số>.",
+      "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno",
+      "risk": "low",
+      "notes": "Phần quan sát serial (flash-and-observe) phụ thuộc board vật lý, xác nhận sau khi cắm board."
+    },
+    {
+      "step_id": 4,
+      "task_title": "Căn ESPNOW_CHANNEL theo channel AP thực tế",
+      "target_files": ["firmware/shared/espnow_protocol.h"],
+      "prerequisites": [3],
+      "objective": "Đặt ESPNOW_CHANNEL bằng channel quan sát được ở bước 3 (dự kiến 1 vì hotspot iPhone 2.4GHz thường ở channel 1). File shared là nguồn duy nhất (R2) - cấm define trùng ở nơi khác.",
+      "definition_of_done": "grep 'define ESPNOW_CHANNEL' toàn firmware == 1 file; sensor-node (yolo_uno + yolo_uno_coreiot) và waveshare-screen build OK.",
+      "verification_command": "grep -rn \"define ESPNOW_CHANNEL\" firmware/ && cd firmware/sensor-node && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno_coreiot && cd ../waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno",
+      "risk": "high",
+      "notes": "Đổi giá trị channel = thay đổi protocol shape giữa 2 board - phải giữ nhất quán cả 2 bên."
+    },
+    {
+      "step_id": 5,
+      "task_title": "Refactor điều khiển channel trong espnow_receiver",
+      "target_files": [
+        "firmware/waveshare-screen/components/espnow_receiver/espnow_receiver.c",
+        "firmware/waveshare-screen/components/espnow_receiver/include/espnow_receiver.h"
+      ],
+      "prerequisites": [4],
+      "objective": "Bỏ lời gọi esp_wifi_set_channel(ESPNOW_CHANNEL) vô điều kiện trong espnow_receiver_init (gây phá quá trình STA associate). Thêm hàm public mới esp_err_t espnow_receiver_force_channel(void): dùng esp_wifi_sta_get_ap_info() - nếu chưa kết nối/tách khỏi AP thì esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE) để giữ receiver lắng nghe; nếu đang kết nối thì không ép (channel theo AP).",
+      "definition_of_done": "espnow_receiver_init KHÔNG còn gọi esp_wifi_set_channel; header khai báo espnow_receiver_force_channel; waveshare-screen build OK.",
+      "verification_command": "grep -rn \"esp_wifi_set_channel\" firmware/waveshare-screen/components/espnow_receiver/ && grep -n \"espnow_receiver_force_channel\" firmware/waveshare-screen/components/espnow_receiver/include/espnow_receiver.h && cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno",
+      "risk": "medium",
+      "notes": "Giữ hàm đơn giản, không thêm dependency mới."
+    },
+    {
+      "step_id": 6,
+      "task_title": "Wire channel switch + backoff reconnect WiFi",
+      "target_files": ["firmware/waveshare-screen/components/coreiot_client/coreiot_client.c"],
+      "prerequisites": [5],
+      "objective": "Trong wifi_event_handler: (1) WIFI_EVENT_STA_DISCONNECTED -> gọi espnow_receiver_force_channel() để giữ ESP-NOW listener trên ESPNOW_CHANNEL; (2) thay esp_wifi_connect() gọi tức thì bằng retry debounce qua esp_timer một lần sau WIFI_RECONNECT_RETRY_MS=3000 (tránh loop dồn dập). IP_EVENT_STA_GOT_IP giữ nguyên (channel theo AP, không force).",
+      "definition_of_done": "coreiot_client.c khai báo macro WIFI_RECONNECT_RETRY_MS=3000; không còn esp_wifi_connect() gọi trực tiếp trong event handler; gọi espnow_receiver_force_channel() trong nhánh DISCONNECTED; waveshare-screen build OK.",
+      "verification_command": "grep -n \"WIFI_RECONNECT_RETRY_MS\\|espnow_receiver_force_channel\\|esp_wifi_connect\" firmware/waveshare-screen/components/coreiot_client/coreiot_client.c && cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno",
+      "risk": "medium",
+      "notes": "esp_wifi_connect() chỉ còn nằm trong timer callback retry; không ép channel khi đã kết nối AP."
+    },
+    {
+      "step_id": 7,
+      "task_title": "Build toàn bộ + flash 2 board + nghiệm thu + log",
+      "target_files": ["docs/logs/WIFI_ESPNOW_STABILITY_FIX_LOG.md"],
+      "prerequisites": [1, 2, 3, 4, 5, 6],
+      "objective": "Build đủ env (sensor-node yolo_uno + yolo_uno_coreiot, waveshare-screen), flash cả 2 board ở cổng phát hiện thực tế, theo dõi serial và tạo log doc theo quy định AGENTS.md. Tiêu chí nghiệm thu: screen log 'Wi-Fi Connected Successfully', 'MQTT Connected to CoreIoT', không còn DISCONNECTED flood; UI WiFi/MQTT/ESP-NOW đều ON ổn định (ESP-NOW không nhấp nháy); sensor-node '[ESPNOW] Send OK'. Ghi kết quả + lệnh vào log.",
+      "definition_of_done": "Serial trên waveshare-screen thể hiện đủ 3 trạng thái ON ổn định >=60s (không nhấp nháy); docs/logs/WIFI_ESPNOW_STABILITY_FIX_LOG.md tồn tại và ghi rõ kết quả, file đã sửa, lệnh nghiệm thu.",
+      "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno -t upload --upload-port <detected_port> && cd ../sensor-node && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno -t upload --upload-port <detected_port>",
+      "risk": "medium",
+      "notes": "detected_port qua `ls /dev/ttyACM*` - QoS: waveshare-screen hay dùng QinHeng (CH343), sensor-node dùng Espressif USB JTAG. Phần quan sát UI phụ thuộc board vật lý."
+    }
+  ]
+}
