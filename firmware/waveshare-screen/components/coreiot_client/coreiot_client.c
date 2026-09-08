@@ -8,6 +8,7 @@
 
 #include "coreiot_client.h"
 #include "credentials.h"
+#include "espnow_receiver.h"
 
 #include "esp_event.h"
 #include "esp_log.h"
@@ -36,6 +37,7 @@ static coreiot_data_cb_t s_data_cb = NULL;
  * - MQTT_EVENT_DISCONNECTED -> chỉ báo DOWN nếu không reconnect được trong
  *   MQTT_DOWN_DEBOUNCE_MS. Nếu reconnect xong trước đó -> giữ UP. */
 #define MQTT_DOWN_DEBOUNCE_MS (6000)
+#define WIFI_RECONNECT_RETRY_MS (3000)
 static esp_timer_handle_t s_mqtt_down_timer = NULL;
 static bool s_mqtt_reported_up = false;
 
@@ -70,6 +72,32 @@ static void mqtt_debounce_cancel(void)
 {
     if (s_mqtt_down_timer != NULL) {
         esp_timer_stop(s_mqtt_down_timer);
+    }
+}
+
+static esp_timer_handle_t s_wifi_reconnect_timer = NULL;
+
+static void wifi_reconnect_timer_cb(void *arg)
+{
+    (void)arg;
+    ESP_LOGI(TAG, "Wi-Fi reconnect retry after %d ms...", (int)WIFI_RECONNECT_RETRY_MS);
+    esp_wifi_connect();
+}
+
+static void wifi_reconnect_arm(void)
+{
+    if (s_wifi_reconnect_timer == NULL) {
+        esp_timer_create_args_t args = {
+            .callback = wifi_reconnect_timer_cb,
+            .name = "wifi_reconnect",
+        };
+        if (esp_timer_create(&args, &s_wifi_reconnect_timer) != ESP_OK) {
+            s_wifi_reconnect_timer = NULL;
+        }
+    }
+    if (s_wifi_reconnect_timer != NULL) {
+        esp_timer_stop(s_wifi_reconnect_timer);
+        esp_timer_start_once(s_wifi_reconnect_timer, WIFI_RECONNECT_RETRY_MS * 1000);
     }
 }
 
@@ -145,7 +173,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     (void)arg;
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         ESP_LOGI(TAG, "Wi-Fi STA started, connecting to SSID: %s...", WIFI_SSID);
-        esp_wifi_connect();
+        wifi_reconnect_arm();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         wifi_event_sta_disconnected_t *dis_event = (wifi_event_sta_disconnected_t *)event_data;
         s_wifi_connected = false;
@@ -153,12 +181,23 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         if (s_wifi_cb) {
             s_wifi_cb(false, NULL);
         }
-        esp_wifi_connect();
+        /* Giữ ESP-NOW listener trên ESPNOW_CHANNEL khi STA rời AP (single radio). */
+        espnow_receiver_force_channel();
+        /* Reconnect có backoff — tránh loop dồn dập làm flapping ESP-NOW. */
+        wifi_reconnect_arm();
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         char ip_str[32];
         snprintf(ip_str, sizeof(ip_str), IPSTR, IP2STR(&event->ip_info.ip));
         ESP_LOGI(TAG, "Wi-Fi Connected Successfully! IP Address: %s", ip_str);
+
+        uint8_t primary_ch = 0;
+        wifi_second_chan_t second_ch = WIFI_SECOND_CHAN_NONE;
+        if (esp_wifi_get_channel(&primary_ch, &second_ch) == ESP_OK) {
+            ESP_LOGI(TAG, "Wi-Fi channel primary=%u secondary=%d", (unsigned)primary_ch, (int)second_ch);
+        } else {
+            ESP_LOGW(TAG, "esp_wifi_get_channel failed");
+        }
 
         s_wifi_connected = true;
         if (s_wifi_cb) {

@@ -48,6 +48,16 @@ esp_err_t espnow_receiver_init(espnow_rx_cb_t cb);
 bool espnow_receiver_is_linked(void);
 
 /**
+ * @brief Ép ESP-NOW listener onto ESPNOW_CHANNEL khi STA rời AP.
+ *
+ * Gọi khi WiFi STA DISCONNECTED để giữ ESP-NOW listener trên ESPNOW_CHANNEL
+ * khi không còn AP; bỏ qua nếu STA đang/gần kết nối.
+ *
+ * @return ESP_OK, ESP_ERR_INVALID_STATE (chưa init), hoặc mã lỗi từ esp_wifi_set_channel.
+ */
+esp_err_t espnow_receiver_force_channel(void);
+
+/**
  * @brief Timestamp (ms kể từ boot) của gói cuối có valid[slot]==1.
  *        0 = chưa bao giờ nhận dữ liệu slot đó.
  */

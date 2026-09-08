@@ -22,8 +22,8 @@
 extern "C" {
 #endif
 
-/* Cả 2 board phải ở cùng WiFi channel cố định. */
-#define ESPNOW_CHANNEL 1
+/* Cả 2 board phải ở cùng WiFi channel cố định (= kênh AP, hiện channel 6). */
+#define ESPNOW_CHANNEL 6
 
 /* Địa chỉ ESP-NOW đích mà sensor-node gửi tới.
  *

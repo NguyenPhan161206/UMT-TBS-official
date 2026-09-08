@@ -63,16 +63,7 @@ esp_err_t espnow_receiver_init(espnow_rx_cb_t cb)
     memset(s_slot_rx_us, 0, sizeof(s_slot_rx_us));
     s_last_any_rx_us = 0;
 
-    /* Ở chế độ STA "trần" (chưa kết nối AP), cố định channel khớp sensor-node.
-     * Nếu sau này kết nối AP thành công (B9), esp-now tự bám channel của AP;
-     * khi đó cả 2 board phải cùng AP (hoặc AP đặt channel 1). */
-    esp_err_t err = esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
-    if (err != ESP_OK) {
-        ESP_LOGW(TAG, "esp_wifi_set_channel(%d) rc=%d (bỏ qua: WiFi đang connect AP hoặc chưa start)",
-                 ESPNOW_CHANNEL, (int)err);
-    }
-
-    err = esp_now_init();
+    esp_err_t err = esp_now_init();
     if (err == ESP_ERR_ESPNOW_EXIST) {
         /* Đã được init bởi module khác — chấp nhận, chỉ đăng ký recv cb. */
         ESP_LOGW(TAG, "esp_now already initialized elsewhere");
@@ -110,4 +101,23 @@ uint32_t espnow_receiver_last_rx_ms(uint8_t slot)
         return 0;
     }
     return (uint32_t)(s_slot_rx_us[slot] / 1000);
+}
+
+esp_err_t espnow_receiver_force_channel(void)
+{
+    if (!s_espnow_ready) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    wifi_ap_record_t ap_info;
+    if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+        /* STA đang/kết nối AP — không ép channel để tránh phá association. */
+        return ESP_OK;
+    }
+
+    esp_err_t err = esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "esp_wifi_set_channel(%d) rc=%d", ESPNOW_CHANNEL, (int)err);
+    }
+    return err;
 }
