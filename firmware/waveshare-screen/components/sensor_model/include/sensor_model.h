@@ -62,12 +62,6 @@ sensor_reading_t sensor_model_get(sensor_id_t id);
  */
 void sensor_model_get_all(sensor_reading_t out[SENSOR_MODEL_COUNT]);
 
-/**
- * @brief Classify a distance reading into a hazard zone using the shared
- *        thresholds (R3: SENSOR_CAUTION_CM / SENSOR_DANGER_CM).
- */
-sensor_zone_t sensor_model_classify(uint16_t distance_cm);
-
 #ifdef __cplusplus
 }
 #endif

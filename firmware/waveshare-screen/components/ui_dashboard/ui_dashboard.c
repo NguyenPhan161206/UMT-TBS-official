@@ -12,6 +12,7 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
+#include "hazard_core.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -75,7 +76,7 @@ void mute_btn_cb(lv_event_t *e)
     sensor_reading_t readings[SENSOR_MODEL_COUNT];
     sensor_model_get_all(readings);
     for (int i = 0; i < SENSOR_MODEL_COUNT; i++) {
-        arc_set_zone(&s_arcs[i], sensor_model_classify(readings[i].distance_cm));
+        arc_set_zone(&s_arcs[i], hazard_classify(readings[i].distance_cm));
     }
     evaluate_hazard();
 }
@@ -136,18 +137,16 @@ void evaluate_hazard(void)
     sensor_reading_t readings[SENSOR_MODEL_COUNT];
     sensor_model_get_all(readings);
 
-    sensor_zone_t worst = SENSOR_ZONE_SAFE;
+    uint16_t dist_cm[SENSOR_MODEL_COUNT];
+    bool is_stale[SENSOR_MODEL_COUNT];
     for (int i = 0; i < SENSOR_MODEL_COUNT; i++) {
-        /* Skip sensors that have never reported a reading (is_stale) - e.g. slots with no
-         * physical hardware attached yet in ESP-NOW mode - otherwise their default distance_cm=0
-         * classifies as DANGER and permanently pins the OVERALL banner.
-         */
-        if (readings[i].is_stale) {
-            continue;
-        }
-        sensor_zone_t z = sensor_model_classify(readings[i].distance_cm);
-        if (z > worst) worst = z;
+        dist_cm[i] = readings[i].distance_cm;
+        is_stale[i] = readings[i].is_stale;
     }
+
+    /* Worst zone — skip stale (hazard_core giữ hành vi cũ: distance_cm=0 không
+     * được tính thành DANGER khi sensor chưa report). */
+    sensor_zone_t worst = hazard_worst_zone(dist_cm, is_stale, SENSOR_MODEL_COUNT);
 
     if (s_lbl_hazard_overall) {
         const char *text = worst == SENSOR_ZONE_DANGER ? "OVERALL: DANGER"
@@ -164,23 +163,17 @@ void evaluate_hazard(void)
         lv_obj_set_style_text_color(s_lbl_hazard_overall, zone_color(worst), 0);
     }
 
-    /* Crossing-traffic heuristic: the front sensor is close AND a side sensor's reading is
-     * moving fast (large frame-to-frame delta), suggesting cross traffic passing the flank.
-     */
-    bool front_close = readings[ESPNOW_SLOT_FRONT].distance_cm < CROSSING_FRONT_THRESHOLD_CM;
+    /* Crossing-traffic heuristic — logic nằm ở hazard_core (hazard_eval_crossing):
+     * front_close && side slot chuyển nhanh (|cur-prev| >= 40). Seam T2.3:
+     * s_forced_crossing_warning (do rule-chain gửi) OR kết quả heuristic local. */
+    hazard_crossing_result_t crossing = hazard_eval_crossing(dist_cm, s_prev_distance_cm, SENSOR_MODEL_COUNT);
 
-    bool side_changing_fast = false;
-    const char *crossing_sensor = NULL;
-    for (int i = ESPNOW_SLOT_LEFT_FRONT; i <= ESPNOW_SLOT_RIGHT_REAR; i++) {
-        int32_t delta = (int32_t)readings[i].distance_cm - (int32_t)s_prev_distance_cm[i];
-        if (delta < 0) delta = -delta;
-        if (delta >= CROSSING_DELTA_CM) {
-            side_changing_fast = true;
-            crossing_sensor = k_sensor_labels[i];
-        }
-    }
-
-    bool crossing_hazard = s_forced_crossing_warning || (front_close && side_changing_fast);
+    bool crossing_hazard = s_forced_crossing_warning || crossing.active;
+    /* Label hiển thị sensor "fast-change" khi có (bất kể front_close — giữ đúng
+     * hành vi cũ: loop side set crossing_sensor kể cả khi front chưa close). */
+    const char *crossing_sensor = (crossing.sensor != HAZARD_CROSSING_NO_SENSOR)
+                                      ? k_sensor_labels[crossing.sensor]
+                                      : NULL;
 
     if (s_lbl_crossing_risk) {
         if (crossing_hazard) {
@@ -207,7 +200,7 @@ void ui_dashboard_update_sensor(uint8_t sensor_id, uint16_t dist_cm)
     }
 
     sensor_model_set_distance((sensor_id_t)sensor_id, dist_cm);
-    sensor_zone_t zone = sensor_model_classify(dist_cm);
+    sensor_zone_t zone = hazard_classify(dist_cm);
 
     if (s_rows[sensor_id].row_value_lbl) {
         const char *suffix = zone == SENSOR_ZONE_DANGER ? " DANG" : "";

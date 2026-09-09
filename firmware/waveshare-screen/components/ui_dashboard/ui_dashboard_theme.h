@@ -22,9 +22,8 @@
 #define COLOR_DANGER      0xFF1744
 #define COLOR_NODATA      0x64748B
 
-/* Fast-change threshold (cm) used by the crossing-traffic hazard heuristic. */
-#define CROSSING_DELTA_CM 40
-#define CROSSING_FRONT_THRESHOLD_CM 150
+/* CROSSING_DELTA_CM / CROSSING_FRONT_THRESHOLD_CM ĐÃ CHUYỂN về hazard_core.h
+ * (1 nguồn, B5 quy tắc single-truth — xem docs/ARCHITECTURE_G1_TESTING.md). */
 
 /* Nhãn hiển thị theo thứ tự WIRE SLOT (fr=FRONT, rr=REAR, lf=LEFT_FRONT, ...)
  * — khớp espnow_slot_t / sensor_id_t. KHÔNG đổi thứ tự (sai nhãn cảm biến). */

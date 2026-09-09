@@ -94,16 +94,3 @@ void sensor_model_get_all(sensor_reading_t out[SENSOR_MODEL_COUNT])
     }
     xSemaphoreGive(s_mutex);
 }
-
-sensor_zone_t sensor_model_classify(uint16_t distance_cm)
-{
-    if (distance_cm < SENSOR_DANGER_CM)
-    {
-        return SENSOR_ZONE_DANGER;
-    }
-    if (distance_cm <= SENSOR_CAUTION_CM)
-    {
-        return SENSOR_ZONE_CAUTION;
-    }
-    return SENSOR_ZONE_SAFE;
-}
