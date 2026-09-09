@@ -1,0 +1,82 @@
+{
+  "project_name": "sensor-node-install-guide",
+  "total_steps": 7,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Tạo khung tài liệu + BOM + an toàn",
+      "target_files": ["docs/INSTALLATION_SENSOR_NODE.md"],
+      "prerequisites": [],
+      "objective": "Tạo file docs/INSTALLATION_SENSOR_NODE.md với mục lục các mục chính (Chuẩn bị, Đấu dây GPIO, Nguồn & phân áp, Lắp cơ khí, Đi dây & chống nước, Flash & kiểm tra, Troubleshooting & nghiệm thu), bảng Bill-of-Materials (1 board ESP32-S3 sensor-node, 6 cảm biến JSN-SR04T, 1 buzzer GPIO11, nguồn 5V ≥1A, cầu phân áp Echo 1k/2k, dây/giắc), danh sách công cụ, và cảnh báo an toàn (điện, chống nước).",
+      "definition_of_done": "File tồn tại, chứa >= 3 tiêu đề cấp 2 (##) và ít nhất một dòng có 'JSN-SR04T' và một dòng có 'ESP32-S3'.",
+      "verification_command": "grep -cE '^## |JSN-SR04T|ESP32-S3' docs/INSTALLATION_SENSOR_NODE.md",
+      "risk": "low",
+      "notes": "Tài liệu mới chuyên về sensor-node + cảm biến; không sửa HARDWARE_INSTALLATION.md ở roadmap này."
+    },
+    {
+      "step_id": 2,
+      "task_title": "Bảng đấu dây GPIO 6 cảm biến + buzzer",
+      "target_files": ["docs/INSTALLATION_SENSOR_NODE.md"],
+      "prerequisites": [1],
+      "objective": "Thêm bảng đấu dây lấy CHÍNH XÁC từ firmware/shared/thresholds.h::SENSOR_PINS: S0 FRONT {5,6}, S1 LEFT_FRONT {7,8}, S2 RIGHT_FRONT {9,10}, S3 LEFT_REAR {17,18}, S4 RIGHT_REAR {21,38}, S5 REAR {3,4}; kèm cột slot ESP-NOW tương ứng (FRONT/LEFT_FRONT/RIGHT_FRONT/LEFT_REAR/RIGHT_REAR/REAR). Thêm dòng buzzer GPIO11 và danh sách GPIO cấm (47/48 PSRAM, 26-32 SPI0 flash, 19/20 USB).",
+      "definition_of_done": "Bảng chứa đủ 6 cặp Trig/Echo khớp giá trị thresholds.h, có dòng 'GPIO11' cho buzzer, và ít nhất một câu cảnh báo GPIO47/48.",
+      "verification_command": "grep -nE 'GPIO5.*GPIO6|GPIO7.*GPIO8|GPIO9.*GPIO10|GPIO17.*GPIO18|GPIO21.*GPIO38|GPIO3.*GPIO4|GPIO11|GPIO47' docs/INSTALLATION_SENSOR_NODE.md",
+      "risk": "medium",
+      "notes": "DoD đối chiếu đúng SENSOR_PINS; loại bỏ mọi nơi khác ghi GPIO (nguồn duy nhất = thresholds.h, R2/R3)."
+    },
+    {
+      "step_id": 3,
+      "task_title": "Cầu phân áp Echo 5V→3.3V + nguồn cấp",
+      "target_files": ["docs/INSTALLATION_SENSOR_NODE.md"],
+      "prerequisites": [2],
+      "objective": "Thêm mục nguồn & phân áp: JSN-SR04T là thiết bị mức 5V, ESP32-S3 không chịu 5V nên Echo PHẢI qua cầu phân áp R1=1kΩ nối tiếp + R2=2kΩ xuống GND (≈3.33V); cấp VCC 5V riêng cho cảm biến, CHUNG GND với board; cảnh báo đấu Echo trực tiếp có thể làm hỏng GPIO.",
+      "definition_of_done": "Mục chứa đủ các giá trị '1kΩ', '2kΩ', giá trị ~3.33V và cụm 'CHUNG GND'.",
+      "verification_command": "grep -nE '1kΩ|2kΩ|3\\.33|CHUNG GND' docs/INSTALLATION_SENSOR_NODE.md",
+      "risk": "medium",
+      "notes": "Sơ đồ kháng mạch để dạng text/ASCII trong docs; ảnh thật nếu có đưa vào sau."
+    },
+    {
+      "step_id": 4,
+      "task_title": "Lắp cơ khí 6 vị trí quanh xe",
+      "target_files": ["docs/INSTALLATION_SENSOR_NODE.md"],
+      "prerequisites": [3],
+      "objective": "Thêm mục lắp đặt cơ khí cho cả 6 cảm biến: vị trí (FRONT, LEFT_FRONT, RIGHT_FRONT, LEFT_REAR, RIGHT_REAR, REAR), độ cao gợi ý so với mặt đất (40-70 cm), hướng/góc (FRONT/REAR thẳng 0°, 4 góc nghiêng ngoài ~30°), FOV 75° quét ra ngoài không gian, khoảng cách tối thiểu ≥20 cm giữa các đầu dò tránh nhiễu chéo.",
+      "definition_of_done": "Cả 6 tên vị trí đều xuất hiện trong mục và có hướng dẫn độ cao + góc lắp.",
+      "verification_command": "grep -cE 'FRONT|LEFT_FRONT|RIGHT_FRONT|LEFT_REAR|RIGHT_REAR|REAR' docs/INSTALLATION_SENSOR_NODE.md",
+      "risk": "low",
+      "notes": "Số dòng khớp phải >= 6 (kể cả đề cập lại trong các mục khác)."
+    },
+    {
+      "step_id": 5,
+      "task_title": "Đi dây & chống nước",
+      "target_files": ["docs/INSTALLATION_SENSOR_NODE.md"],
+      "prerequisites": [4],
+      "objective": "Thêm mục đi dây và chống nước: dùng cáp xoắn/được bọc, đi xa nguồn nhiễu (động cơ, đèn), cố định dây; nhấn mạnh JSN-SR04T chống nước nhưng ĐẦU GIẮC/MỐI NỐI KHÔNG chống nước — bịt kín bằng co nhiệt/keo chống ẩm.",
+      "definition_of_done": "Mục chứa cụm 'chống nước' hoặc 'chong nuoc' và ít nhất một hướng dẫn bảo vệ mối nối.",
+      "verification_command": "grep -nE 'chống nước|chong nuoc|mối nối|ối nối' docs/INSTALLATION_SENSOR_NODE.md",
+      "risk": "low"
+    },
+    {
+      "step_id": 6,
+      "task_title": "Flash & kiểm tra nhanh bằng serial",
+      "target_files": ["docs/INSTALLATION_SENSOR_NODE.md"],
+      "prerequisites": [5],
+      "objective": "Thêm mục flash & kiểm tra: lệnh build/flash đúng theo AGENTS.md (cd firmware/sensor-node && pio run -e yolo_uno, pio run -e yolo_uno -t upload --upload-port <PORT>, pio device monitor -p <PORT> -b 115200); log khởi động mong đợi: 'Supersonic sensor array started (6 cam bien)', log '[S%u] Trig=GPIO.. Echo=..', '[ESPNOW] Send OK'; mô tả chuỗi '[S%u] REJECT' khi cảm biến không hợp lệ.",
+      "definition_of_done": "Tài liệu chứa lệnh 'pio run -e yolo_uno' + 'upload-port' + chuỗi log 'ESPNOW] Send OK'.",
+      "verification_command": "grep -nE 'pio run -e yolo_uno|upload-port|device monitor|ESPNOW\\] Send OK' docs/INSTALLATION_SENSOR_NODE.md",
+      "risk": "low",
+      "notes": "Chỉ ghi tài liệu; không flash trong bước này."
+    },
+    {
+      "step_id": 7,
+      "task_title": "Troubleshooting + nghiệm thu từng cảm biến + link chéo",
+      "target_files": ["docs/INSTALLATION_SENSOR_NODE.md"],
+      "prerequisites": [6],
+      "objective": "Thêm bảng troubleshooting (>= 6 dòng: 'không nhận Echo/REJECT', 'lệch WiFi channel → ESP-NOW nhấp nháy', 'nguồn yếu → reboot', 'buzzer không kêu', 'cảm biến chỉ báo --', 'MQTT luôn DOWN'); quy trình nghiệm thu ép thử từng cảm biến (đưa tay vào từng vị trí → màn hình cập nhật slot tương ứng); thêm link tới docs/HARDWARE_INSTALLATION.md và docs/TEST_PROTOCOL.md.",
+      "definition_of_done": "Bảng troubleshooting có >= 6 dòng triệu chứng/nguyên nhân/cách xử lý; có mục nghiệm thu ép thử; có link tới HARDWARE_INSTALLATION.md.",
+      "verification_command": "n=$(grep -cE 'không nhận Echo|REJECT|lệch WiFi channel|nguồn yếu|buzzer không kêu|--|MQTT luôn DOWN' docs/INSTALLATION_SENSOR_NODE.md); [ \"$n\" -ge 6 ] && echo \"OK rows=$n\"",
+      "risk": "low",
+      "notes": "Nếu dùng ký tự Unicode trong lệnh grep, chạy bằng bash (UTF-8 mặc định trên Linux)."
+    }
+  ]
+}
