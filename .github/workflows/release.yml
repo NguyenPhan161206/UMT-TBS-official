@@ -1,0 +1,100 @@
+name: Release Firmware
+
+# CD (Đề xuất 1): khi push tag v* → build 3 env → size gate → checksum →
+# upload firmware.bin + SHA256SUMS.txt lên GitHub Release.
+# Contract: docs/CD_RELEASE.md. Pattern dummy credentials lấy từ ci.yml (R1).
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PY_COLORS: "1"
+
+jobs:
+  build:
+    name: Build firmware artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Pin trùng version local để tái lập build (R10).
+      - name: Install PlatformIO Core
+        run: |
+          pip install --upgrade pip
+          pip install -U platformio==6.1.19
+          pio --version
+
+      # R1: credential KHÔNG commit. Dummy để build env *_coreiot (gitignored).
+      - name: Generate dummy CI credentials (gitignored)
+        run: |
+          python3 - <<'EOF'
+          import json
+          keys = {
+              "COREIOT_BROKER": "app.coreiot.io",
+              "COREIOT_PORT": 1883,
+              "SENSOR_NODE_DEVICE_TOKEN": "ci-dummy-sensor-9f8e7d6c5b4a",
+              "WAVESHARE_SCREEN_DEVICE_TOKEN": "ci-dummy-screen-1a2b3c4d5e6f",
+              "COREIOT_TELEMETRY_TOPIC": "v1/devices/me/telemetry",
+              "WIFI_SSID": "ci-dummy-wifi",
+              "WIFI_PASSWORD": "ci-dummy-pass-012345",
+          }
+          with open("config/keys.json", "w", encoding="utf-8") as f:
+              json.dump(keys, f, indent=2)
+          EOF
+          python3 tools/guard/gen_credentials.py --out firmware/sensor-node/include/credentials.h
+          python3 tools/guard/gen_credentials.py --out firmware/waveshare-screen/components/coreiot_client/include/credentials.h
+
+      - name: Build sensor-node (ESP-NOW only)
+        working-directory: firmware/sensor-node
+        run: pio run -e yolo_uno
+
+      - name: Build sensor-node (CoreIoT, R6)
+        working-directory: firmware/sensor-node
+        run: pio run -e yolo_uno_coreiot
+
+      - name: Host unit tests sensor-node (R10)
+        working-directory: firmware/sensor-node
+        run: pio test -e native
+
+      - name: Build waveshare-screen
+        working-directory: firmware/waveshare-screen
+        run: pio run -e yolo_uno
+
+      # Size-gate (R10): sensor-node ~1.3MB app partition → cap 1.2MB; waveshare 4MB → cap 3.7MB.
+      - name: Size gate (R10)
+        run: |
+          python3 tools/guard/check_size.py \
+            firmware/sensor-node/.pio/build/yolo_uno/firmware.bin 1200000 \
+            firmware/sensor-node/.pio/build/yolo_uno_coreiot/firmware.bin 1200000 \
+            firmware/waveshare-screen/.pio/build/yolo_uno/firmware.bin 3700000
+
+      # Staging: đổi tên binary theo chuẩn CD (docs/CD_RELEASE.md) + checksum.
+      - name: Stage release artifacts
+        run: |
+          mkdir -p dist
+          TAG="${{ github.ref_name }}"
+          cp firmware/sensor-node/.pio/build/yolo_uno/firmware.bin dist/firmware-sensor-node-yolo_uno-${TAG}.bin
+          cp firmware/sensor-node/.pio/build/yolo_uno_coreiot/firmware.bin dist/firmware-sensor-node-yolo_uno_coreiot-${TAG}.bin
+          cp firmware/waveshare-screen/.pio/build/yolo_uno/firmware.bin dist/firmware-waveshare-screen-yolo_uno-${TAG}.bin
+          (cd dist && sha256sum *.bin > SHA256SUMS.txt)
+          ls -la dist/
+
+      - name: Upload artifacts to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

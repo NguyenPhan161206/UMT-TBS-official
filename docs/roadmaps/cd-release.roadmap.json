@@ -1,0 +1,59 @@
+{
+  "project_name": "CD: Upload firmware.bin lên GitHub Release khi gắn tag v* (UMT-TBS V2)",
+  "total_steps": 4,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Contract CD + chuẩn đặt tên artifact (docs/CD_RELEASE.md)",
+      "target_files": [
+        "docs/CD_RELEASE.md"
+      ],
+      "prerequisites": [],
+      "objective": "Viết tài liệu quyết định kiến trúc CD: trigger `push: tags: ['v*']`; 3 artifact firmware.bin + checksum .sha256; naming `firmware-<board>-<env>-<tag>.bin` (sensor-node yolo_uno, sensor-node yolo_uno_coreiot, waveshare-screen yolo_uno); permissions `contents: write` bằng GITHUB_TOKEN (không cần PAT); lý do KHÔNG flash tự động và KHÔNG gộp vào ci.yml (workflow đứng riêng, cô lập).",
+      "definition_of_done": "docs/CD_RELEASE.md tồn tại với bảng naming 3 artifact + trigger v* + sha256 + permissions contents: write; không chứa literal secret nào (R1).",
+      "verification_command": "grep -nE 'v\\*|sha256|contents: write|firmware-(sensor-node|waveshare)' docs/CD_RELEASE.md",
+      "risk": "low",
+      "notes": "R8: binary không commit vào git, phát hành qua GitHub Release. Credential CI dùng dummy (pattern ci.yml) — không cần token thật cho pure build."
+    },
+    {
+      "step_id": 2,
+      "task_title": "Tạo workflow .github/workflows/release.yml (build 3 env + upload)",
+      "target_files": [
+        ".github/workflows/release.yml"
+      ],
+      "prerequisites": [1],
+      "objective": "Trên tag v*: checkout → setup python+pio (pin 6.1.19) → sinh dummy credentials.h (R1, mẫu ci.yml) → build 3 env → size gate `tools/guard/check_size.py` (1200000 1200000 3700000) → `sha256sum` từng bin → upload qua `softprops/action-gh-release@v2` với `permissions: contents: write` (tag đã được push tạo release). Running tests: `pio test -e native` sensor-node.",
+      "definition_of_done": "File hợp lệ cú pháp YAML; grep có `tags: ['v*']`, `action-gh-release@v2`, `sha256sum`, `check_size.py`, đủ 3 artifact upload; không chứa literal secret.",
+      "verification_command": "python3 -c \"import yaml; yaml.safe_load(open('.github/workflows/release.yml')); print('YAML OK')\" && grep -nE 'tags:|action-gh-release@v2|sha256sum|check_size.py|firmware\\.bin' .github/workflows/release.yml",
+      "risk": "medium",
+      "notes": "New dependency softprops/action-gh-release (1 dependency mới duy nhất — không trộn logic). Build lại trong release job (không download artifact ci.yml) để tag tự cô lập, đáng giá độ dài build ~3-5 phút."
+    },
+    {
+      "step_id": 3,
+      "task_title": "Thử nghiệm thật với tag v0.1.0-preview (cần user tạo tag)",
+      "target_files": [
+        "docs/PROGRESS.md"
+      ],
+      "prerequisites": [2],
+      "objective": "User tạo+push tag `v0.1.0-preview` trên origin; chờ release.yml chạy xanh; kiểm tra GitHub Release page có đủ 3 .bin + 3 .sha256; ghi kết quả (ngày, workflow URL, số asset) vào docs/PROGRESS.md.",
+      "definition_of_done": "`gh release view v0.1.0-preview --json assets -q '.assets[].name'` liệt kê ≥6 asset (.bin x3 + .sha256 x3) HOẶC workflow fail → đã fix + retag (git tag -f) cho tới khi pass; PROGRESS.md có dòng tag/ngày/số asset.",
+      "verification_command": "gh release view v0.1.0-preview --json assets -q '.assets[].name' 2>/dev/null | grep -c '.bin' && grep -n 'v0.1.0-preview' docs/PROGRESS.md",
+      "risk": "medium",
+      "notes": "Phụ thuộc user tạo tag + token GitHub (gh CLI). Preview tag có thể xoá sau bằng `gh release delete v0.1.0-preview --yes && git push origin :refs/tags/v0.1.0-preview`. Không chạy flash board (CD không tự flash — quyết định step 1)."
+    },
+    {
+      "step_id": 4,
+      "task_title": "Log vận hành CD + cập nhật tài liệu",
+      "target_files": [
+        "docs/logs/CD_RELEASE_LOG.md",
+        "docs/PROGRESS.md"
+      ],
+      "prerequisites": [3],
+      "objective": "Viết log theo AGENTS.md (mục tiêu, file đã sửa, kết quả kiểm thử, hướng dẫn demo: cách tạo tag, nơi tải firmware); đánh dấu mục CD trong PROGRESS/CHECKLIST là XONG.",
+      "definition_of_done": "CD_RELEASE_LOG.md có: file sửa (.github/workflows/release.yml, docs/CD_RELEASE.md), kết quả v0.1.0-preview, hướng dẫn tạo tag mới; PROGRESS.md có dòng CD.",
+      "verification_command": "grep -n 'release.yml\\|firmware\\.bin\\|2026' docs/logs/CD_RELEASE_LOG.md | head -10",
+      "risk": "low",
+      "notes": "Hướng dẫn demo bắt buộc theo AGENTS.md 'Implementation Logging Requirement'."
+    }
+  ]
+}
