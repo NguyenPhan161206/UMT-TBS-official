@@ -295,16 +295,20 @@ lv_obj_t *build_right_sidebar(lv_obj_t *parent)
     lv_obj_set_style_text_color(legend_hdr, lv_color_hex(COLOR_ACCENT), 0);
     lv_obj_set_style_pad_top(legend_hdr, 12, 0);
 
-    static const struct { uint32_t color; const char *text; } k_legend[] = {
-        {COLOR_SAFE, "> 100cm : Safe"},
-        {COLOR_CAUTION, "30-100cm : Caution"},
-        {COLOR_DANGER, "< 30cm : Danger"},
-    };
-    for (size_t i = 0; i < sizeof(k_legend) / sizeof(k_legend[0]); i++) {
-        lv_obj_t *lbl = lv_label_create(sidebar);
-        lv_label_set_text(lbl, k_legend[i].text);
-        lv_obj_set_style_text_color(lbl, lv_color_hex(k_legend[i].color), 0);
-    }
+    /* Legend — ngưỡng đọc TRỰC TIẾP từ thresholds.h (R3), không copy string
+     * cứng (xem docs/HARDCODED_CONFIG_NOTES.md mục A). Đổi ngưỡng = tự cập nhật. */
+    lv_obj_t *lbl;
+    lbl = lv_label_create(sidebar);
+    lv_label_set_text_fmt(lbl, "> %dcm : Safe", SENSOR_CAUTION_CM);
+    lv_obj_set_style_text_color(lbl, lv_color_hex(COLOR_SAFE), 0);
+
+    lbl = lv_label_create(sidebar);
+    lv_label_set_text_fmt(lbl, "%d-%dcm : Caution", SENSOR_DANGER_CM, SENSOR_CAUTION_CM);
+    lv_obj_set_style_text_color(lbl, lv_color_hex(COLOR_CAUTION), 0);
+
+    lbl = lv_label_create(sidebar);
+    lv_label_set_text_fmt(lbl, "< %dcm : Danger", SENSOR_DANGER_CM);
+    lv_obj_set_style_text_color(lbl, lv_color_hex(COLOR_DANGER), 0);
 
     return sidebar;
 }

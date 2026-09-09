@@ -31,7 +31,6 @@ typedef espnow_slot_t sensor_id_t;
 
 typedef struct {
     uint16_t distance_cm;
-    int16_t offset_deg;
     bool is_stale;
 } sensor_reading_t;
 

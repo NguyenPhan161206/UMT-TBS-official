@@ -21,7 +21,7 @@ Priorities: G1 Mở khả năng kiểm thử (T1.x) → G2 P0 còn lại (T2.3, 
 | 13 | T5.5+T5.6 Đo baseline + tầm/góc búp | TODO | — | cần board + không gian; replay = step 4 |
 | 14 | T5.7 Đo độ trễ đầu-cuối 2 nhánh (chốt T0.2) | TODO | — | ESP-NOW <50ms; MQTT 100-500ms |
 | 15 | T5.8+T5.9 Soak 24/72h + báo nhầm/spot sót | TODO | — | cần step 4 + 14 |
-| 16 | T5.x Dọn config cứng (A/B/C theo HARDCODED_CONFIG_NOTES.md) | TODO | — | note→checklist lúc đầu; code dọn khi step chạm file; prereq step 3+9 |
+| 16 | T5.x Dọn config cứng (A/B/C theo HARDCODED_CONFIG_NOTES.md) | IN_PROGRESS | — | A1 legend + B1 offset_deg ĐÃ XONG (dọn sớm 2026-09-09); còn A2 guard + C timing + B2 geometry (step 9) |
 
 ## Contracts to establish
 - `hazard_core` (components/hazard_core): `hazard_classify`/`hazard_worst_zone`/`hazard_eval_crossing` — C thuần, zero OS/LVGL dep; `CROSSING_DELTA_CM`(40)/`CROSSING_FRONT_THRESHOLD_CM`(150) về đây.
@@ -32,6 +32,7 @@ Priorities: G1 Mở khả năng kiểm thử (T1.x) → G2 P0 còn lại (T2.3, 
 - Config cứng/khó bảo trì: checklist nguồn `docs/HARDCODED_CONFIG_NOTES.md` (A: threshold copy string drift `ui_dashboard_layout.c:299-301` + `test_mqtt_coreiot.py:41-42`; B: `offset_deg` dead + geometry 2 nơi; C: timing literal ẩn; D: loại trừ). Step 16 track; A được bảo vệ bởi arch_guard.py (B5).
 
 ## Deviations
+- **2026-09-09 — Dọn sớm A1+B1 (config cứng step 16) trên nhánh nguyen:** user yêu cầu push lên nhánh `nguyen`. Xử lý trước phần A1 (legend UI → `lv_label_set_text_fmt` từ `SENSOR_*_CM`) + B1 (xoá `offset_deg` dead-field + `k_offsets_deg[]`) vì không phụ thuộc host_sim; nới prereq step 16 [3,9]→[9]. Còn A2 (arch_guard check python mirror) + C (timing literal ẩn) + B2 (geometry EX8) chờ step 1/9. Git nhánh nguyen = origin/main + commit dọn (đã push).
 - **2026-09-09 — Thêm step 16 (T5.x dọn config cứng):** người dùng chọn "note lại 1 file riêng" → tạo `docs/HARDCODED_CONFIG_NOTES.md` + đưa vào checklist roadmap (step 16, prereq [3,9]). Không sửa code ở lần này; từng đám được xử lý đúng trong step chạm file (legend→host_sim/T3.x, geometry→T3.2, timing→step 16).
 - **2026-09-09 — Đảo thứ tự G1 (kiến trúc 3 lớp + kịch bản chung, nguồn `docs/ARCHITECTURE_G1_TESTING.md`):**
   1. `hazard_core` + refactor (thay vì T1.3a pio-native hẹp) — làm đầu vì là foundation của T1.3/host_sim/T2.3.
@@ -41,7 +42,7 @@ Priorities: G1 Mở khả năng kiểm thử (T1.x) → G2 P0 còn lại (T2.3, 
   - Cập nhật prereq: step 5 → [1] (hazard_core); step 8 → [3] (sim); step 13 → [4] (replay); step 15 note = step 4.
 
 ## Context gốc (đừng suy lại mỗi lần)
-- Code hiện = origin/main (main là branche duy nhất + khoa cũ hơn; không có nhánh nguyenphan).
+- **Nhánh làm việc hiện tại = `nguyen`** (đã push lên origin/nguyen từ 2026-09-09). Tạo từ tip main `c561150` + commit docs `421ca79` + dọn config A1/B1; origin/nguyen đã đón đủ 5 commit mới nhất của main (install-guide, CD release...). Không đụng `main`, `khoa`, `anh`/`vy`.
 - Fix ESP-NOW (race WiFi vs channel, modem-sleep) đã phân tích nhưng ĐÃ REVERT theo yêu cầu — step 7 sẽ nghiệm thu lại.
 - CoreIoT: sensor-node Inactive từ 14:59:36 (thiếu MQTT telemetry — cần 3 xác nhận: `[NET] MQTT connected`, board đang flash env nào, telemetry d1..d6 latest).
 - Buzzer: GPIO11 không thể xuất 5V → cần transistor + rail 5V (chưa có câu trả lời active/passive).

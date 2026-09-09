@@ -17,13 +17,12 @@ chiếu rule-chain; scan_secrets không liên quan):
 
 | Vị trí | Giá trị cứng | Vấn đề |
 |---|---|---|
-| `firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c:299-301` | `"> 100cm : Safe"`, `"30-100cm : Caution"`, `"< 30cm : Danger"` | Legend UI copy ngưỡng thành string. Đổi ngưỡng = legend sai im lặng |
-| `tools/test_mqtt_coreiot.py:41-42` | `CAUTION_CM = 100.0`, `DANGER_CM = 30.0` | Python mirror ngưỡng (drift risk đã biết) — guard mới `arch_guard.py` (B5) sẽ đối chiếu |
+| `firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c:299-301` | ~~`"> 100cm : Safe"`, `"30-100cm : Caution"`, `"< 30cm : Danger"`~~ | ✅ **ĐÃ XỬ LÝ 2026-09-09**: legend → `lv_label_set_text_fmt("%d-%d cm", SENSOR_DANGER_CM, SENSOR_CAUTION_CM)` — tự cập nhật khi đổi ngưỡng |
+| `tools/test_mqtt_coreiot.py:41-42` | `CAUTION_CM = 100.0`, `DANGER_CM = 30.0` | Python mirror ngưỡng (drift risk đã biết) — guard `arch_guard.py` (B5, sinh ở G1 step 1) sẽ đối chiếu với `SENSOR_*_CM` |
 
 **Xử lý đề xuất:**
-- Legend UI → `lv_label_set_text_fmt(... "%d-%d cm", SENSOR_DANGER_CM, SENSOR_CAUTION_CM)`
-  → self-correct khi đổi ngưỡng (gắn step host_sim/T3.x).
-- Python mirror → `arch_guard.py` check `CAUTION_CM/DANGER_CM == SENSOR_*_CM` (sinh kèm step 1).
+- ~~Legend UI → `lv_label_set_text_fmt(... "%d-%d cm", SENSOR_DANGER_CM, SENSOR_CAUTION_CM)`~~ ✅ đã làm (nhánh `nguyen`, 2026-09-09).
+- Python mirror → `arch_guard.py` check `CAUTION_CM/DANGER_CM == SENSOR_*_CM` (Bước 3 G1 — sẽ validate).
 
 ## B. Hình học cảm biến nằm ở 2 nơi + 1 dead-data
 
@@ -31,14 +30,14 @@ Cùng "vị trí/hướng 6 cảm biến quanh xe" nhưng mã hóa 2 lần với
 
 | Vị trí | Nội dung | Trạng thái |
 |---|---|---|
-| `sensor_model/sensor_model.c:13-20` `k_offsets_deg[]` (FRONT=0, REAR=180, LEFT_FRONT=-90…) → ghi `offset_deg` | Vị trí cảm biến theo độ | **DEAD**: grep toàn firmware = 2 (set ở `:38` + field `sensor_model.h:34`), **không nơi nào đọc** |
+| `sensor_model/sensor_model.c:13-20` `k_offsets_deg[]` (FRONT=0, REAR=180, LEFT_FRONT=-90…) → ghi `offset_deg` | Vị trí cảm biến theo độ | ✅ **ĐÃ XOÁ 2026-09-09**: dead-field + `k_offsets_deg[]` removed (grep `offset_deg` firmware/ = 0) |
 | `ui_dashboard/ui_dashboard_layout.c:229-236` `k_layout[]` `{x, y, angle}` | Vị trí + góc vẽ arc (LVGL angle convention) | Đang dùng (nơi điều khiển arc) |
 
 → Cùng thông tin, 2 chủ thể, không có cọc "1 nguồn". T3.2 (sơ đồ EX8) bắt buộc gộp lại.
 
-**Xử lý đề xuất:** bỏ `offset_deg` dead-field + `k_offsets_deg[]`; giữ MỘT bảng geometry
-(vd chuyển lên một `vehicle_layout.h`/profile struct khi dựng EX8 ở T3.2). DoD: grep
-`offset_deg` trong firmware (trừ .pio) = 0.
+**Xử lý đề xuất:** ✅ đã bỏ `offset_deg` dead-field + `k_offsets_deg[]` (nhánh `nguyen`, 2026-09-09);
+giữ MỘT bảng geometry (vd chuyển lên một `vehicle_layout.h`/profile struct khi dựng EX8 ở T3.2).
+DoD hiện tại: grep `offset_deg` trong firmware (trừ .pio) = 0 ✅.
 
 ## C. Timing / tuning ẩn dưới literal không tên (không grep được, khó tune)
 

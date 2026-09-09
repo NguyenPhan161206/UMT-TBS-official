@@ -10,15 +10,6 @@
 static SemaphoreHandle_t s_mutex = NULL;
 static sensor_reading_t s_readings[SENSOR_MODEL_COUNT];
 
-static const int16_t k_offsets_deg[SENSOR_MODEL_COUNT] = {
-    [ESPNOW_SLOT_FRONT] = 0,
-    [ESPNOW_SLOT_REAR] = 180,
-    [ESPNOW_SLOT_LEFT_FRONT] = -90,
-    [ESPNOW_SLOT_LEFT_REAR] = -90,
-    [ESPNOW_SLOT_RIGHT_FRONT] = 90,
-    [ESPNOW_SLOT_RIGHT_REAR] = 90,
-};
-
 void sensor_model_init(void)
 {
     if (s_mutex == NULL)
@@ -35,7 +26,6 @@ void sensor_model_init(void)
     for (int i = 0; i < SENSOR_MODEL_COUNT; i++)
     {
         s_readings[i].distance_cm = 0;
-        s_readings[i].offset_deg = k_offsets_deg[i];
         s_readings[i].is_stale = true;
     }
     xSemaphoreGive(s_mutex);
