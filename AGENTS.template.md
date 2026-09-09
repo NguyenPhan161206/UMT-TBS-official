@@ -56,6 +56,9 @@ pio device monitor -p /dev/ttyACM1 -b 115200
 python3 tools/guard/scan_secrets.py                 # quét secret trong file tracked
 python3 tools/guard/gen_credentials.py --check      # kiểm keys.json đủ field
 python3 tools/guard/check_rulechain_thresholds.py   # đối chiếu rule-chain vs thresholds.h (best-effort)
+python3 tools/guard/arch_guard.py                   # B1-B7 kiến trúc G1 (hazard_core, mirror A2)
+python3 -m pytest tools/guard/test_guard.py -q      # unit test các guard
+cmake -S firmware/waveshare-screen/host_sim -B /tmp/host_sim && cmake --build /tmp/host_sim && /tmp/host_sim/hazard_core_tests   # host test hazard_core (T1.3)
 ```
 Unit test host (DistanceFilter, thresholds) nằm ở `firmware/sensor-node/test/` và
 `firmware/waveshare-screen/test/` (làm ở giai đoạn firmware).

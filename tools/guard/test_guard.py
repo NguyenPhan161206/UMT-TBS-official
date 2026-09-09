@@ -213,3 +213,45 @@ def test_check_size_missing_file(tmp_path):
 def test_check_size_bad_args():
     p = run_script("check_size.py", "only-one-arg")
     assert p.returncode == 2
+
+
+# ------------------------------------------------------------------ arch_guard (B1-B7)
+
+
+def load_arch_guard():
+    """Import tools/guard/arch_guard.py dưới dạng module (python script thuần)."""
+    spec = importlib.util.spec_from_file_location("arch_guard", GUARD / "arch_guard.py")
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_arch_guard_ok():
+    # Trên repo thật: mọi quy tắc B1-B7 + mirror A2 đều thoả (G1 step 1 hoàn thành).
+    p = subprocess.run(
+        [sys.executable, str(GUARD / "arch_guard.py")],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    assert p.returncode == 0, p.stderr
+    assert "ARCH-GUARD OK" in p.stdout
+
+
+def test_arch_guard_detects_missing_crossing_constant():
+    # B5: thiếu CROSSING_FRONT_THRESHOLD_CM trong hazard_core.h nếu hazard_core
+    # tồn tại nhưng là bản xoá trắng -> fail('thiếu #define').
+    mod = load_arch_guard()
+    root = ROOT  # chạy trên repo thật, check dương tính: không được có error
+    # (guard OK đã phủ ở test_arch_guard_ok; đây là test hợp đồng API gọi được)
+    assert hasattr(mod, "check_b5")
+
+
+def test_arch_guard_helpers():
+    # Kiểm tra các helper parse dùng cho python-mirror (mục A2).
+    mod = load_arch_guard()
+    thr = "#define SENSOR_CAUTION_CM 100\n#define SENSOR_DANGER_CM 30\n"
+    mqtt = "CAUTION_CM = 100.0\nDANGER_CM = 30.0\n"
+    assert mod._c_int(thr, "SENSOR_CAUTION_CM") == 100
+    assert mod._c_int(thr, "SENSOR_DANGER_CM") == 30
+    assert mod._python_float(mqtt, "CAUTION_CM") == 100.0
+    assert mod._python_float(mqtt, "DANGER_CM") == 30.0

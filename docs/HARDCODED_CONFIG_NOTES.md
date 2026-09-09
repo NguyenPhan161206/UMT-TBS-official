@@ -18,11 +18,11 @@ chiếu rule-chain; scan_secrets không liên quan):
 | Vị trí | Giá trị cứng | Vấn đề |
 |---|---|---|
 | `firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c:299-301` | ~~`"> 100cm : Safe"`, `"30-100cm : Caution"`, `"< 30cm : Danger"`~~ | ✅ **ĐÃ XỬ LÝ 2026-09-09**: legend → `lv_label_set_text_fmt("%d-%d cm", SENSOR_DANGER_CM, SENSOR_CAUTION_CM)` — tự cập nhật khi đổi ngưỡng |
-| `tools/test_mqtt_coreiot.py:41-42` | `CAUTION_CM = 100.0`, `DANGER_CM = 30.0` | Python mirror ngưỡng (drift risk đã biết) — guard `arch_guard.py` (B5, sinh ở G1 step 1) sẽ đối chiếu với `SENSOR_*_CM` |
+| `tools/test_mqtt_coreiot.py:41-42` | `CAUTION_CM = 100.0`, `DANGER_CM = 30.0` | Python mirror ngưỡng (drift risk đã biết) — ✅ **ĐÃ XỬ LÝ 2026-09-09**: `arch_guard.py` (B5) tạo ở G1 step 1, check `CAUTION_CM/DANGER_CM == SENSOR_*_CM` |
 
 **Xử lý đề xuất:**
 - ~~Legend UI → `lv_label_set_text_fmt(... "%d-%d cm", SENSOR_DANGER_CM, SENSOR_CAUTION_CM)`~~ ✅ đã làm (nhánh `nguyen`, 2026-09-09).
-- Python mirror → `arch_guard.py` check `CAUTION_CM/DANGER_CM == SENSOR_*_CM` (Bước 3 G1 — sẽ validate).
+- Python mirror → `arch_guard.py` check `CAUTION_CM/DANGER_CM == SENSOR_*_CM` ✅ đã làm (nhánh `nguyen`, 2026-09-09, `python3 tools/guard/arch_guard.py` nối vào CI).
 
 ## B. Hình học cảm biến nằm ở 2 nơi + 1 dead-data
 

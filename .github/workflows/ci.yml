@@ -69,6 +69,13 @@ jobs:
         working-directory: firmware/waveshare-screen
         run: pio run -e yolo_uno
 
+      # Host test hazard_core (G1 T1.3): compile C thuần bằng gcc, không cần board.
+      - name: Host unit tests hazard_core (T1.3)
+        run: |
+          cmake -S firmware/waveshare-screen/host_sim -B /tmp/host_sim
+          cmake --build /tmp/host_sim
+          /tmp/host_sim/hazard_core_tests
+
       # Size-gate: sensor-node app partition ~1.3MB (arduino default) → cap 1.2MB.
       # waveshare-screen partition factory 4MB → cap 3.7MB (92.5%).
       - name: Size gate (R10)
@@ -125,6 +132,9 @@ jobs:
         run: |
           pip install pytest
           python3 -m pytest tools/guard/test_guard.py -q
+
+      - name: arch_guard.py (G1 B1-B7, R2/R3)
+        run: python3 tools/guard/arch_guard.py
 
       - name: check_rulechain_thresholds.py (R3/R11, best-effort)
         run: python3 tools/guard/check_rulechain_thresholds.py
