@@ -4,76 +4,85 @@
   "roadmap": [
     {
       "step_id": 1,
-      "task_title": "T1.1 Nâng cấp test_mqtt_coreiot.py: schema V2 + --scenario",
+      "task_title": "T1.3 hazard_core — tách logic quyết định thuần + unit test",
       "target_files": [
-        "tools/test_mqtt_coreiot.py",
-        "tools/guard/test_guard.py"
+        "firmware/waveshare-screen/components/hazard_core/CMakeLists.txt",
+        "firmware/waveshare-screen/components/hazard_core/include/hazard_core.h",
+        "firmware/waveshare-screen/components/hazard_core/hazard_core.c",
+        "firmware/waveshare-screen/components/sensor_model/sensor_model.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_theme.h",
+        "firmware/waveshare-screen/host_sim/tests/test_hazard_core.c",
+        "docs/ARCHITECTURE_G1_TESTING.md"
       ],
       "prerequisites": [],
-      "objective": "Bổ sung tham số `--scenario` (approach/crossing/slam/normal) tự đặt chuỗi khoảng cách theo thời gian; payload phải khớp schema V2 (d1..d6 + nearest_cm + has_nearest) như rule-chain 3. Tham số kết hợp --distance/--loop/--interval như cũ.",
-      "definition_of_done": "`test_mqtt_coreiot.py --scenario approach --dry-run --distance 30` in ra 1 payload JSON hợp lệ có đủ key d1..d6/nearest_cm/has_nearest; pytest test_guard.py pass (16 test trước đó không vỡ).",
-      "verification_command": "python3 tools/test_mqtt_coreiot.py --scenario approach --dry-run --distance 30 && python3 -m unittest tools.guard.test_guard -v || python3 tools/guard/test_guard.py",
+      "objective": "Tạo component C thuần (zero OS/LVGL dep, chỉ include thresholds.h + espnow_protocol.h) chứa hazard_classify/hazard_worst_zone/hazard_eval_crossing. sensor_model_classify thành wrapper mỏng gọi hazard_classify (API công khai không vỡ, R2 không symbol trùng). ui_dashboard.c áp kết quả hazard_core; hằng CROSSING_DELTA_CM/CROSSING_FRONT_THRESHOLD_CM chuyển từ ui_dashboard_theme.h về hazard_core (1 nguồn). CMake test target trong host_sim (gcc, không đụng pio native cho espidf): bounds 19/30/31, 99/100/101, skip-stale, crossing delta=40 / FRONT<150. Seam cho T2.3 (s_forced_crossing_warning OR hazard_eval_crossing).",
+      "definition_of_done": "Build waveshare yolo_uno OK; hazard_core_tests (host, gcc) pass đủ case boundary; grep CROSSING_DELTA_CM/CROSSING_FRONT_THRESHOLD_CM không còn trong ui_dashboard_theme.h; hazard_classify/hazard_eval_crossing có đúng 1 định nghĩa (R2); hành vi firmware không đổi.",
+      "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && cmake -S host_sim -B /tmp/host_sim && cmake --build /tmp/host_sim && /tmp/host_sim/hazard_core_tests",
       "risk": "low",
-      "notes": "T1.1 trong master plan: 'sửa trình giả lập MQTT cho đúng schema và thêm tham số scenario'. Schema đã đúng ở V2; thiếu scenario có tên."
+      "notes": "Foundation của cả G1/G2: host_sim (step 3) compile lại chính hazard_core, T2.3 (step 5) tái dùng. Ghi chi tiết kiến trúc ở docs/ARCHITECTURE_G1_TESTING.md."
     },
     {
       "step_id": 2,
-      "task_title": "T1.3a Host unit test cho sensor_model_classify",
+      "task_title": "T1.1 tools/scenarios.py + test_mqtt_coreiot.py --scenario (schema V2)",
       "target_files": [
-        "firmware/waveshare-screen/test/test_sensor_model.cpp",
-        "firmware/waveshare-screen/platformio.ini",
-        "firmware/waveshare-screen/test/test_runner.cpp"
+        "tools/test_mqtt_coreiot.py",
+        "tools/scenarios.py",
+        "tools/guard/test_guard.py"
       ],
       "prerequisites": [],
-      "objective": "Tạo tầng test host (env native) cho waveshare-screen: test sensor_model_classify tại ranh giới 30/100/0-valid như R3 (20=SAFE?, 100=CAUTION, 30=DANGER). Thêm env [env:native] trong platformio.ini build_unflags/framework cho test.",
-      "definition_of_done": "`pio test -e native` trong firmware/waveshare-screen pass và in đủ tối thiểu 6 case classify; không build vào firmware thật.",
-      "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio test -e native",
+      "objective": "Thêm tools/scenarios.py — nguồn duy nhất định nghĩa kịch bản approach/crossing/slam/normal (t → distances[6] cm) + pin JSONL schema = payload V2 telemetry (d1..d6/nearest_cm/has_nearest/timestamp/seq) để T1.4 và host_sim khớp nhau không cần chờ nhau. test_mqtt_coreiot.py thêm `--scenario` (kết hợp --distance/--loop/--interval như cũ), giữ nguyên schema V2; pytest không vỡ.",
+      "definition_of_done": "`test_mqtt_coreiot.py --scenario approach --dry-run --distance 30` in payload JSON hợp lệ đủ key d1..d6/nearest_cm/has_nearest; scenarios.py import được và sinh chuỗi cho 4 tên; pytest tools/guard/test_guard.py pass.",
+      "verification_command": "python3 tools/test_mqtt_coreiot.py --scenario approach --dry-run --distance 30 && python3 - <<'EOF' && python3 -m pytest tools/guard/test_guard.py -q\nfrom tools.scenarios import all_scenarios\nfor name in ('approach','crossing','slam','normal'):\n    assert name in all_scenarios, name\nprint('scenarios OK')\nEOF",
       "risk": "low",
-      "notes": "T1.3 bổ sung: DistanceFilter đã có test bên sensor-node (10/10); thiếu half classify bên waveshare."
+      "notes": "T1.1 trong master plan: 'sửa trình giả lập MQTT cho đúng schema và thêm tham số scenario'. Schema V2 đã đúng; loại nguy cơ duplicate kịch bản giữa 3 công cụ (kiến trúc G1, xem docs/ARCHITECTURE_G1_TESTING.md)."
     },
     {
       "step_id": 3,
+      "task_title": "T1.2 LVGL SDL simulator trên máy tính (host_sim)",
+      "target_files": [
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt",
+        "firmware/waveshare-screen/host_sim/main.c",
+        "firmware/waveshare-screen/host_sim/lv_conf.h",
+        "firmware/waveshare-screen/host_sim/stub/",
+        "firmware/waveshare-screen/components/ui_dashboard/include/ui_dashboard.h"
+      ],
+      "prerequisites": [1],
+      "objective": "Executable host dùng LVGL v9.1.0 (FetchContent, khớp idf_component.yml) + SDL2, compile các file THẬT ui_dashboard.c/layout.c/system.c + sensor_model.c + hazard_core.c qua stub mỏng (~10 file: freertos/{FreeRTOS.h,semphr.h} + esp_log/esp_wifi/esp_system/esp_timer/esp_chip_info/esp_flash/esp_app_desc/coreiot_client). CLI: --scenario <name> (dùng tools/scenarios.py), --replay <jsonl> (schema pin step 2), --exit-after N cho CI headless (xvfb-run). 800x480. Đòn bẩy lớn nhất: UI test không cần board; tiên quyết T3.1/T3.2.",
+      "definition_of_done": "cmake + make host_sim thành công; chạy được cửa sổ SDL hiển thị dashboard (xvfb-run --exit-after 3 exit 0); --replay với fixture JSONL mẫu render được; không ảnh hưởng build firmware hiện tại.",
+      "verification_command": "cmake -S firmware/waveshare-screen/host_sim -B /tmp/host_sim && cmake --build /tmp/host_sim && xvfb-run -a /tmp/host_sim/umt_dash_sim --exit-after 3 --scenario approach",
+      "risk": "medium",
+      "notes": "Kéo lên NHANH coi host_sim (rủi ro/lợi nhuận lớn nhất, fail-fast). Stub SYSTEM page trả giá trị giả — không lộ token thật (R1). Kéo càng sớm càng dùng được cho G3 (T3.1/T3.2): roadmap cũ để sim cuối = phí đòn bẩy."
+    },
+    {
+      "step_id": 4,
       "task_title": "T1.4 Tool ghi & phát lại dữ liệu thật",
       "target_files": [
         "tools/record_telemetry.py",
         "tools/replay_telemetry.py"
       ],
-      "prerequisites": [],
-      "objective": "record_telemetry.py: Paho MQTT subscribe topic v1/devices/me/telemetry của sensor-node, ghi JSONL theo timestamp (board flash yolo_uno_coreiot). replay_telemetry.py: đọc JSONL publish lại đúng nhịp để tái hiện cảnh (test phân loại/UI) không cần board.",
-      "definition_of_done": "record 10s ra /tmp/tb.jsonl rồi replay --dry-run không lỗi schema; script có --in/--out/--seconds/--topic.",
+      "prerequisites": [2],
+      "objective": "record_telemetry.py: Paho MQTT subscribe topic v1/devices/me/telemetry của sensor-node (board flash yolo_uno_coreiot), ghi JSONL theo timestamp — schema đọc từ tools/scenarios.py. replay_telemetry.py: đọc JSONL publish lại đúng nhịp (timestamp diff) để tái hiện cảnh (test phân loại/UI) không cần board; --dry-run validate schema.",
+      "definition_of_done": "record 10s ra /tmp/tb.jsonl rồi replay --dry-run không lỗi schema; script có --in/--out/--seconds/--topic; format JSONL khớp schema pin ở scenarios.py.",
       "verification_command": "python3 tools/record_telemetry.py --seconds 10 --out /tmp/tb.jsonl && python3 tools/replay_telemetry.py --in /tmp/tb.jsonl --dry-run",
       "risk": "low",
-      "notes": "Phần ghi cần board (sensor-node + token thật); phát lại chạy máy tính. Điều kiện tiên quyết cho T3.5 (cân lọc), T5.9 (báo nhầm/spot sót)."
-    },
-    {
-      "step_id": 4,
-      "task_title": "T1.2 LVGL SDL simulator trên máy tính (host)",
-      "target_files": [
-        "firmware/waveshare-screen/host_sim/CMakeLists.txt",
-        "firmware/waveshare-screen/host_sim/main.c",
-        "firmware/waveshare-screen/components/ui_dashboard/include/ui_dashboard.h"
-      ],
-      "prerequisites": [],
-      "objective": "Dựng executable host dùng LVGL v9 (managed_components) + backend SDL2 render dashboard waveshare với dữ liệu giả (dummy espnow_sensor_msg_t) ngay trên máy dev — không cần board. Đòn bẩy lớn nhất: test UI sau này không phụ thuộc board.",
-      "definition_of_done": "cmake + make host_sim thành công, chạy được cửa sổ SDL hiển thị dashboard (hoặc exit 0 trong môi trường headless/xvfb); không ảnh hưởng build firmware hiện tại.",
-      "verification_command": "cmake -S firmware/waveshare-screen/host_sim -B /tmp/host_sim && cmake --build /tmp/host_sim && xvfb-run -a /tmp/host_sim/umt_dash_sim || /tmp/host_sim/umt_dash_sim --exit-after 3",
-      "risk": "medium",
-      "notes": "Rủi ro: phiên bản LVGL/sdl trong managed_components; giới hạn true-size 800x480. Có thể chỉ cần build host riêng (không gộp vào CMake firmware)."
+      "notes": "Nửa record cần board + token thật (phụ thuộc vật lý — đặt CUỐI để không block chuỗi). Nửa replay là script thuần, trivially đúng khi schema đã pin (step 2). Tiên quyết T5.5/T5.6, T5.9."
     },
     {
       "step_id": 5,
       "task_title": "T2.3 Khôi phục heuristic cảnh báo xe cắt ngang",
       "target_files": [
-        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c",
+        "firmware/waveshare-screen/components/hazard_core/hazard_core.h",
+        "firmware/waveshare-screen/components/hazard_core/hazard_core.c",
         "cloud/coreiot/rule_chain/supersonic_rule_chain.json",
         "firmware/waveshare-screen/src/main.c"
       ],
-      "prerequisites": [],
-      "objective": "Sửa dead-path crossing_hazard: rule-chain node 3 xuất thêm `crossing_hazard` bool (JS: FRONT<=150 && side delta>=40 từ d1..d6) để main.c:84-87 nhận; keep umbrella framing ux local. Thống nhất macro CROSSING_* dùng chung.",
-      "definition_of_done": "grep crossing_hazard trong supersonic_rule_chain.json có node JS xuất field; waveshare build OK; ui_dashboard.c:culling heuristic không còn phụ thuộc s_forced_crossing_warning chết.",
+      "prerequisites": [1],
+      "objective": "Sửa dead-path crossing_hazard: rule-chain node 3 xuất thêm `crossing_hazard` bool (JS: FRONT<=150 && side delta>=40 từ d1..d6) để main.c:84-87 nhận; nối s_forced_crossing_warning OR hazard_eval_crossing (seam dựng ở step 1). Umbrella framing ux local; thống nhất macro CROSSING_* (đã về hazard_core).",
+      "definition_of_done": "grep crossing_hazard trong supersonic_rule_chain.json có node JS xuất field; waveshare build OK; ui_dashboard.c không còn heuristic crossing trùng (chỉ hazard_core): khổ CROSSING_DELTA_CM/CROSSING_FRONT_THRESHOLD_CM định nghĩa đúng 1 nơi trong hazard_core.",
       "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && grep -n 'crossing_hazard' cloud/coreiot/rule_chain/supersonic_rule_chain.json",
       "risk": "medium",
-      "notes": "T2.3 P0. Rule-chain là snapshot track (R11) và thay đổi cần import lại trên CoreIoT console khi nghiệm thu."
+      "notes": "T2.3 P0. Rule-chain là snapshot track (R11) và thay đổi cần import lại trên CoreIoT console khi nghiệm thu. Logic crossing đã nằm trong hazard_core (step 1) nên bước này chủ yếu là wire + rule-chain."
     },
     {
       "step_id": 6,
@@ -111,12 +120,12 @@
         "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c",
         "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c"
       ],
-      "prerequisites": [4],
-      "objective": "Hiển thị biểu tượng ô-tô/vật thể tại vị trí tương đối từng cảm biến (toạ độ từ readings[] + offset_deg) trên center canvas thay vì chỉ số text; dùng host simulator để kiểm tra bố cục.",
+      "prerequisites": [3],
+      "objective": "Hiển thị biểu tượng ô-tô/vật thể tại vị trí tương đối từng cảm biến (toạ độ từ readings[] + offset_deg) trên center canvas thay vì chỉ số text; dùng host simulator (step 3) để kiểm tra bố cục.",
       "definition_of_done": "Host sim render có icon di chuyển theo dữ liệu giả; waveshare build OK; không thay đổi log warning.",
       "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && cmake --build /tmp/host_sim && xvfb-run -a /tmp/host_sim/umt_dash_sim --exit-after 3",
       "risk": "medium",
-      "notes": "T3.1 hiện 'chưa đạt yêu cầu' đề xuất. Phải có T1.2 (sim) để kiểm chứng bố cục nhanh."
+      "notes": "T3.1 hiện 'chưa đạt yêu cầu' đề xuất. Cần sim (step 3 — đã kéo sớm) để kiểm chứng bố cục nhanh."
     },
     {
       "step_id": 9,
@@ -181,12 +190,12 @@
         "docs/PROGRESS.md",
         "docs/TEST_PROTOCOL.md"
       ],
-      "prerequisites": [3],
+      "prerequisites": [4],
       "objective": "Theo TEST_PROTOCOL: đo 6 khoảng cách (raw vs filter), tầm phản xạ mặt đường ở 3 chiều cao gá, góc búp thực tế (SENSOR_BEAM_FOV_DEG 75 vs đo). Ghi số vào PROGRESS.",
       "definition_of_done": "PROGRESS.md có bảng baseline 6 khoảng cách + kết quả chiều cao/góc với ngày đo và n=3 lần lặp.",
       "verification_command": "grep -n 'baseline\\|FOV\\|phản xạ\\|6.*khoảng' docs/PROGRESS.md | head -10",
       "risk": "high",
-      "notes": "T5.5/5.6 cần board + không gian đo. Dùng replay (step 3) để tái lập kịch bản."
+      "notes": "T5.5/5.6 cần board + không gian đo. Dùng replay (step 4) để tái lập kịch bản."
     },
     {
       "step_id": 14,
@@ -208,11 +217,11 @@
         "docs/PROGRESS.md"
       ],
       "prerequisites": [14],
-      "objective": "Chạy liên tục 24h rồi 72h: theo dõi heap, số reset, link drop. T5.9 dùng tập replay đã gán nhãn (step 3) đo false/alarm vs miss.",
+      "objective": "Chạy liên tục 24h rồi 72h: theo dõi heap, số reset, link drop. T5.9 dùng tập replay đã gán nhãn (step 4) đo false/alarm vs miss.",
       "definition_of_done": "PROGRESS.md có mục soak 24h và (nếu có thời gian) 72h: heap min, số lần reset, uptime; kết quả báo nhầm/spot sót.",
       "verification_command": "grep -n 'soak\\|24h\\|72h\\|heap\\|reset\\|miss\\|false' docs/PROGRESS.md | head -15",
       "risk": "high",
-      "notes": "Deferred nếu tài nguyên; T5.9 cần T1.4 đã xong (step 3)."
+      "notes": "Deferred nếu tài nguyên; T5.9 cần T1.4 đã xong (step 4)."
     }
   ]
 }
