@@ -3,7 +3,7 @@
 > Bảng trạng thái chi tiết hơn README. Cập nhật sau mỗi nhiệm vụ (R10).
 > Quy trình test: xem `docs/TEST_PROTOCOL.md`.
 
-- **Cập nhật lần cuối**: 2026-09-03
+- **Cập nhật lần cuối**: 2026-09-09
 - **Branch**: `main`
 
 ## Bảng trạng thái tổng hợp
@@ -26,6 +26,7 @@
 | B9a | Tool `test_mqtt_coreiot.py` V2 + rule-chain snapshot V2 (zone 100/30) | ✅ XONG | gate R11 OK, 16/16 pytest |
 | B9b | Nghiệm thu CoreIoT: token MỚI → flash → dashboard `warning_status` | 🟡 MỘT PHẦN (2026-09-03) | token MỚI đã dùng; sensor-node flash env `yolo_uno_coreiot`, **`[NET] MQTT connected`** → device **Active** trên dashboard; còn nghiệm thu `warning_status`/buzzer đầy đủ |
 | T5.x | Đo hiệu năng (baseline, latency, soak) | ⏳ CHỜ | sau khi firmware ổn định / có board |
+| CD | Release firmware.bin tự động lên GitHub Release khi tag `v*` | ✅ XONG (2026-09-09) | `.github/workflows/release.yml`; tag `v0.1.0-preview` → 3 `.bin` + `SHA256SUMS.txt`, `sha256sum -c` OK (xem `docs/CD_RELEASE.md` + `docs/roadmaps/cd-release.state.md`) |
 
 ## Nhóm việc đang xử lý
 
@@ -44,7 +45,7 @@
 
 - **Zone**: SAFE > 100 cm, CAUTION ≤ 100, DANGER ≤ 30 (nguồn duy nhất
   `firmware/shared/thresholds.h`).
-- **Buzzer**: WARNING < 50 cm (3 s) / DANGER < 20 cm (1 s).
+- **Buzzer**: kêu khi `nearest_cm <= SENSOR_DANGER_CM` (30), im khi CAUTION/SAFE/invalid (ngưỡng zone dùng chung).
 - **Số cảm biến**: `SENSOR_COUNT = sizeof(SENSOR_PINS)/...` + static_assert (R4).
 - **Không dùng GPIO47/48** (PSRAM Embedded chiếm chân).
 
@@ -53,3 +54,4 @@
 - 2026-09-02: tạo file; đánh dấu B0–B7, B9a XONG; B9b/B0b/B7b/T5.x CHỜ.
 - 2026-09-03: màn waveshare SÁNG (hybrid fallback, commit `42976d8`); token MỚI; sensor-node env coreiot `MQTT connected` → **Active** (B9b một phần).
 - 2026-09-03: fix ESP-NOW broadcast (B5f) + tách MQTT label debounce (B9m); build 3 env + 10/10 host test + flash waveshare OK. **Chặn**: sensor-node chưa enum trong kernel → chưa nghiệm thu LINKED.
+- 2026-09-09: **CD hoạt động** — `release.yml` build 3 env + upload Release trên tag `v*`; nghiệm thu tag `v0.1.0-preview` (3 `.bin` + `SHA256SUMS.txt`, checksum OK). G1 roadmap đảo theo kiến trúc kiểm thử (`docs/ARCHITECTURE_G1_TESTING.md`).

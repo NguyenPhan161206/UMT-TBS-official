@@ -7,8 +7,8 @@ Updated: 2026-09-09 (đã viết contract + workflow)
 |------|-------|--------|-------------|-------|
 | 1 | Contract CD + chuẩn artifact (docs/CD_RELEASE.md) | DONE | grep v*/sha256/contents write/naming | 4 mốc đạt |
 | 2 | Tạo .github/workflows/release.yml | DONE | YAML OK + grep mốc + scan_secrets | softprops@v2, staging dist/, sha256sum |
-| 3 | Thử nghiệm tag v0.1.0-preview | TODO | — | **cần user cho phép push tag remote** |
-| 4 | Log vận hành CD + tài liệu | TODO | — | sẽ ghi sau khi tag chạy xong |
+| 3 | Thử nghiệm tag v0.1.0-preview | DONE | run 34305027836 success; 4 asset; sha256sum -c 3/3 OK | commit fbd3977 + 20038d4, tag push |
+| 4 | Log vận hành CD + tài liệu | DONE | docs/logs/CD_RELEASE_LOG.md + PROGRESS row CD (2026-09-09) | grep bước 4 OK |
 
 ## Contracts established
 - Trigger: `on: push: tags: ['v*']` → build + tạo/upload GitHub Release.
