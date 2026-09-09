@@ -1,6 +1,6 @@
 {
   "project_name": "Nhánh tiếp theo — Mở kiểm thử → P0 còn lại → Tính năng (UMT-TBS V2)",
-  "total_steps": 15,
+  "total_steps": 16,
   "roadmap": [
     {
       "step_id": 1,
@@ -222,6 +222,24 @@
       "verification_command": "grep -n 'soak\\|24h\\|72h\\|heap\\|reset\\|miss\\|false' docs/PROGRESS.md | head -15",
       "risk": "high",
       "notes": "Deferred nếu tài nguyên; T5.9 cần T1.4 đã xong (step 4)."
+    },
+    {
+      "step_id": 16,
+      "task_title": "T5.x Dọn config cứng/khó bảo trì (A/B/C theo HARDCODED_CONFIG_NOTES.md)",
+      "target_files": [
+        "docs/HARDCODED_CONFIG_NOTES.md",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c",
+        "firmware/waveshare-screen/components/sensor_model/sensor_model.c",
+        "firmware/waveshare-screen/components/sensor_model/include/sensor_model.h",
+        "firmware/sensor-node/src/main.cpp",
+        "tools/test_mqtt_coreiot.py"
+      ],
+      "prerequisites": [3, 9],
+      "objective": "Xử lý 3 nhóm config cứng đã note trong docs/HARDCODED_CONFIG_NOTES.md: (A) legend UI (ui_dashboard_layout.c:299-301) + python mirror (test_mqtt_coreiot.py:41-42) đọc từ thresholds.h thay vì copy string -> đổi ngưỡng = tự cập nhật, guard arch_guard.py (B5) bắt; (B) bỏ offset_deg dead-field + k_offsets_deg[] trong sensor_model, gộp 1 bảng geometry khi T3.2 EX8 chạm layout; (C) gom timing/tuning literal ẩn (pdMS_TO_TICKS(20), delay(200), stack sizes, priorities, payload[256]) trong main.cpp vào config header per-firmware. Các define đã đặt tên (COREIOT_PUBLISH_INTERVAL_MS, MQTT_DOWN_DEBOUNCE_MS) giữ nguyên. Số px layout LVGL / hằng vật lý / test-asset KHÔNG đụng (mục D).",
+      "definition_of_done": "Legend UI không còn string cứng '30-100cm' (lv_label_set_text_fmt từ SENSOR_*_CM); grep 'offset_deg' trong firmware/ (trừ .pio) = 0; arch_guard.py exit 0 kể cả python-mirror check; timing literal ẩn trong main.cpp đã có tên; build sensor-node yolo_uno + yolo_uno_coreiot + native tests + waveshare yolo_uno OK.",
+      "verification_command": "cd firmware/sensor-node && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno_coreiot && /home/binhnguyen/.venv-pio/bin/pio test -e native && cd ../waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno && python3 tools/guard/arch_guard.py && (grep -rn 'offset_deg\\|30-100cm\\|> 100cm' firmware/ waveshare-screen/ | grep -v '.pio/' || echo 'ZERO hardcoded config OK')",
+      "risk": "medium",
+      "notes": "Checklist nguồn: docs/HARDCODED_CONFIG_NOTES.md (mục A/B/C + blast radius + mục D loại trừ). Step này là 'ghi chú → checklist' — được track ngay từ 2026-09-09; phần code dọn từng đám gắn đúng khi step chạm file (legend: step 3 host_sim/T3.x; geometry: step 9 T3.2; timing: step 16)."
     }
   ]
 }
