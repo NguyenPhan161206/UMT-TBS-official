@@ -307,7 +307,7 @@ lv_obj_t *build_right_sidebar(lv_obj_t *parent)
     lv_obj_set_style_text_color(lbl, lv_color_hex(COLOR_CAUTION), 0);
 
     lbl = lv_label_create(sidebar);
-    lv_label_set_text_fmt(lbl, "< %dcm : Danger", SENSOR_DANGER_CM);
+    lv_label_set_text_fmt(lbl, "<= %dcm : Danger", SENSOR_DANGER_CM);
     lv_obj_set_style_text_color(lbl, lv_color_hex(COLOR_DANGER), 0);
 
     return sidebar;

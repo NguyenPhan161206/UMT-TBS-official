@@ -33,7 +33,7 @@ static void test_classify_bounds(void)
 {
     CHECK(hazard_classify(19) == SENSOR_ZONE_DANGER, "19cm -> DANGER");
     CHECK(hazard_classify(29) == SENSOR_ZONE_DANGER, "29cm (< DANGER_CM) -> DANGER");
-    CHECK(hazard_classify(30) == SENSOR_ZONE_CAUTION, "30cm NOT < DANGER_CM -> CAUTION (boundary dưới)");
+    CHECK(hazard_classify(30) == SENSOR_ZONE_DANGER, "30cm == DANGER_CM -> DANGER (x <= DANGER_CM)");
     CHECK(hazard_classify(31) == SENSOR_ZONE_CAUTION, "31cm -> CAUTION");
     CHECK(hazard_classify(99) == SENSOR_ZONE_CAUTION, "99cm -> CAUTION");
     CHECK(hazard_classify(100) == SENSOR_ZONE_CAUTION, "100cm == CAUTION_CM -> CAUTION (x <= CAUTION)");

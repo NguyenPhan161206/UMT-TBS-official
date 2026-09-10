@@ -44,10 +44,12 @@ typedef struct {
 } hazard_crossing_result_t;
 
 /* Phân loại 1 khoảng cách (cm) theo SENSOR_*_CM (R3):
- *   x <  DANGER_CM  -> DANGER
+ *   x <= DANGER_CM  -> DANGER   (x == DANGER_CM là DANGER — khớp
+ *                                thresholds.h "x <= DANGER_CM", mirror
+ *                                rule-chain T5 & python mirror)
  *   x <= CAUTION_CM -> CAUTION
  *   else            -> SAFE
- * Semantics giữ nguyên hàm classify cũ — thuần, không FreeRTOS. */
+ * Thuần, không FreeRTOS. */
 sensor_zone_t hazard_classify(uint16_t distance_cm);
 
 /* Zone tệ nhất giữa n slot; skip slot stale (is_stale[i] == true) — giữ hành

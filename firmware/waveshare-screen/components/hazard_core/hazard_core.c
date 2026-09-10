@@ -8,7 +8,7 @@
 
 sensor_zone_t hazard_classify(uint16_t distance_cm)
 {
-    if (distance_cm < SENSOR_DANGER_CM)
+    if (distance_cm <= SENSOR_DANGER_CM)
     {
         return SENSOR_ZONE_DANGER;
     }

@@ -37,7 +37,7 @@ void buzzerTask(void *pvParameters)
         float nearestCm = 0.0f;
         bool hasNearest = sharedStateGetNearest(nearestCm);
 
-        bool danger = hasNearest && nearestCm > 0.0f && nearestCm < SENSOR_DANGER_CM;
+        bool danger = hasNearest && nearestCm > 0.0f && nearestCm <= SENSOR_DANGER_CM;
         bool caution = hasNearest && nearestCm > 0.0f && nearestCm <= SENSOR_CAUTION_CM;
 
         uint32_t now = millis();
