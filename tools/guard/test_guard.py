@@ -282,6 +282,98 @@ def test_rulechain_snapshot_has_v2_thresholds():
     assert 100.0 in nums and 30.0 in nums
 
 
+# -------------------------------------------------- record/replay telemetry (G1 T1.4)
+
+
+def _write_replay_fixture(path: Path, rows: list[dict]) -> Path:
+    path.write_text(
+        "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _good_rows() -> list[dict]:
+    t0 = 1_700_000_000_000
+    return [
+        {"d1": 160.0, "d2": 80.0, "d3": 120.0, "d4": 90.0, "d5": 100.0,
+         "d6": 110.0, "nearest_cm": 80.0, "has_nearest": True,
+         "timestamp": t0, "seq": 1, "recv_epoch_ms": t0},
+        {"d1": 20.0, "d2": 80.0, "d3": 120.0, "d4": 90.0, "d5": 100.0,
+         "d6": 110.0, "nearest_cm": 20.0, "has_nearest": True,
+         "timestamp": t0 + 300, "seq": 2, "recv_epoch_ms": t0 + 300},
+    ]
+
+
+def test_replay_dry_run_valid(tmp_path):
+    # DoD roadmap step 4: replay --dry-run trên file JSONL hợp lệ -> exit 0.
+    fixture = _write_replay_fixture(tmp_path / "good.jsonl", _good_rows())
+    p = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "replay_telemetry.py"),
+         "--in", str(fixture), "--dry-run"],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    assert p.returncode == 0, p.stderr
+    assert "schema V2 hợp lệ" in p.stdout
+    assert "[ROW #1]" in p.stdout and "[ROW #2]" in p.stdout
+
+
+def test_replay_dry_run_rejects_bad_schema(tmp_path):
+    # Dòng thiếu key hoặc distance âm -> exit 1, không được phép phát.
+    fixture = _write_replay_fixture(tmp_path / "bad.jsonl", [
+        {"d1": 160, "d2": 80, "d3": 120, "d4": 90, "d5": 100, "d6": 110,
+         "nearest_cm": 80, "has_nearest": True, "seq": 1},
+        {"d1": -5, "d2": 80, "d3": 120, "d4": 90, "d5": 100, "d6": 110,
+         "nearest_cm": 80, "has_nearest": True, "seq": 2},
+        {"d1": 160, "d2": 80, "d3": 120, "nearest_cm": 80, "has_nearest": True},
+    ])
+    p = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "replay_telemetry.py"),
+         "--in", str(fixture), "--dry-run"],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    assert p.returncode == 1, p.stdout
+    assert "2/3 dòng lỗi schema" in p.stderr
+
+
+def test_record_telemetry_module_helpers():
+    # record_telemetry không thể chạy thật trong CI (cần board+token);
+    # kiểm tra helpers schema để chắc chắn format JSONL khớp V2.
+    spec = importlib.util.spec_from_file_location(
+        "record_telemetry", ROOT / "tools" / "record_telemetry.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+
+    assert mod.schema_partial({k: 0 for k in mod.REQUIRED_KEYS}) is True
+    assert mod.schema_partial({"d1": 0}) is False
+    assert mod.mask_token("abcdef123456") == "abc...456"
+    assert mod.REQUIRED_KEYS == (
+        "d1", "d2", "d3", "d4", "d5", "d6", "nearest_cm", "has_nearest"
+    )
+
+
+def test_record_telemetry_zero_rows_file(tmp_path):
+    # record không board -> file rỗng hợp lệ; replay --dry-run vẫn exit 0 (0 dòng).
+    p = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "replay_telemetry.py"),
+         "--in", str(tmp_path / "missing.jsonl"), "--dry-run"],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    assert p.returncode == 1, p.stdout  # file không tồn tại -> lỗi sạch
+    assert "Không tìm thấy file" in p.stderr
+    # file rỗng hợp lệ
+    (tmp_path / "empty.jsonl").write_text("", encoding="utf-8")
+    p2 = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "replay_telemetry.py"),
+         "--in", str(tmp_path / "empty.jsonl"), "--dry-run"],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    assert p2.returncode == 0, p2.stderr
+    assert "0 dòng" in p2.stdout
+
+
 # --------------------------------------------------------------------- check_size
 
 
