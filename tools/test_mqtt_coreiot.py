@@ -13,6 +13,8 @@ Usage:
   python3 tools/test_mqtt_coreiot.py --dry-run --distance 25
   python3 tools/test_mqtt_coreiot.py --distance 15.5
   python3 tools/test_mqtt_coreiot.py --loop --interval 2
+  python3 tools/test_mqtt_coreiot.py --scenario approach --dry-run
+  python3 tools/test_mqtt_coreiot.py --scenario slam --loop --interval 1
 """
 from __future__ import annotations
 
@@ -25,6 +27,11 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+TOOLS_DIR = Path(__file__).resolve().parent
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
+
+from scenarios import SCENARIO_NAMES, iter_scenario
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
@@ -75,6 +82,47 @@ def build_payload(distance: float, seq: int | None = None) -> dict:
     return payload
 
 
+def build_payload_from_distances(distances, seq: int | None = None) -> dict:
+    """Telemetry V2 từ 1 mốc kịch bản (G1 T1.1): d1..d6 theo thứ tự slot.
+
+    distances phải đủ 6 slot (d1=FRONT..d6=RIGHT_REAR — espnow_protocol.h).
+    nearest_cm = min(distances); warning_status theo classify(nearest).
+    """
+    rounded = tuple(round(float(v), 1) for v in distances)
+    if len(rounded) != len(SENSOR_KEYS):
+        raise ValueError(f"Cần {len(SENSOR_KEYS)} slot, nhận {len(rounded)}")
+    payload = dict(zip(SENSOR_KEYS, rounded))
+    nearest = min(rounded)
+    payload["nearest_cm"] = nearest
+    payload["has_nearest"] = True
+    payload["warning_status"] = classify(nearest)
+    payload["vehicle_detected"] = nearest <= CAUTION_CM
+    payload["timestamp"] = int(time.time() * 1000)
+    if seq is not None:
+        payload["seq"] = seq
+    return payload
+
+
+def iter_scenario_rows(args: argparse.Namespace, one_round_only: bool = False):
+    """Yield (row, seq) cho --scenario đã chọn; --distance override mọi slot.
+
+    - one_round_only=True: đúng 1 vòng timeline (dùng cho --dry-run, tránh vô hạn).
+    - one_round_only=False: lặp timeline; nếu --loop thì vô hạn (seq tăng dần),
+      ngược lại 1 vòng rồi dừng.
+    """
+    seq = 0
+    while True:
+        for timeline_row in iter_scenario(args.scenario):
+            seq += 1
+            if args.distance is not None:
+                row = (args.distance,) * len(timeline_row)
+            else:
+                row = timeline_row
+            yield row, seq
+        if one_round_only or not args.loop:
+            return
+
+
 def resolve_token(args: argparse.Namespace, cfg: dict) -> str:
     return (
         args.token
@@ -110,7 +158,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--distance", type=float, default=None,
-        help="Khoảng cách cố định (cm); mặc định random 10–180",
+        help="Khoảng cách cố định (cm); mặc định random 10–180. Với --scenario: override mọi slot",
+    )
+    parser.add_argument(
+        "--scenario", choices=SCENARIO_NAMES, default=None,
+        help="Kịch bản khoảng cách (G1 T1.1): approach/crossing/slam/normal. "
+        "Duyệt timeline theo --interval; --loop lặp vô hạn",
     )
     parser.add_argument(
         "--loop", action="store_true", help="Gửi dữ liệu liên tục (Ctrl+C để dừng)"
@@ -172,21 +225,28 @@ def run_publisher(args: argparse.Namespace) -> int:
     time.sleep(1)
 
     try:
-        counter = 1
-        while True:
-            distance = (
-                args.distance
-                if args.distance is not None
-                else round(random.uniform(RANDOM_MIN_CM, RANDOM_MAX_CM), 1)
-            )
-            payload = build_payload(distance, seq=counter if args.loop else None)
-            label = f"#{counter}" if args.loop else ""
-            print(f"[SEND {label}] Payload: {json.dumps(payload)}")
-            publish_payload(client, args.topic, payload)
-            if not args.loop:
-                break
-            counter += 1
-            time.sleep(args.interval)
+        if args.scenario is not None:
+            for row, seq in iter_scenario_rows(args, one_round_only=False):
+                payload = build_payload_from_distances(row, seq=seq)
+                print(f"[SEND #{seq}] Payload: {json.dumps(payload)}")
+                publish_payload(client, args.topic, payload)
+                time.sleep(args.interval)
+        else:
+            counter = 1
+            while True:
+                distance = (
+                    args.distance
+                    if args.distance is not None
+                    else round(random.uniform(RANDOM_MIN_CM, RANDOM_MAX_CM), 1)
+                )
+                payload = build_payload(distance, seq=counter if args.loop else None)
+                label = f"#{counter}" if args.loop else ""
+                print(f"[SEND {label}] Payload: {json.dumps(payload)}")
+                publish_payload(client, args.topic, payload)
+                if not args.loop:
+                    break
+                counter += 1
+                time.sleep(args.interval)
     except KeyboardInterrupt:
         print("\n[INFO] Đã dừng bởi người dùng.")
     finally:
@@ -200,6 +260,13 @@ def main() -> int:
     args = parse_args()
 
     if args.dry_run:
+        if args.scenario is not None:
+            rows = list(iter_scenario_rows(args, one_round_only=True))
+            print(f"[DRY-RUN] Kịch bản '{args.scenario}' ({len(rows)} mốc, chưa gửi MQTT):")
+            for row, seq in rows:
+                payload = build_payload_from_distances(row, seq=seq)
+                print(json.dumps(payload))
+            return 0
         distance = (
             args.distance
             if args.distance is not None

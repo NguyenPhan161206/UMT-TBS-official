@@ -7,7 +7,7 @@ Priorities: G1 Mở khả năng kiểm thử (T1.x) → G2 P0 còn lại (T2.3, 
 | Step | Title | Status | Verified by | Notes |
 |------|-------|--------|-------------|-------|
 | 1 | T1.3 hazard_core — tách logic quyết định thuần + unit test | DONE | pio run yolo_uno các build; host_sim 25 checks; arch_guard/pytest 19 | G1 foundation — xong 2026-09-09 (nhánh nguyen, chưa merge main) |
-| 2 | T1.1 tools/scenarios.py + test_mqtt_coreiot.py --scenario | TODO | — | kịch bản 1 chỗ; pin JSONL schema |
+| 2 | T1.1 tools/scenarios.py + test_mqtt_coreiot.py --scenario | DONE | dry-run 8 mốc; pytest 25; arch_guard/scan OK | schema V2 pin; 4 kịch bản chuẩn — xong 2026-09-09 (chưa merge main) |
 | 3 | T1.2 LVGL SDL simulator (host_sim, kéo sớm) | TODO | — | FetchContent LVGL v9.1 + SDL2 + stub; prereq T3.1/T3.2 |
 | 4 | T1.4 record_telemetry.py + replay_telemetry.py | TODO | — | record cần board+token → để cuối G1 |
 | 5 | T2.3 Khôi phục crossing_hazard (rule-chain) | TODO | — | firmware nhận sẵn (main.c:84-87); dead-path là rule-chain snapshot thiếu field |
@@ -25,12 +25,17 @@ Priorities: G1 Mở khả năng kiểm thử (T1.x) → G2 P0 còn lại (T2.3, 
 
 ## Contracts established
 - `hazard_core` (components/hazard_core, DONE): `sensor_zone_t hazard_classify(uint16_t)`; `sensor_zone_t hazard_worst_zone(const uint16_t*, const bool*, size_t)`; `hazard_crossing_result_t hazard_eval_crossing(const uint16_t*, const uint16_t*, size_t)` (struct `{bool active; espnow_slot_t sensor;}`, `HAZARD_CROSSING_NO_SENSOR ((espnow_slot_t)ESPNOW_SENSOR_SLOT_COUNT)`). C thuần zero OS/LVGL, only include `thresholds.h`+`espnow_protocol.h`; `CROSSING_DELTA_CM`(40)/`CROSSING_FRONT_THRESHOLD_CM`(150) định nghĩa ở `hazard_core.h` (B5 single-truth). Semantics: `x<DANGER`→DANGER, `x<=CAUTION`→CAUTION; stale-skip; crossing = FRONT<150 && side delta≥40, worst-side. Wiring: `ui_dashboard.c` 3 call-site + `evaluate_hazard`; wrapper `sensor_model_classify` đã xoá (R2 count=0). Host test: `host_sim/` (mini assert-runner, 25 checks, `ctest`-able). Guard: `tools/guard/arch_guard.py` (B1–B7 + mirror A2) — nối AGENTS/CI.
-- `tools/scenarios.py`: kịch bản approach/crossing/slam/normal + JSONL schema = payload V2 telemetry (d1..d6/nearest_cm/has_nearest/timestamp/seq).
+- `tools/scenarios.py` (DONE): `SCENARIO_NAMES=("approach","crossing","slam","normal")`,
+  `all_scenarios[name] -> tuple[(d1..d6) cm]*mốc`, `iter_scenario(name)` (KeyError nếu lạ).
+  Semantics: approach d1 160→20; crossing delta≥40 ở LF/RF; slam d1 110→60→20; normal mọi >100.
+  Tiêu thụ: `test_mqtt_coreiot.py --scenario X` (`build_payload_from_distances(distances, seq)`,
+  `nearest_cm=min`, JSONL schema `d1..d6/nearest_cm/has_nearest/timestamp/seq`); T1.4 + host_sim dùng chung.
 - `tools/test_mqtt_coreiot.py --scenario <name>`; `tools/record_telemetry.py --seconds N --out file.jsonl`; `tools/replay_telemetry.py --in file.jsonl --dry-run`.
 - Bỏ `BUZZER_WARNING_DISTANCE_CM`/`BUZZER_DANGER_DISTANCE_CM`; buzzer kêu khi `nearest_cm <= SENSOR_DANGER_CM` (30), im khi còn lại.
 - Config cứng/khó bảo trì: checklist nguồn `docs/HARDCODED_CONFIG_NOTES.md` (A: threshold copy string drift `ui_dashboard_layout.c:299-301` + `test_mqtt_coreiot.py:41-42`; B: `offset_deg` dead + geometry 2 nơi; C: timing literal ẩn; D: loại trừ). Step 16 track; A được bảo vệ bởi arch_guard.py (B5).
 
 ## Deviations
+- **2026-09-09 — Bước 2 (step 2 T1.1) DONE, nhánh nguyen:** thêm `tools/scenarios.py` (4 kịch bản + `iter_scenario`) và `--scenario` vào `test_mqtt_coreiot.py`. Deviation nhỏ so với prompt gốc: `iter_scenario_rows` có thêm tham số `one_round_only=True` cho dry-run (tránh vô hạn khi người dùng kết hợp `--dry-run --loop`); `build_payload_from_distances` raise ValueError nếu không đủ 6 slot. Verify: dry-run đủ key, 8 mốc approach, pytest 25 pass, arch_guard/scan_secrets OK. Log: `docs/logs/TOOLS_SCENARIOS_LOG.md`. Chưa commit/push (sẽ push origin/nguyen cùng bước 3 báo cáo).
 - **2026-09-09 — Bước 3 DONE (G1 step 1 hazard_core, nhánh nguyen):** tạo `components/hazard_core` (thuần, 3 hàm), host_sim mini assert-runner (25 checks), wiring `ui_dashboard.c` (3 call-site + evaluate_hazard) + xoá wrapper `sensor_model_classify`, bỏ CROSSING_* khỏi theme (B5 single-truth ở hazard_core.h), tạo `tools/guard/arch_guard.py` (B1–B7+mirror A2), nối AGENTS.md/CI. Verify: build waveshare clean OK, host_sim 25/25, arch_guard OK, pytest 19 pass, scan_secrets OK, grep R2/B5 = 0. Lưu ý môi trường máy dev: cần `pip install cmake pytest` vào venv-pio; ×1 lỗi build do `.pio` cache cũ không nhận component mới → `pio run -t clean`.<br>**Chưa merge main** — commit Bước 3 đang chuẩn bị push origin/nguyen. Step 5 (T2.3 dead-path) giờ prereq [1] đã đủ nhưng vẫn cần rule-chain snapshot piggyback.
 - **2026-09-09 — Dọn sớm A1+B1 (config cứng step 16) trên nhánh nguyen:** user yêu cầu push lên nhánh `nguyen`. Xử lý trước phần A1 (legend UI → `lv_label_set_text_fmt` từ `SENSOR_*_CM`) + B1 (xoá `offset_deg` dead-field + `k_offsets_deg[]`) vì không phụ thuộc host_sim; nới prereq step 16 [3,9]→[9]. Còn A2 (arch_guard check python mirror) + C (timing literal ẩn) + B2 (geometry EX8) chờ step 1/9. Git nhánh nguyen = origin/main + commit dọn (đã push).
 - **2026-09-09 — Thêm step 16 (T5.x dọn config cứng):** người dùng chọn "note lại 1 file riêng" → tạo `docs/HARDCODED_CONFIG_NOTES.md` + đưa vào checklist roadmap (step 16, prereq [3,9]). Không sửa code ở lần này; từng đám được xử lý đúng trong step chạm file (legend→host_sim/T3.x, geometry→T3.2, timing→step 16).

@@ -172,6 +172,103 @@ def test_dry_run_without_token():
     assert '"nearest_cm": 25.0' in p.stdout
 
 
+# ---------------------------------------------------------------- scenarios (G1 T1.1)
+
+
+def load_scenarios_module():
+    """Import tools/scenarios.py (stdlib thuần, không phụ thuộc paho)."""
+    spec = importlib.util.spec_from_file_location(
+        "scenarios", ROOT / "tools" / "scenarios.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_scenarios_has_4_named_timelines():
+    s = load_scenarios_module()
+    assert set(s.SCENARIO_NAMES) == {"approach", "crossing", "slam", "normal"}
+    for name in s.SCENARIO_NAMES:
+        rows = list(s.iter_scenario(name))
+        assert len(rows) >= 4, name          # ≥ 4 mốc thời gian
+        assert all(len(r) == 6 for r in rows), name  # đủ 6 slot
+
+
+def test_scenarios_semantics():
+    s = load_scenarios_module()
+    rows = {name: list(s.iter_scenario(name)) for name in s.SCENARIO_NAMES}
+
+    # approach: d1 giảm dần, mốc đầu > 150 → mốc cuối < 30; slot khác ≥ 60.
+    app = rows["approach"]
+    assert app[0][0] > 150 and app[-1][0] < 30
+    assert all(v >= 60.0 for r in app[1:] for v in r[1:])
+
+    # crossing: tồn tại 2 mốc liên tiếp chênh ≥ 40 ở slot index 2 hoặc 4.
+    crs = rows["crossing"]
+    assert any(
+        abs(a - b) >= 40.0
+        for prev, cur in zip(crs, crs[1:])
+        for a, b in ((prev[2], cur[2]), (prev[4], cur[4]))
+    )
+
+    # slam: d1 giảm từ > 100 xuống < 30 trong ≤ 3 mốc.
+    slm = rows["slam"]
+    assert slm[0][0] > 100
+    assert slm[2][0] < 30
+
+    # normal: mọi giá trị > 100 (không mốc nào ≤ CAUTION_CM).
+    nrm = rows["normal"]
+    assert all(v > 100.0 for r in nrm for v in r)
+
+
+def test_iter_scenario_unknown_raises():
+    s = load_scenarios_module()
+    try:
+        next(s.iter_scenario("khong_co"))
+    except KeyError:
+        return
+    raise AssertionError("iter_scenario('khong_co') phải raise KeyError")
+
+
+def test_build_payload_from_distances_danger():
+    t = load_tool_module()
+    p = t.build_payload_from_distances([5, 50, 50, 50, 50, 50])
+    assert p["d1"] == 5.0
+    assert p["d5"] == 50.0
+    assert p["nearest_cm"] == 5.0
+    assert p["has_nearest"] is True
+    assert p["warning_status"] == "DANGER"
+    assert {k: p[k] for k in ("d1", "d2", "d3", "d4", "d5", "d6")}
+
+
+def test_scenario_dry_run_full_timeline():
+    # --scenario approach --dry-run: in ≥ 4 payload, mỗi payload 1 dòng JSON.
+    p = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "test_mqtt_coreiot.py"),
+         "--scenario", "approach", "--dry-run"],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    assert p.returncode == 0, p.stderr
+    payload_lines = [ln for ln in p.stdout.splitlines() if ln.startswith("{")]
+    assert len(payload_lines) >= 4
+    assert '"d1"' in payload_lines[0] and '"nearest_cm"' in payload_lines[0]
+    assert '"has_nearest"' in payload_lines[-1]
+
+
+def test_scenario_dry_run_with_distance_override():
+    # DoD roadmap: --scenario approach --dry-run --distance 30 → payload đủ key.
+    p = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "test_mqtt_coreiot.py"),
+         "--scenario", "approach", "--dry-run", "--distance", "30"],
+        capture_output=True, text=True, cwd=ROOT,
+    )
+    assert p.returncode == 0, p.stderr
+    assert '"d1"' in p.stdout and '"nearest_cm"' in p.stdout
+    assert '"has_nearest"' in p.stdout
+    assert '"d1": 30.0' in p.stdout
+
+
 def test_rulechain_snapshot_has_v2_thresholds():
     # R3/R11: snapshot rule-chain phải chứa ngưỡng zone 100/30 (mirror
     # firmware/shared/thresholds.h) để check_rulechain_thresholds.py OK.
