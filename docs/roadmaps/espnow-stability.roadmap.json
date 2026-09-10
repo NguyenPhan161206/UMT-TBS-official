@@ -1,0 +1,126 @@
+{
+  "project_name": "ESP-NOW link stability: disable Wi-Fi power-save + giảm nghẽn radio MQTT",
+  "total_steps": 8,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Tắt Wi-Fi Power-Save trên waveshare-screen (receiver)",
+      "target_files": [
+        "firmware/waveshare-screen/components/coreiot_client/coreiot_client.c"
+      ],
+      "prerequisites": [],
+      "objective": "Trong coreiot_client_init(), ngay sau lời gọi esp_wifi_start() (dòng ~245 trong nhánh STA), thêm esp_wifi_set_ps(WIFI_PS_NONE); để radio luôn thức trong STA mode. Lý do: modem-sleep mặc định (WIFI_PS_MIN_MODEM) làm waveshare ngủ giữa các cửa sổ beacon (hotspot iPhone beacon ~102ms) → ESP-NOW broadcast từ sensor-node bị rơi hàng loạt, gây NO LINK kéo dài. esp_wifi.h đã được include (dòng 17). Không thay đổi gì khác.",
+      "definition_of_done": "grep trong coreiot_client.c có đúng 1 lời gọi esp_wifi_set_ps(WIFI_PS_NONE) và nằm phía sau esp_wifi_start(); waveshare-screen build `pio run -e yolo_uno` thoát 0.",
+      "verification_command": "grep -n \"esp_wifi_set_ps\" firmware/waveshare-screen/components/coreiot_client/coreiot_client.c && grep -n \"esp_wifi_start\" firmware/waveshare-screen/components/coreiot_client/coreiot_client.c && cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno",
+      "risk": "medium",
+      "notes": "Đây là fix chuẩn cho ESP-NOW trong STA mode. Hiệu ứng thực nghiệm xác nhận ở step 5 (soak flash-and-observe)."
+    },
+    {
+      "step_id": 2,
+      "task_title": "Tắt Wi-Fi Power-Save trên sensor-node (sender)",
+      "target_files": [
+        "firmware/sensor-node/src/espnow_client.cpp"
+      ],
+      "prerequisites": [],
+      "objective": "Trong EspNowClient::begin(), sau esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE) (dòng ~52), thêm esp_wifi_set_ps(WIFI_PS_NONE); để radio luôn thức. Lý do: env yolo_uno_coreiot associate vào cùng iPhone hotspot qua coreiot_client → PS mặc định làm trễ TX ESP-NOW theo cửa sổ ngủ/thức. esp_wifi.h đã include (dòng 4). Không sửa gì khác.",
+      "definition_of_done": "grep trong espnow_client.cpp có đúng 1 lời gọi esp_wifi_set_ps(WIFI_PS_NONE); cả 2 env sensor-node build `pio run -e yolo_uno -e yolo_uno_coreiot` thoát 0.",
+      "verification_command": "grep -n \"esp_wifi_set_ps\" firmware/sensor-node/src/espnow_client.cpp && cd firmware/sensor-node && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno -e yolo_uno_coreiot",
+      "risk": "medium",
+      "notes": "esp_wifi_set_ps ảnh hưởng toàn radio, áp dụng cho cả 2 env (có/không CoreIoT). Không thêm dependency mới."
+    },
+    {
+      "step_id": 3,
+      "task_title": "Giảm nghẽn radio sender: COREIOT_PUBLISH_INTERVAL_MS 500 -> 2000",
+      "target_files": [
+        "firmware/sensor-node/src/plugins/coreiot/coreiot_client.h"
+      ],
+      "prerequisites": [],
+      "objective": "Đổi giá trị macro COREIOT_PUBLISH_INTERVAL_MS từ 500 thành 2000 (dòng 15), kèm cập nhật comment dòng 14 cho khớp. Lý do: sensor-node mỗi 500ms vừa gửi ESP-NOW (đường chính) vừa publish MQTT telemetry — chung 1 radio, so khớp nhịp gây nghẽn. Telemetry 2s vẫn đủ cho rule-chain/dashboard. Không sửa logic gửi, không đổi credential.",
+      "definition_of_done": "grep trong coreiot_client.h hiển thị `#define COREIOT_PUBLISH_INTERVAL_MS 2000` và không còn literal 500; env yolo_uno_coreiot build `pio run -e yolo_uno_coreiot` thoát 0.",
+      "verification_command": "grep -n \"COREIOT_PUBLISH_INTERVAL_MS\" firmware/sensor-node/src/plugins/coreiot/coreiot_client.h && cd firmware/sensor-node && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno_coreiot",
+      "risk": "low",
+      "notes": "chỉ đổi macro cấu hình, không ảnh hưởng ENV default yolo_uno (USE_COREIOT=0)."
+    },
+    {
+      "step_id": 4,
+      "task_title": "Log transition ESP-NOW link UP/DOWN trên waveshare (chẩn đoán soak)",
+      "target_files": [
+        "firmware/waveshare-screen/src/main.c"
+      ],
+      "prerequisites": [
+        1,
+        2
+      ],
+      "objective": "Trong espnow_link_watchdog_cb() (dòng ~142) thêm biến static bool lưu trạng thái link trước đó; khi linked thay đổi thì ESP_LOGI(TAG, \"ESP-NOW link %s\", linked ? \"UP\" : \"DOWN\"). Mục đích: giúp step 5 đo chính xác số lần tụt link + thời lượng NO LINK từ serial mà không cần nhìn màn hình. Không đổi hành vi UI.",
+      "definition_of_done": "grep trong main.c thấy ESP_LOGI chứa chuỗi \"ESP-NOW link\" nằm trong espnow_link_watchdog_cb; waveshare-screen build `pio run -e yolo_uno` thoát 0.",
+      "verification_command": "grep -n \"ESP-NOW link\" firmware/waveshare-screen/src/main.c && cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno",
+      "risk": "low",
+      "notes": "Chỉ thêm log, không thay đổi ngưỡng link (giữ ESPNOW_LINK_TIMEOUT_MS=1500)."
+    },
+    {
+      "step_id": 5,
+      "task_title": "Flash 2 board + soak 120s + nghiệm thu + log",
+      "target_files": [
+        "docs/logs/ESPNOW_STABILITY_LOG.md"
+      ],
+      "prerequisites": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "objective": "Flash sensor-node env yolo_uno_coreiot lên /dev/ttyACM1 và waveshare-screen env yolo_uno lên /dev/ttyACM0 (khi cả 2 board cắm). Chạy soak >=120s đọc serial 2 board; đếm: số lần \"ESP-NOW link DOWN\" trên waveshare, số chuỗi \"Send FAILED\" trên sensor-node. Tạo docs/logs/ESPNOW_STABILITY_LOG.md ghi: file đã sửa, lệnh build/flash đã chạy, kết quả đo. Tiêu chí đạt: <=2 lần \"link DOWN\" trong 120s, 0 lần \"Send FAILED\".",
+      "definition_of_done": "docs/logs/ESPNOW_STABILITY_LOG.md tồn tại; số lần xuất hiện \"link DOWN\" trong log <= 2 (lệnh verification trả về 0, 1, hoặc 2); log viết rõ số lần Send FAILED = 0.",
+      "verification_command": "rg -c \"link DOWN\" docs/logs/ESPNOW_STABILITY_LOG.md",
+      "risk": "medium",
+      "notes": "Phụ thuộc board vật lý. Nếu vẫn tụt nhiều hơn tiêu chí, ghi số liệu thực vào log và xem xét phase 2 (unicast + ACK). Cổng hiện tại khi 2 board cùng cắm: sensor-node /dev/ttyACM1 (Espressif), waveshare /dev/ttyACM0 (QinHeng). pio device monitor lỗi non-tty -> dùng script pyserial Serial(port,115200) kèm DTR/RTS toggle để reset."
+    },
+    {
+      "step_id": 6,
+      "task_title": "Waveshare: exponential backoff WiFi reconnect + pin last AP channel",
+      "target_files": [
+        "firmware/waveshare-screen/components/coreiot_client/coreiot_client.c"
+      ],
+      "prerequisites": [
+        1,
+        4
+      ],
+      "objective": "Sửa coreiot_client.c: (1) thay WIFI_RECONNECT_RETRY_MS cố định 3000 bằng backoff luỹ thừa WIFI_RECONNECT_BASE_MS=3000 -> x2 sau mỗi lần DISCONNECTED chưa thành công, cap WIFI_RECONNECT_MAX_MS=30000, reset về base khi GOT_IP; (2) lưu s_last_ap_channel khi GOT_IP (esp_wifi_get_channel) và khi DISCONNECTED thì esp_wifi_set_channel(s_last_ap_channel) để giữ receiver đồng kênh sender (chỉ dùng espnow_receiver_force_channel() làm fallback nếu chưa từng nối AP). Mục đích: giảm số lần radio rời kênh do reconnect dồn dập (iPhone hotspot đá client mỗi ~30s, hiện retry mỗi 3s gây flapping ESP-NOW).",
+      "definition_of_done": "grep coreiot_client.c thấy WIFI_RECONNECT_BASE_MS(3000), WIFI_RECONNECT_MAX_MS(30000), s_last_ap_channel; KHÔNG còn WIFI_RECONNECT_RETRY_MS; waveshare build `pio run -e yolo_uno` thoát 0.",
+      "verification_command": "grep -n \"WIFI_RECONNECT_BASE_MS\\|WIFI_RECONNECT_MAX_MS\\|s_last_ap_channel\\|WIFI_RECONNECT_RETRY_MS\" firmware/waveshare-screen/components/coreiot_client/coreiot_client.c && cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno",
+      "risk": "medium",
+      "notes": "Backoff làm MQTT (đường phụ) phục hồi chậm hơn khi AP mất lâu — chấp nhận vì ESP-NOW là đường chính cảnh báo."
+    },
+    {
+      "step_id": 7,
+      "task_title": "Tăng ESPNOW_LINK_TIMEOUT_MS 1500 -> 3000 (shared)",
+      "target_files": [
+        "firmware/shared/espnow_protocol.h"
+      ],
+      "prerequisites": [
+        6
+      ],
+      "objective": "Trong firmware/shared/espnow_protocol.h (R2 - nguồn duy nhất) đổi #define ESPNOW_LINK_TIMEOUT_MS từ 1500 thành 3000, cập nhật comment. Lý do: chip AP gây micro-gap 1-2s khi chuyển kênh (~30s/lần); 3000ms = dung sai ~6 gói miss (gói mỗi 500ms) trong khi vẫn reset cảnh báo trong <=3s, tránh nhấp nháy LINK/NO LINK theo nhịp AP.",
+      "definition_of_done": "grep 'define ESPNOW_LINK_TIMEOUT_MS' toàn firmware == 1 file và giá trị = 3000; waveshare build `pio run -e yolo_uno` thoát 0.",
+      "verification_command": "grep -rn \"define ESPNOW_LINK_TIMEOUT_MS\" firmware/ && cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno",
+      "risk": "low",
+      "notes": "chỉ waveshare dùng hằng này (receiver); sensor-node không tham chiếu nên không cần build lại, nhưng build waveshare đủ để verify."
+    },
+    {
+      "step_id": 8,
+      "task_title": "Re-flash 2 board + re-soak 120s + nghiệm thu + log",
+      "target_files": [
+        "docs/logs/ESPNOW_STABILITY_LOG.md"
+      ],
+      "prerequisites": [
+        6,
+        7
+      ],
+      "objective": "Flash lại sensor-node (yolo_uno_coreiot -> /dev/ttyACM1) và waveshare (yolo_uno -> /dev/ttyACM0); chạy lại soak >=120s bằng script /tmp/opencode/soak_espnow.py; đếm link DOWN / Send FAILED. Cập nhật docs/logs/ESPNOW_STABILITY_LOG.md ghi kết quả 2 vòng đo. Tiêu chí đạt lần này: <=2 lần 'link DOWN'/120s và 0 'Send FAILED'; nếu chưa đạt ghi số liệu thực + dừng để cân nhắc đổi topology (nguồn phone hotspot không ổn định).",
+      "definition_of_done": "docs/logs/ESPNOW_STABILITY_LOG.md tồn tại và ghi 2 vòng đo; lệnh verification trả về số đếm 'link DOWN' của vòng 2 <= 2.",
+      "verification_command": "rg -c \"link DOWN\" docs/logs/ESPNOW_STABILITY_LOG.md",
+      "risk": "medium",
+      "notes": "Phụ thuộc board vật lý + môi trường iPhone hotspot. Nếu AP chập chờn do nguồn phát, kết quả ngoài tầm code -> ghi rõ vào log và đề xuất đổi môi trường demo."
+    }
+  ]
+}
