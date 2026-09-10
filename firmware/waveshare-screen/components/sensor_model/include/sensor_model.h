@@ -26,8 +26,8 @@ extern "C" {
 typedef espnow_slot_t sensor_id_t;
 #define SENSOR_MODEL_COUNT ESPNOW_SENSOR_SLOT_COUNT
 
-/* Layout mirror tiêu chuẩn "No-Zone": 1 trước, 1 sau, 2 mỗi bên. */
-#define SENSOR_BEAM_FOV_DEG 75
+/* Layout mirror tiêu chuẩn "No-Zone": 1 trước, 1 sau, 2 mỗi bên.
+ * Góc quét (beam FOV) lấy từ firmware/shared/thresholds.h (R2 — nguồn duy nhất). */
 
 typedef struct {
     uint16_t distance_cm;

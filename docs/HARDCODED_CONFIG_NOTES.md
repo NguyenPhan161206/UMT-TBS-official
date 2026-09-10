@@ -33,10 +33,12 @@ Cùng "vị trí/hướng 6 cảm biến quanh xe" nhưng mã hóa 2 lần với
 | `sensor_model/sensor_model.c:13-20` `k_offsets_deg[]` (FRONT=0, REAR=180, LEFT_FRONT=-90…) → ghi `offset_deg` | Vị trí cảm biến theo độ | ✅ **ĐÃ XOÁ 2026-09-09**: dead-field + `k_offsets_deg[]` removed (grep `offset_deg` firmware/ = 0) |
 | `ui_dashboard/ui_dashboard_layout.c:229-236` `k_layout[]` `{x, y, angle}` | Vị trí + góc vẽ arc (LVGL angle convention) | Đang dùng (nơi điều khiển arc) |
 
-→ Cùng thông tin, 2 chủ thể, không có cọc "1 nguồn". T3.2 (sơ đồ EX8) bắt buộc gộp lại.
+→ ✅ **ĐÃ XỬ LÝ 2026-09-10**: `SENSOR_BEAM_FOV_DEG` chỉ còn định nghĩa ở `firmware/shared/thresholds.h`
+(R2 — 1 nơi); `make_arc()` dùng `SENSOR_BEAM_FOV_DEG / 2` thay literal `37` (`ui_dashboard_layout.c`),
+grep toàn repo (trừ .pio) = 2 (1 define + 1 usage). Mục B geometry còn lại: `k_layout[]` = pixel-only.
 
 **Xử lý đề xuất:** ✅ đã bỏ `offset_deg` dead-field + `k_offsets_deg[]` (nhánh `nguyen`, 2026-09-09);
-giữ MỘT bảng geometry (vd chuyển lên một `vehicle_layout.h`/profile struct khi dựng EX8 ở T3.2).
+✅ đã gộp FOV về 1 nguồn (2026-09-10); giữ MỘT bảng geometry (vd chuyển lên một `vehicle_layout.h`/profile struct khi dựng EX8 ở T3.2).
 DoD hiện tại: grep `offset_deg` trong firmware (trừ .pio) = 0 ✅.
 
 ## C. Timing / tuning ẩn dưới literal không tên (không grep được, khó tune)
@@ -44,11 +46,11 @@ DoD hiện tại: grep `offset_deg` trong firmware (trừ .pio) = 0 ✅.
 ### sensor-node (`src/main.cpp`, `buzzer.cpp`, `shared_state.cpp`)
 | Vị trí | Literal | Ý nghĩa |
 |---|---|---|
-| `src/main.cpp:136` | `pdMS_TO_TICKS(500)` | Chờ cảm biến ổn định sau power-on |
-| `src/main.cpp:235,287` | `pdMS_TO_TICKS(20)` | Poll tick network/coreiot task |
-| `src/buzzer.cpp:83` | `pdMS_TO_TICKS(20)` | Poll tick buzzer task |
-| `src/shared_state.cpp:27,42,54` | `pdMS_TO_TICKS(10)` | Mutex wait timeout |
-| `src/main.cpp:299` | `delay(200)` | Chờ Serial/USB CDC sẵn sàng |
+| `src/main.cpp:136` | `pdMS_TO_TICKS(500)` | ✅ **ĐÃ XỬ LÝ 2026-09-10**: `SENSOR_SETTLE_DELAY_MS` (task_cfg.h) |
+| `src/main.cpp:235,287` | `pdMS_TO_TICKS(20)` | ✅ **ĐÃ XỬ LÝ 2026-09-10**: `TASK_POLL_INTERVAL_MS` (task_cfg.h) |
+| `src/buzzer.cpp:83` | `pdMS_TO_TICKS(20)` | ✅ **ĐÃ XỬ LÝ 2026-09-10**: `TASK_POLL_INTERVAL_MS` (task_cfg.h) |
+| `src/shared_state.cpp:27,42,54` | `pdMS_TO_TICKS(10)` | ✅ **ĐÃ XỬ LÝ 2026-09-10**: `MUTEX_TIMEOUT_MS` (task_cfg.h) |
+| `src/main.cpp:299` | `delay(200)` | ✅ **ĐÃ XỬ LÝ 2026-09-10**: `SERIAL_SETUP_DELAY_MS` (task_cfg.h) |
 | `src/main.cpp:298` | `Serial.begin(115200)` | Baudrate debug |
 | `src/main.cpp:308,319,329,340` | stack `4096/4096/2048/4096` | Kích thước stack 4 task |
 | `src/main.cpp:310,321,331,339` | priority `2/1/1/1` | Priority các task |
@@ -63,9 +65,11 @@ DoD hiện tại: grep `offset_deg` trong firmware (trừ .pio) = 0 ✅.
 | `components/ui_dashboard/ui_dashboard.c:101` | `lv_obj_set_size(content, LV_PCT(100), 440)` | Chiều cao content (440 vs screen 480) |
 | `components/coreiot_client/coreiot_client.c:39-40` | `MQTT_DOWN_DEBOUNCE_MS 6000`, `WIFI_RECONNECT_RETRY_MS 3000` | ✅ đã đặt tên (define đầu file) — OK |
 
-**Xử lý đề xuất:** gom thành 1 config header per-firmware (vd `components/cfg/task_cfg.h`
-hoặc section riêng); bước này THẤP ưu tiên — các mục đã có tên (`COREIOT_*`, `MQTT_*`)
-không cần động.
+**Xử lý đề xuất:** ✅ **ĐÃ XỬ LÝ 2026-09-10** (nhánh `nguyen`): literal timing sensor-node
+(settle/poll/mutex/serial) đã đặt tên trong `firmware/sensor-node/include/task_cfg.h`
+(`SENSOR_SETTLE_DELAY_MS`, `SERIAL_SETUP_DELAY_MS`, `TASK_POLL_INTERVAL_MS`, `MUTEX_TIMEOUT_MS`)
+— local header per-firmware theo đề xuất, KHÔNG đưa vào `firmware/shared/` (R2). Waveshare-
+screen numeric ticker (`sys_info_timer_cb`, blink 400ms) giữ nguyên — low-priority, đã ghi trên.
 
 ## D. Được loại (KHÔNG phải vấn đề — ghi để khỏi tái hỏi)
 

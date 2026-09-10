@@ -1,0 +1,48 @@
+{
+  "project_name": "hardcode-cleanup",
+  "total_steps": 3,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "R2: make SENSOR_BEAM_FOV_DEG single-sourced + derive half_fov",
+      "target_files": [
+        "firmware/waveshare-screen/components/sensor_model/include/sensor_model.h",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c"
+      ],
+      "prerequisites": [],
+      "objective": "Xoá `#define SENSOR_BEAM_FOV_DEG 75` khỏi sensor_model.h (giữ DUY NHẤT ở firmware/shared/thresholds.h:35); đổi make_arc() dùng `const int32_t half_fov = SENSOR_BEAM_FOV_DEG / 2;` thay literal 37 (giá trị không đổi, không thay đổi hình ảnh). sensor_model.h vẫn include thresholds.h nên symbol vẫn hợp lệ.",
+      "definition_of_done": "grep -rn 'SENSOR_BEAM_FOV_DEG' firmware/ (trừ .pio) chỉ còn 1 dòng trong thresholds.h; cả 2 env build thành công; host_sim ctest 2/2 green.",
+      "verification_command": "export PATH='/home/binhnguyen/.venv-pio/bin:$PATH'; grep -rn 'SENSOR_BEAM_FOV_DEG' firmware/ | grep -v '.pio' | wc -l; cd firmware/waveshare-screen && pio run -e yolo_uno >/dev/null && cmake -S host_sim -B /tmp/opencode/host_sim_final && cmake --build /tmp/opencode/host_sim_final >/dev/null && (cd /tmp/opencode/host_sim_final && ctest --output-on-failure)",
+      "risk": "low",
+      "notes": "SI in make_arc: 75/2 = 37 (int) == literal 37 hiện tại, pixel giữ nguyên. host_sim + waveshare đều compile ui_dashboard_layout.c nên verify cả 2."
+    },
+    {
+      "step_id": 2,
+      "task_title": "Name sensor-node setup/hardware timing literals (main.cpp)",
+      "target_files": [
+        "firmware/sensor-node/include/task_cfg.h",
+        "firmware/sensor-node/src/main.cpp"
+      ],
+      "prerequisites": [1],
+      "objective": "Tạo firmware/sensor-node/include/task_cfg.h định nghĩa: SENSOR_SETTLE_DELAY_MS 500, SERIAL_SETUP_DELAY_MS 200, TASK_POLL_INTERVAL_MS 20, MUTEX_TIMEOUT_MS 10 (sensor-node local header theo đề xuất mục C HARDCODED_CONFIG_NOTES, KHÔNG đưa vào shared/). Thay ở main.cpp: pdMS_TO_TICKS(500)->SENSOR_SETTLE_DELAY_MS, delay(200)->SERIAL_SETUP_DELAY_MS, 2 chỗ pdMS_TO_TICKS(20) (network/coreiot)->TASK_POLL_INTERVAL_MS. #include 'task_cfg.h' + update comment.",
+      "definition_of_done": "grep -r 'pdMS_TO_TICKS(20)\\|delay(200)\\|pdMS_TO_TICKS(500)' firmware/sensor-node/src/main.cpp = 0; sensor-node build ok cả 2 env.",
+      "verification_command": "export PATH='/home/binhnguyen/.venv-pio/bin:$PATH'; grep -nE 'pdMS_TO_TICKS\\((20|500)\\)|delay\\(200\\)' firmware/sensor-node/src/main.cpp; cd firmware/sensor-node && pio run -e yolo_uno >/dev/null && pio run -e yolo_uno_coreiot >/dev/null",
+      "risk": "low",
+      "notes": "Giá trị giữ nguyên, chỉ đặt tên — zero runtime change."
+    },
+    {
+      "step_id": 3,
+      "task_title": "Wire task_cfg.h into buzzer.cpp + shared_state.cpp",
+      "target_files": [
+        "firmware/sensor-node/src/buzzer.cpp",
+        "firmware/sensor-node/src/shared_state.cpp"
+      ],
+      "prerequisites": [2],
+      "objective": "Thay literal còn sót bằng macro từ task_cfg.h (include qua header đã có hoặc #include trực tiếp): buzzer.cpp:83 pdMS_TO_TICKS(20)->TASK_POLL_INTERVAL_MS; shared_state.cpp:27,42,54 pdMS_TO_TICKS(10)->MUTEX_TIMEOUT_MS. Cập nhật HARDCODED_CONFIG_NOTES.md gạch mục C sensor-node là ĐÃ XỬ LÝ.",
+      "definition_of_done": "grep -rn 'pdMS_TO_TICKS(20)\\|pdMS_TO_TICKS(10)' firmware/sensor-node/src (trừ .pio) = 0; cả 2 env build ok; python3 -m pytest tools/guard/test_guard.py -q vẫn 29 passed.",
+      "verification_command": "export PATH='/home/binhnguyen/.venv-pio/bin:$PATH'; grep -rn 'pdMS_TO_TICKS\\(20\\|10\\)' firmware/sensor-node/src | grep -v '.pio'; cd firmware/sensor-node && pio run -e yolo_uno >/dev/null && pio run -e yolo_uno_coreiot >/dev/null && python3 -m pytest tools/guard/test_guard.py -q",
+      "risk": "low",
+      "notes": "buzzer.h đã include thresholds.h; thêm #include 'task_cfg.h' trong buzzer.cpp + shared_state.cpp (hoặc qua shared_state.h)."
+    }
+  ]
+}

@@ -59,7 +59,7 @@ void arc_set_nodata(sensor_arc_t *a)
 static lv_obj_t *make_arc(lv_obj_t *parent, int16_t local_x, int16_t local_y, int16_t mid_angle_deg)
 {
     const int32_t radius = 90;
-    const int32_t half_fov = 37; /* ~75deg / 2 */
+    const int32_t half_fov = SENSOR_BEAM_FOV_DEG / 2;
 
     lv_obj_t *arc = lv_arc_create(parent);
     lv_obj_set_size(arc, radius, radius);

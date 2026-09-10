@@ -20,6 +20,7 @@
 #include "espnow_client.h"
 #include "espnow_protocol.h"
 #include "shared_state.h"
+#include "task_cfg.h"
 #include "thresholds.h"
 #include "ultrasonic_sensor.h"
 
@@ -133,7 +134,7 @@ static void sensorTask(void *pvParameters)
     }
 
     // Chờ cảm biến ổn định sau khi cấp nguồn (không block task khác)
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(SENSOR_SETTLE_DELAY_MS));
 
     Serial.println("========================================");
     Serial.printf("Supersonic sensor array started (%u cam bien)\n", (unsigned)SENSOR_COUNT);
@@ -232,7 +233,7 @@ static void networkTask(void *pvParameters)
             s_espNowClient.sendReading(msg);
         }
 
-        vTaskDelay(pdMS_TO_TICKS(20));
+        vTaskDelay(pdMS_TO_TICKS(TASK_POLL_INTERVAL_MS));
     }
 }
 
@@ -284,7 +285,7 @@ static void coreiotTask(void *pvParameters)
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(20));
+        vTaskDelay(pdMS_TO_TICKS(TASK_POLL_INTERVAL_MS));
     }
 }
 #endif // USE_COREIOT
@@ -296,7 +297,7 @@ static void coreiotTask(void *pvParameters)
 void setup()
 {
     Serial.begin(115200);
-    delay(200);
+    delay(SERIAL_SETUP_DELAY_MS);
 
     sharedStateInit();
 

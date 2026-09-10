@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "shared_state.h"
+#include "task_cfg.h"
 
 void buzzerInit()
 {
@@ -80,6 +81,6 @@ void buzzerTask(void *pvParameters)
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(20));
+        vTaskDelay(pdMS_TO_TICKS(TASK_POLL_INTERVAL_MS));
     }
 }

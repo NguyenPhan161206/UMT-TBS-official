@@ -3,6 +3,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
+#include "task_cfg.h"
+
 namespace
 {
 SemaphoreHandle_t s_mutex = nullptr;
@@ -24,7 +26,7 @@ void sharedStateSet(size_t sensorIndex, float distanceCm, bool valid)
     {
         return;
     }
-    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE)
     {
         s_distanceCm[sensorIndex] = distanceCm;
         s_valid[sensorIndex] = valid;
@@ -39,7 +41,7 @@ bool sharedStateGet(size_t sensorIndex, float &distanceCm)
         return false;
     }
     bool valid = false;
-    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE)
     {
         distanceCm = s_distanceCm[sensorIndex];
         valid = s_valid[sensorIndex];
@@ -51,7 +53,7 @@ bool sharedStateGet(size_t sensorIndex, float &distanceCm)
 bool sharedStateGetNearest(float &nearestCm)
 {
     bool found = false;
-    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE)
     {
         for (size_t i = 0; i < SENSOR_COUNT; ++i)
         {
