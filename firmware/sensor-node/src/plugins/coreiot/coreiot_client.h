@@ -12,7 +12,9 @@
 #include "credentials.h"
 
 // Tần suất publish telemetry lên CoreIoT (tách biệt MEASURE_INTERVAL_MS).
-#define COREIOT_PUBLISH_INTERVAL_MS 500
+// 2000ms: telemetry không cần nhịp nhanh; giảm nghẽn 1-radio duy nhất dùng
+// chung giữa MQTT và ESP-NOW (đường chính cảnh báo, gửi mỗi 500ms).
+#define COREIOT_PUBLISH_INTERVAL_MS 2000
 
 // Khoảng cách tối thiểu giữa các lần thử kết nối lại MQTT khi mất kết nối.
 #define COREIOT_MQTT_RETRY_INTERVAL_MS 3000

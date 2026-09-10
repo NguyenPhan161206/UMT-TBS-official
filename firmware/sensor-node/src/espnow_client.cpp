@@ -51,6 +51,10 @@ void EspNowClient::begin()
     WiFi.disconnect();
     esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
 
+    // Tắt modem-sleep: khi env _coreiot associate vào AP, PS mặc định làm trễ
+    // TX ESP-NOW theo cửa sổ ngủ/thức → rơi gói. Giữ radio thức mọi lúc.
+    esp_wifi_set_ps(WIFI_PS_NONE);
+
     if (esp_now_init() != ESP_OK)
     {
         Serial.println("[ESPNOW] Init failed");

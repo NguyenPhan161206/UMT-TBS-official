@@ -144,6 +144,14 @@ static void espnow_link_watchdog_cb(lv_timer_t *timer)
     (void)timer;
 
     bool linked = espnow_receiver_is_linked();
+
+    /* Log transition UP/DOWN để chẩn đoán soak trên serial (không đổi hành vi UI). */
+    static bool s_prev_linked = false;
+    if (linked != s_prev_linked) {
+        ESP_LOGI(TAG, "ESP-NOW link %s", linked ? "UP" : "DOWN");
+        s_prev_linked = linked;
+    }
+
     ui_dashboard_set_espnow_status(linked);
     if (!linked) {
         return;

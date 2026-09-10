@@ -48,7 +48,11 @@ static const uint8_t ESPNOW_PEER_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 /* Tần suất gửi ESP-NOW (tách biệt MEASURE_INTERVAL_MS - vòng đo/lọc cục bộ). */
 #define ESPNOW_SEND_INTERVAL_MS 500
-#define ESPNOW_LINK_TIMEOUT_MS 1500
+/* Link timeout (receiver): dung sai ~6 gói miss (500ms/gói). 3000ms thay vì
+ * 1500ms vì AP (iPhone hotspot) gây micro-gap 1-2s khi chuyển kênh mỗi ~30s —
+ * đủ chịu để label LINK/NO LINK không nhấp nháy theo nhịp AP, vẫn reset cảnh
+ * báo trong <=3s. */
+#define ESPNOW_LINK_TIMEOUT_MS 3000
 
 /* Số vị trí cảm biến trên "dây" — PHẢI khớp SENSOR_COUNT (thresholds.h).
  * Cố định 6: khớp mô hình sensor_model/ui_dashboard bên waveshare-screen. */

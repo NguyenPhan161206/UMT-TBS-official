@@ -37,7 +37,14 @@ static coreiot_data_cb_t s_data_cb = NULL;
  * - MQTT_EVENT_DISCONNECTED -> chỉ báo DOWN nếu không reconnect được trong
  *   MQTT_DOWN_DEBOUNCE_MS. Nếu reconnect xong trước đó -> giữ UP. */
 #define MQTT_DOWN_DEBOUNCE_MS (6000)
-#define WIFI_RECONNECT_RETRY_MS (3000)
+/* Reconnect WiFi có backoff luỹ thừa: base 3s, mỗi lần DISCONNECTED chưa thành
+ * công thì tăng gấp đôi, cap 30s, reset về base khi GOT_IP. Giảm số lần radio
+ * rời kênh để nhận ESP-NOW (iPhone hotspot hay đá client mỗi ~30s — nếu retry
+ * cố định 3s thì radio chạy scan/auth liên tục, gây flapping ESP-NOW). */
+#define WIFI_RECONNECT_BASE_MS (3000)
+#define WIFI_RECONNECT_MAX_MS (30000)
+static uint32_t s_reconnect_delay_ms = WIFI_RECONNECT_BASE_MS;
+static uint8_t s_last_ap_channel = 0;
 static esp_timer_handle_t s_mqtt_down_timer = NULL;
 static bool s_mqtt_reported_up = false;
 
@@ -80,7 +87,7 @@ static esp_timer_handle_t s_wifi_reconnect_timer = NULL;
 static void wifi_reconnect_timer_cb(void *arg)
 {
     (void)arg;
-    ESP_LOGI(TAG, "Wi-Fi reconnect retry after %d ms...", (int)WIFI_RECONNECT_RETRY_MS);
+    ESP_LOGI(TAG, "Wi-Fi reconnect retry after %u ms...", (unsigned)s_reconnect_delay_ms);
     esp_wifi_connect();
 }
 
@@ -97,7 +104,8 @@ static void wifi_reconnect_arm(void)
     }
     if (s_wifi_reconnect_timer != NULL) {
         esp_timer_stop(s_wifi_reconnect_timer);
-        esp_timer_start_once(s_wifi_reconnect_timer, WIFI_RECONNECT_RETRY_MS * 1000);
+        esp_timer_start_once(s_wifi_reconnect_timer,
+                             (uint64_t)s_reconnect_delay_ms * 1000);
     }
 }
 
@@ -181,10 +189,21 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         if (s_wifi_cb) {
             s_wifi_cb(false, NULL);
         }
-        /* Giữ ESP-NOW listener trên ESPNOW_CHANNEL khi STA rời AP (single radio). */
-        espnow_receiver_force_channel();
-        /* Reconnect có backoff — tránh loop dồn dập làm flapping ESP-NOW. */
+        /* Giữ ESP-NOW listener trên kênh AP cuối (nơi sensor-node đang phát);
+         * chỉ xoay về ESPNOW_CHANNEL nếu chưa từng nối AP (single radio). */
+        if (s_last_ap_channel != 0) {
+            esp_wifi_set_channel(s_last_ap_channel, WIFI_SECOND_CHAN_NONE);
+        } else {
+            espnow_receiver_force_channel();
+        }
+        /* Reconnect có backoff luỹ thừa — tránh loop dồn dập làm flapping ESP-NOW. */
         wifi_reconnect_arm();
+        if (s_reconnect_delay_ms < WIFI_RECONNECT_MAX_MS) {
+            s_reconnect_delay_ms *= 2;
+            if (s_reconnect_delay_ms > WIFI_RECONNECT_MAX_MS) {
+                s_reconnect_delay_ms = WIFI_RECONNECT_MAX_MS;
+            }
+        }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         char ip_str[32];
@@ -194,12 +213,15 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         uint8_t primary_ch = 0;
         wifi_second_chan_t second_ch = WIFI_SECOND_CHAN_NONE;
         if (esp_wifi_get_channel(&primary_ch, &second_ch) == ESP_OK) {
+            s_last_ap_channel = primary_ch;
             ESP_LOGI(TAG, "Wi-Fi channel primary=%u secondary=%d", (unsigned)primary_ch, (int)second_ch);
         } else {
             ESP_LOGW(TAG, "esp_wifi_get_channel failed");
         }
 
         s_wifi_connected = true;
+        /* Kết nối thành công -> reset backoff cho lần mất kết nối sau. */
+        s_reconnect_delay_ms = WIFI_RECONNECT_BASE_MS;
         if (s_wifi_cb) {
             s_wifi_cb(true, ip_str);
         }
@@ -243,6 +265,10 @@ void coreiot_client_init(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
+
+    /* Tắt modem-sleep: ESP-NOW là đường chính, receiver phải thức liên tục
+     * để nhận broadcast từ sensor-node (PS mặc định rơi gói giữa beacon ~102ms). */
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
 
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = s_broker_uri,
