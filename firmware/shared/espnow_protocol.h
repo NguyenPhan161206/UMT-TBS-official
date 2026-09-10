@@ -22,7 +22,17 @@
 extern "C" {
 #endif
 
-/* Cả 2 board phải ở cùng WiFi channel cố định (= kênh AP, hiện channel 6). */
+/* WiFi channel dùng cho ESP-NOW.
+ *
+ * Đây là kênh DEFAULT/FALLBACK khi STA CHƯA nối AP (hoặc board chạy không kết
+ * nối Wi-Fi): cả 2 board ghim radio ở kênh này để khớp nhau.
+ *
+ * Khi STA ĐÃ nối AP (CoreIoT/Wi-Fi): kênh thật do AP quyết định và có thể tự
+ * đổi bất kỳ lúc nào (ví dụ iPhone hotspot phát Channel Switch Announcement,
+ * log "sta rx csa 1->11"). ESP32-S3 single radio nên mọi board PHẢI bám kênh
+ * home thật; sensor-node sync peer theo esp_wifi_get_channel trước mỗi send
+ * (xem espnow_client.cpp::syncPeerChannelToHome) — KHÔNG được cố định kênh 6
+ * khi đã nối AP (gây "Peer channel is not equal to the home channel"). */
 #define ESPNOW_CHANNEL 6
 
 /* Địa chỉ ESP-NOW đích mà sensor-node gửi tới.

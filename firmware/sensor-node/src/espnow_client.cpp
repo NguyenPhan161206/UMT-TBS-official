@@ -11,6 +11,40 @@ static void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
     Serial.printf("[ESPNOW] Send %s\n", status == ESP_NOW_SEND_SUCCESS ? "OK" : "FAILED");
 }
 
+/* Kênh WiFi hiện tại (theo AP khi STA đã nối). Trước khi associate dùng
+ * ESPNOW_CHANNEL làm fallback (begin() ghim radio ở đó). */
+static uint8_t currentHomeChannel()
+{
+    uint8_t primary = 0;
+    wifi_second_chan_t secondary = WIFI_SECOND_CHAN_NONE;
+    if (esp_wifi_get_channel(&primary, &secondary) == ESP_OK && primary != 0)
+    {
+        return primary;
+    }
+    return ESPNOW_CHANNEL;
+}
+
+/* Đồng bộ peer (broadcast) theo home channel. AP tự đổi kênh qua CSA (log
+ * "sta rx csa") — ESP-NOW single-radio phải bám home channel, không cố định
+ * ESPNOW_CHANNEL, nếu không esp_now_send fail "Peer channel is not equal to
+ * the home channel". Gọi trước mỗi send (500ms) = tự lành sau đổi kênh. */
+static void syncPeerChannelToHome()
+{
+    esp_now_peer_info_t peer = {};
+    if (esp_now_get_peer(ESPNOW_PEER_MAC, &peer) != ESP_OK)
+    {
+        return;
+    }
+    const uint8_t home = currentHomeChannel();
+    if (peer.channel == home)
+    {
+        return;
+    }
+    peer.channel = home;
+    esp_now_mod_peer(&peer);
+    Serial.printf("[ESPNOW] Peer channel sync %u (WIFI home)\n", home);
+}
+
 void EspNowClient::begin()
 {
     WiFi.mode(WIFI_STA);
@@ -41,6 +75,7 @@ void EspNowClient::begin()
 
 bool EspNowClient::sendReading(const espnow_sensor_msg_t &msg)
 {
+    syncPeerChannelToHome();
     esp_err_t result = esp_now_send(ESPNOW_PEER_MAC, (const uint8_t *)&msg, sizeof(msg));
     return result == ESP_OK;
 }

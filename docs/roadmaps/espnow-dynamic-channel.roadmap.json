@@ -1,0 +1,33 @@
+{
+  "project_name": "espnow-dynamic-channel",
+  "total_steps": 2,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Sensor-node: sync ESP-NOW peer channel to live WiFi home channel",
+      "target_files": [
+        "firmware/sensor-node/src/espnow_client.cpp"
+      ],
+      "prerequisites": [],
+      "objective": "Sửa EspNowClient: thêm helper currentHomeChannel() (esp_wifi_get_channel, fallback ESPNOW_CHANNEL) + syncPeerChannelToHome() (esp_now_get_peer + esp_now_mod_peer khi peer.channel != home); gọi sync trước mỗi esp_now_send(). Giữ begin() đặt kênh ESPNOW_CHANNEL làm anchor ban đầu cho trường hợp chưa associate AP.",
+      "definition_of_done": "mã mới dùng esp_wifi_get_channel + esp_now_mod_peer; build cả 2 env OK (yolo_uno, yolo_uno_coreiot); không đổi hành vi khi chưa kết nối AP (peer stay 6).",
+      "verification_command": "export PATH='/home/binhnguyen/.venv-pio/bin:$PATH'; grep -n 'esp_wifi_get_channel\\|esp_now_mod_peer' firmware/sensor-node/src/espnow_client.cpp; cd firmware/sensor-node && pio run -e yolo_uno >/dev/null && pio run -e yolo_uno_coreiot >/dev/null",
+      "risk": "medium",
+      "notes": "Root cause: AP (iPhone hotspot) tự đổi channel qua CSA (log 1->11); ESP-NOW single-radio phải đi theo home channel. peerInfo.channel=6 cứng gây 'Peer channel is not equal to the home channel'. Sync mỗi 500ms (tần gửi) = tự lành sau CSA."
+    },
+    {
+      "step_id": 2,
+      "task_title": "Document dynamic-channel contract + receiver log clarity",
+      "target_files": [
+        "firmware/shared/espnow_protocol.h",
+        "firmware/waveshare-screen/components/espnow_receiver/espnow_receiver.c"
+      ],
+      "prerequisites": [1],
+      "objective": "Cập nhật comment espnow_protocol.h: ESPNOW_CHANNEL = default/fallback khi chưa associate AP; khi STA nối AP thì kênh thật do AP quyết (CSA có thể đổi), mọi board bám theo, sender sync peer theo home channel. Sửa log espnow_receiver thành 'default/fallback channel' cho đúng nghĩa.",
+      "definition_of_done": "comment cập nhật đúng 2 chỗ (line ~25-35 espnow_protocol.h, log receiver); waveshare-screen build OK.",
+      "verification_command": "export PATH='/home/binhnguyen/.venv-pio/bin:$PATH'; grep -n 'fallback' firmware/shared/espnow_protocol.h firmware/waveshare-screen/components/espnow_receiver/espnow_receiver.c; cd firmware/waveshare-screen && pio run -e yolo_uno >/dev/null",
+      "risk": "low",
+      "notes": "Chỉ doc + log wording; không đổi hành vi receiver (STA connected thì driver tự bám AP channel, ESP-NOW RX dùng cùng channel)."
+    }
+  ]
+}
