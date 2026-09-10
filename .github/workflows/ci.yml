@@ -70,11 +70,18 @@ jobs:
         run: pio run -e yolo_uno
 
       # Host test hazard_core (G1 T1.3): compile C thuần bằng gcc, không cần board.
-      - name: Host unit tests hazard_core (T1.3)
+      - name: Install SDL2 + Xvfb (host_sim LVGL SDL render — T1.2)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsdl2-dev xvfb
+
+      - name: Host tests hazard_core + umt_dash_sim (T1.3/T1.2)
         run: |
           cmake -S firmware/waveshare-screen/host_sim -B /tmp/host_sim
           cmake --build /tmp/host_sim
           /tmp/host_sim/hazard_core_tests
+          xvfb-run -a /tmp/host_sim/umt_dash_sim --exit-after 3 --scenario approach
+          xvfb-run -a /tmp/host_sim/umt_dash_sim --exit-after 2 --scenario slam
 
       # Size-gate: sensor-node app partition ~1.3MB (arduino default) → cap 1.2MB.
       # waveshare-screen partition factory 4MB → cap 3.7MB (92.5%).
