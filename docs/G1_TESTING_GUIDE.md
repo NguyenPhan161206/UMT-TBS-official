@@ -1,6 +1,8 @@
 # Hướng dẫn kiểm tra & sử dụng Giai đoạn 1 (G1 — Mở khả năng kiểm thử)
 
-> Trạng thái: **4/4 bước DONE**, commit trên nhánh `nguyen` (chưa merge `main`).
+> Trạng thái: **G1 4/4 bước DONE, đã merge `main`** — hiện `nguyen` = `main` = `01262ce`.
+> Bổ sung fix boundary `01262ce`: **`x <= 30cm` → DANGER** ở firmware C (khớp cloud
+> rule-chain `dist <= 30.0` và python mirror) — xem **mục 3.2** để test bằng mắt.
 > Mọi lệnh chạy tại thư mục gốc repo, trừ khi ghi rõ khác.
 
 ## 0. Chuẩn bị môi trường
@@ -53,23 +55,68 @@ Phủ các biên: ngưỡng 19/30/31, 99/100/101, skip-stale, crossing delta=40 
 
 ---
 
-## 3. Mô phỏng màn hình cảm biến (host_sim — không cần board)
+## 3. Test thủ công UI trên PC (host_sim — KHÔNG cần board)
 
-Executable: `/tmp/host_sim/umt_dash_sim` (bản build thật từ firmware `ui_dashboard*`,
-chạy qua LVGL v9.1 + SDL2, stub thay thế phần cứng).
+Executable: `/tmp/host_sim/umt_dash_sim` — chạy **ĐÚNG code UI firmware**
+(`ui_dashboard*`/`ui_dashboard_layout.c`) qua LVGL v9.1 + SDL2, stub thay phần cứng.
+Cửa sổ 800×480 hiển thị giống hệt màn hình 7" waveshare — đây là cách xem UI nhanh
+nhất ngay trên máy tính, không cần board/flash.
 
-### Cửa sổ thật (máy có display)
+> Nếu đang dùng Wayland mà cửa sổ không hiện, thêm `SDL_VIDEODRIVER=x11 ` đầu lệnh
+> (XWayland). Máy có GUI (`DISPLAY=:0`) thì cửa sổ mở bình thường.
+
+### 3.1 Xem UI + kịch bản va chạm (từng bước)
 ```bash
-/tmp/host_sim/umt_dash_sim --scenario approach --exit-after 10
-```
+# a. "Dừng gấp" — xem chuyển SAFE → CAUTION → DANGER (1 giây/mốc):
+/tmp/host_sim/umt_dash_sim --scenario slam --interval 1000 --exit-after 30
 
-### Headless (không cần X / môi trường CI)
+# b. Vật lao tới từ xa — FRONT 160→20cm:
+/tmp/host_sim/umt_dash_sim --scenario approach --interval 800 --exit-after 25
+
+# c. Xe cắt ngang — side slot nhảy >40cm:
+/tmp/host_sim/umt_dash_sim --scenario crossing --interval 800 --exit-after 25
+
+# d. Không có vật — toàn SAFE:
+/tmp/host_sim/umt_dash_sim --scenario normal --interval 800 --exit-after 20
+```
+Quan sát: D1/OVERALL đổi màu theo zone (xanh = SAFE, cam = CAUTION, đỏ = DANGER
++ cảnh báo nhấp nháy). `--interval <ms>` = tốc độ feed mốc (lớn = xem chậm);
+`--exit-after <giây>` = tự đóng; đóng sớm hơn thì `Ctrl+C`.
+
+### 3.2 Test boundary `x <= 30cm → DANGER` (fix commit `01262ce`)
+
+Tạo fixture replay đi qua đúng mốc 30cm (có đủ schema V2 — dùng được cả với
+`replay_telemetry.py --dry-run` lẫn `umt_dash_sim --replay`):
+```bash
+printf '%s\n' \
+'{"d1":40.0,"d2":40.0,"d3":40.0,"d4":40.0,"d5":40.0,"d6":40.0,"nearest_cm":40.0,"has_nearest":true}' \
+'{"d1":31.0,"d2":31.0,"d3":31.0,"d4":31.0,"d5":31.0,"d6":31.0,"nearest_cm":31.0,"has_nearest":true}' \
+'{"d1":30.0,"d2":30.0,"d3":30.0,"d4":30.0,"d5":30.0,"d6":30.0,"nearest_cm":30.0,"has_nearest":true}' \
+'{"d1":29.0,"d2":29.0,"d3":29.0,"d4":29.0,"d5":29.0,"d6":29.0,"nearest_cm":29.0,"has_nearest":true}' \
+'{"d1":150.0,"d2":150.0,"d3":150.0,"d4":150.0,"d5":150.0,"d6":150.0,"nearest_cm":150.0,"has_nearest":true}' \
+> /tmp/boundary_demo.jsonl
+
+# Bước A — validate schema (không cần board):
+python3 tools/replay_telemetry.py --in /tmp/boundary_demo.jsonl --dry-run
+
+# Bước B — xem UI trên màn hình:
+/tmp/host_sim/umt_dash_sim --replay /tmp/boundary_demo.jsonl --interval 2000 --exit-after 20
+```
+| Mốc | Zone hiển thị | Ghi chú |
+|-----|---------------|---------|
+| 40cm | CAUTION (cam) | |
+| 31cm | CAUTION (cam) | |
+| **30cm** | **DANGER (đỏ)** | fix `01262ce`: trước fix hiện CAUTION — nay ĐỎ |
+| 29cm | DANGER (đỏ) | |
+| 150cm | SAFE (xanh) | |
+
+### 3.3 Headless (không cần display / CI)
 ```bash
 SDL_VIDEODRIVER=dummy /tmp/host_sim/umt_dash_sim --scenario slam --exit-after 3
 # DoD CI: xvfb-run -a /tmp/host_sim/umt_dash_sim --exit-after 3 --scenario approach
 ```
 
-### 4 kịch bản có sẵn (nguồn: tools/scenarios.py)
+### 3.4 Các kịch bản có sẵn (nguồn: tools/scenarios.py)
 | Scenario  | Ý nghĩa                          |
 |-----------|----------------------------------|
 | `approach`| vật tiến gần phía FRONT (160→20cm) |
@@ -77,12 +124,13 @@ SDL_VIDEODRIVER=dummy /tmp/host_sim/umt_dash_sim --scenario slam --exit-after 3
 | `slam`    | dừng gấp (110→20cm trong ≤3 mốc)  |
 | `normal`  | không có cảnh báo (>100cm)        |
 
-### Chạy lại dữ liệu đã ghi thật
+### 3.5 Chạy lại dữ liệu đã ghi thật (JSONL)
 ```bash
 /tmp/host_sim/umt_dash_sim --replay /tmp/tb.jsonl --exit-after 5
 ```
 
-Cờ hữu ích: `--exit-after <giây>`, `--interval <ms>` (tốc độ feed mốc).
+Cờ hữu ích: `--scenario <name>`, `--replay <file.jsonl>`, `--exit-after <giây>`,
+`--interval <ms>` (tốc độ feed mốc), `--help`.
 
 ---
 
@@ -138,6 +186,10 @@ SDL_VIDEODRIVER=dummy /tmp/host_sim/umt_dash_sim --scenario slam --exit-after 3
 
 # (3) Payload MQTT V2 sample (không gửi)
 python3 tools/test_mqtt_coreiot.py --scenario approach --dry-run
+
+# (3b) Boundary mirror: 30.0 -> DANGER, 30.1 -> CAUTION (fix 01262ce)
+python3 tools/test_mqtt_coreiot.py --dry-run --distance 30.0
+python3 tools/test_mqtt_coreiot.py --dry-run --distance 30.1
 
 # (4) Guard toàn cục
 python3 tools/guard/scan_secrets.py && python3 tools/guard/arch_guard.py \
