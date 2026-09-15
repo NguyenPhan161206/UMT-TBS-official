@@ -12,6 +12,7 @@ concurrency:
 jobs:
   notify:
     name: Notify Discord CI result
+    if: github.event.workflow_run.conclusion != 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
