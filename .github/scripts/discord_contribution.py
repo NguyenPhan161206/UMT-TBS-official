@@ -14,7 +14,6 @@ CELL = 16
 GAP = 4
 PAD_X = 30
 PAD_TOP = 76
-PAD_BOTTOM = 64
 GRID_ROWS = 7
 
 PALETTE = [
@@ -82,6 +81,39 @@ def level(count):
     return 4
 
 
+def compute_streaks(counts, days, start, today):
+    current = 0
+    probe = today
+    if counts.get(probe.isoformat(), 0) == 0:
+        probe -= dt.timedelta(days=1)
+    while counts.get(probe.isoformat(), 0) > 0:
+        current += 1
+        probe -= dt.timedelta(days=1)
+    longest = 0
+    run = 0
+    for i in range(days):
+        date = start + dt.timedelta(days=i)
+        if counts.get(date.isoformat(), 0) > 0:
+            run += 1
+            if run > longest:
+                longest = run
+        else:
+            run = 0
+    return current, longest
+
+
+def compute_best_day(counts, days, start):
+    best_date = None
+    best_count = 0
+    for i in range(days):
+        date = start + dt.timedelta(days=i)
+        cnt = counts.get(date.isoformat(), 0)
+        if cnt > best_count:
+            best_count = cnt
+            best_date = date
+    return best_date, best_count
+
+
 def load_font(size, bold=False):
     paths = []
     if bold:
@@ -110,12 +142,16 @@ def text_width(font, text):
         return probe.textlength(text, font=font)
 
 
-def draw_grid(counts, days, target, today, week_avg, total, repo, out):
+def draw_grid(counts, days, target, today, total, streak_cur, streak_long,
+              best_day, best_count, pace_avg, pace_pct, need_more, repo, out):
     stride = CELL + GAP
     cols = (days + GRID_ROWS - 1) // GRID_ROWS
     grid_w = cols * stride - GAP
     grid_h = GRID_ROWS * stride - GAP
-    legend_x = PAD_X + grid_w + 20
+    card_x = PAD_X + grid_w + 20
+    card_h = 52
+    card_gap = 10
+    n_cards = 4
 
     now = dt.datetime.now(VN_TZ)
     start = (now - dt.timedelta(days=days - 1)).date()
@@ -124,19 +160,21 @@ def draw_grid(counts, days, target, today, week_avg, total, repo, out):
     font_title = load_font(18, bold=True)
     font_sub = load_font(12)
     font_small = load_font(10)
-    font_num = load_font(30, bold=True)
 
     title_text = f"Commit Dashboard — {repo}"
     date_text = f"{start.strftime('%d %b')} – {today_date.strftime('%d %b %Y')}"
-    legend_w = max(
-        text_width(font_small, "Avg 7 ngày: 99.9"),
-        text_width(font_small, "Target 999/ngày"),
-        text_width(font_small, "Total: 99999"),
-        text_width(font_small, "commits today"),
-        text_width(font_small, "Less") + 42 + len(PALETTE) * 16 + 4 + text_width(font_small, "More"),
+    width = max(
+        320,
+        int(PAD_X + text_width(font_title, title_text) + 16),
+        int(PAD_X + text_width(font_sub, date_text) + 16),
+        int(card_x + 360),
     )
-    width = max(320, int(PAD_X + text_width(font_title, title_text) + 16), int(PAD_X + text_width(font_sub, date_text) + 16), int(legend_x + legend_w + 12))
-    height = int(PAD_TOP + grid_h + PAD_BOTTOM)
+    card_w = width - card_x - 16
+
+    cards_bottom = PAD_TOP + n_cards * (card_h + card_gap) - card_gap
+    bar_h = 18
+    bar_y = cards_bottom + 12
+    height = int(bar_y + bar_h + 16)
 
     img = Image.new("RGB", (width, height), (255, 255, 255))
     draw = ImageDraw.Draw(img)
@@ -170,26 +208,46 @@ def draw_grid(counts, days, target, today, week_avg, total, repo, out):
         if date == today_date:
             draw.rectangle([x - 2, y - 2, x + CELL + 2, y + CELL + 2], outline=(33, 110, 57), width=2)
 
-    draw.text((legend_x, grid_top), f"{today}", fill=(36, 41, 46), font=font_num)
-    draw.text((legend_x, grid_top + 42), "commits today", fill=(88, 96, 105), font=font_small)
-    draw.text((legend_x, grid_top + 62), f"Target {target}/ngày", fill=(88, 96, 105), font=font_small)
-    draw.text((legend_x, grid_top + 80), f"Avg 7 ngày: {week_avg:.1f}", fill=(88, 96, 105), font=font_small)
-    draw.text((legend_x, grid_top + 98), f"Total: {total}", fill=(88, 96, 105), font=font_small)
+    def draw_card(y, label, value, sub):
+        draw.rounded_rectangle([card_x, y, card_x + card_w, y + card_h], radius=8,
+                               fill=(242, 243, 245), outline=(212, 215, 220))
+        draw.text((card_x + 12, y + 8), label, fill=(110, 118, 129), font=font_small)
+        draw.text((card_x + 12, y + 24), value, fill=(36, 41, 46), font=font_sub)
+        if sub:
+            draw.text((card_x + card_w - 12 - text_width(font_small, sub), y + 27), sub,
+                      fill=(88, 96, 105), font=font_small)
 
-    scale_y = grid_top + grid_h - 20
-    draw.text((legend_x, scale_y), "Less", fill=(88, 96, 105), font=font_small)
-    for i, color in enumerate(PALETTE):
-        sx = legend_x + 42 + i * 16
-        draw.rectangle([sx, scale_y, sx + 12, scale_y + 12], fill=color)
-    draw.text((legend_x + 42 + len(PALETTE) * 16 + 4, scale_y), "More", fill=(88, 96, 105), font=font_small)
+    pct_today = int(round(min(1.0, today / target) * 100)) if target > 0 else 0
+    cy = grid_top
+    draw_card(cy, "TODAY", f"{today} / {target}", f"{pct_today}%")
+    cy += card_h + card_gap
+    draw_card(cy, "STREAK", f"{streak_cur} ngày", f"Dài nhất: {streak_long}")
+    cy += card_h + card_gap
+    draw_card(cy, "BEST DAY", best_day.strftime("%d %b %Y") if best_day else "—", f"{best_count} commits")
+    cy += card_h + card_gap
+    draw_card(cy, "PACE", f"{pace_avg:.1f} / ngày", f"{pace_pct}% target · cần +{need_more:.1f}/ngày")
+    pace_bar_w = card_w - 24
+    bar_frac_pace = min(1.0, pace_pct / 100.0)
+    draw.rounded_rectangle([card_x + 12, cy + 42, card_x + 12 + pace_bar_w, cy + 47],
+                           radius=3, fill=(228, 230, 235))
+    draw.rounded_rectangle([card_x + 12, cy + 42, card_x + 12 + int(pace_bar_w * bar_frac_pace), cy + 47],
+                           radius=3, fill=(46, 160, 67))
 
     bar_x = PAD_X
-    bar_y = PAD_TOP + grid_h + 20
     bar_w = width - PAD_X - 16
-    bar_h = 18
     fill_frac = min(1.0, today / target) if target > 0 else 0.0
-    pct = int(round(fill_frac * 100))
-    draw.text((bar_x, bar_y - 16), f"Today {today}/{target} ({pct}%)", fill=(36, 41, 46), font=font_small)
+    footer_y = bar_y - 16
+    draw.text((bar_x, footer_y), f"Today {today}/{target} ({pct_today}%) · Total {total} · 6 tuần",
+              fill=(36, 41, 46), font=font_small)
+    more_w = text_width(font_small, "More")
+    less_w = text_width(font_small, "Less")
+    scale_w = less_w + 4 + len(PALETTE) * 13 + 4 + more_w
+    scale_x = bar_x + bar_w - scale_w
+    draw.text((scale_x, footer_y), "Less", fill=(88, 96, 105), font=font_small)
+    for i, color in enumerate(PALETTE):
+        sx = scale_x + less_w + 4 + i * 13
+        draw.rectangle([sx, footer_y + 2, sx + 11, footer_y + 13], fill=color)
+    draw.text((scale_x + less_w + 4 + len(PALETTE) * 13 + 4, footer_y), "More", fill=(88, 96, 105), font=font_small)
     draw.rounded_rectangle([bar_x, bar_y, bar_x + bar_w, bar_y + bar_h], radius=9, fill=(228, 230, 235))
     fill_w = int(bar_w * fill_frac)
     if fill_w > 0:
@@ -220,11 +278,26 @@ def main():
     week_vals = [counts.get((now.date() - dt.timedelta(days=i)).isoformat(), 0) for i in range(6, -1, -1)]
     week_avg = sum(week_vals) / 7.0
 
-    draw_grid(counts, args.days, args.target, today, week_avg, total, args.repo, args.out)
+    target = int(args.target)
+    start_day = start.date()
+    streak_cur, streak_long = compute_streaks(counts, args.days, start_day, now.date())
+    best_day, best_count = compute_best_day(counts, args.days, start_day)
+    pace_avg = total / args.days
+    pace_pct = min(100, int(round(pace_avg / target * 100))) if target > 0 else 0
+    need_more = max(0.0, target - pace_avg)
+
+    draw_grid(counts, args.days, target, today, total, streak_cur, streak_long,
+              best_day, best_count, pace_avg, pace_pct, need_more, args.repo, args.out)
 
     print(f"TODAY={today}")
     print(f"WEEK_AVG={week_avg:.1f}")
     print(f"TOTAL={total}")
+    print(f"STREAK={streak_cur}")
+    print(f"BEST_DAY={best_day.isoformat() if best_day else ''}")
+    print(f"BEST_COUNT={best_count}")
+    print(f"PACE_AVG={pace_avg:.1f}")
+    print(f"PACE_PCT={pace_pct}")
+    print(f"NEED_MORE={need_more:.1f}")
 
 
 if __name__ == "__main__":
