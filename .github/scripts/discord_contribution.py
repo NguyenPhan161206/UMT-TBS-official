@@ -81,39 +81,6 @@ def level(count):
     return 4
 
 
-def compute_streaks(counts, days, start, today):
-    current = 0
-    probe = today
-    if counts.get(probe.isoformat(), 0) == 0:
-        probe -= dt.timedelta(days=1)
-    while counts.get(probe.isoformat(), 0) > 0:
-        current += 1
-        probe -= dt.timedelta(days=1)
-    longest = 0
-    run = 0
-    for i in range(days):
-        date = start + dt.timedelta(days=i)
-        if counts.get(date.isoformat(), 0) > 0:
-            run += 1
-            if run > longest:
-                longest = run
-        else:
-            run = 0
-    return current, longest
-
-
-def compute_best_day(counts, days, start):
-    best_date = None
-    best_count = 0
-    for i in range(days):
-        date = start + dt.timedelta(days=i)
-        cnt = counts.get(date.isoformat(), 0)
-        if cnt > best_count:
-            best_count = cnt
-            best_date = date
-    return best_date, best_count
-
-
 def load_font(size, bold=False):
     paths = []
     if bold:
@@ -142,16 +109,15 @@ def text_width(font, text):
         return probe.textlength(text, font=font)
 
 
-def draw_grid(counts, days, target, today, total, streak_cur, streak_long,
-              best_day, best_count, pace_avg, pace_pct, need_more, repo, out):
+def draw_grid(counts, days, target, today, total, pace_avg, pace_pct, need_more, repo, out):
     stride = CELL + GAP
     cols = (days + GRID_ROWS - 1) // GRID_ROWS
     grid_w = cols * stride - GAP
     grid_h = GRID_ROWS * stride - GAP
     card_x = PAD_X + grid_w + 20
-    card_h = 52
-    card_gap = 10
-    n_cards = 4
+    card_h = 58
+    card_gap = 13
+    n_cards = 2
 
     now = dt.datetime.now(VN_TZ)
     start = (now - dt.timedelta(days=days - 1)).date()
@@ -173,7 +139,7 @@ def draw_grid(counts, days, target, today, total, streak_cur, streak_long,
 
     cards_bottom = PAD_TOP + n_cards * (card_h + card_gap) - card_gap
     bar_h = 18
-    bar_y = cards_bottom + 12
+    bar_y = max(cards_bottom + 12, PAD_TOP + grid_h + 20)
     height = int(bar_y + bar_h + 16)
 
     img = Image.new("RGB", (width, height), (255, 255, 255))
@@ -220,10 +186,6 @@ def draw_grid(counts, days, target, today, total, streak_cur, streak_long,
     pct_today = int(round(min(1.0, today / target) * 100)) if target > 0 else 0
     cy = grid_top
     draw_card(cy, "TODAY", f"{today} / {target}", f"{pct_today}%")
-    cy += card_h + card_gap
-    draw_card(cy, "STREAK", f"{streak_cur} ngày", f"Dài nhất: {streak_long}")
-    cy += card_h + card_gap
-    draw_card(cy, "BEST DAY", best_day.strftime("%d %b %Y") if best_day else "—", f"{best_count} commits")
     cy += card_h + card_gap
     draw_card(cy, "PACE", f"{pace_avg:.1f} / ngày", f"{pace_pct}% target · cần +{need_more:.1f}/ngày")
     pace_bar_w = card_w - 24
@@ -279,25 +241,15 @@ def main():
     week_avg = sum(week_vals) / 7.0
 
     target = int(args.target)
-    start_day = start.date()
-    streak_cur, streak_long = compute_streaks(counts, args.days, start_day, now.date())
-    best_day, best_count = compute_best_day(counts, args.days, start_day)
     pace_avg = total / args.days
     pace_pct = min(100, int(round(pace_avg / target * 100))) if target > 0 else 0
     need_more = max(0.0, target - pace_avg)
 
-    draw_grid(counts, args.days, target, today, total, streak_cur, streak_long,
-              best_day, best_count, pace_avg, pace_pct, need_more, args.repo, args.out)
+    draw_grid(counts, args.days, target, today, total, pace_avg, pace_pct, need_more, args.repo, args.out)
 
     print(f"TODAY={today}")
     print(f"WEEK_AVG={week_avg:.1f}")
     print(f"TOTAL={total}")
-    print(f"STREAK={streak_cur}")
-    print(f"BEST_DAY={best_day.isoformat() if best_day else ''}")
-    print(f"BEST_COUNT={best_count}")
-    print(f"PACE_AVG={pace_avg:.1f}")
-    print(f"PACE_PCT={pace_pct}")
-    print(f"NEED_MORE={need_more:.1f}")
 
 
 if __name__ == "__main__":
