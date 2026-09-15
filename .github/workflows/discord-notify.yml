@@ -32,7 +32,16 @@ jobs:
           DELETED=$(printf '%s\n' "$FILES" | grep -c '^D' || true)
           TOTAL=$(printf '%s\n' "$FILES" | grep -c '' || true)
           if [ -n "$FILES" ]; then
-            DETAILS="${FILES:0:1000}"
+            DETAILS=$(printf '%s\n' "$FILES" | awk '{
+              status=$1; path=$0; sub(/^[A-Z][0-9]*\t/, "", path);
+              if (status=="A") print "➕ " path;
+              else if (status=="M") print "✏️ " path;
+              else if (status=="D") print "🗑️ " path;
+              else print "• " path;
+            }')
+            if [ ${#DETAILS} -gt 1000 ]; then
+              DETAILS="${DETAILS:0:997}..."
+            fi
           else
             DETAILS="No file changes (merge / empty commit)"
           fi
