@@ -10,11 +10,11 @@ import urllib.request
 from PIL import Image, ImageDraw, ImageFont
 
 API = "https://api.github.com"
-CELL = 12
-GAP = 3
-PAD_X = 60
+CELL = 16
+GAP = 4
+PAD_X = 30
 PAD_TOP = 76
-PAD_BOTTOM = 54
+PAD_BOTTOM = 64
 GRID_ROWS = 7
 
 PALETTE = [
@@ -103,24 +103,30 @@ def load_font(size, bold=False):
 
 
 def draw_grid(counts, days, target, today, week_avg, total, repo, out):
+    stride = CELL + GAP
     cols = (days + GRID_ROWS - 1) // GRID_ROWS
-    width = PAD_X + cols * (CELL + GAP) + 16
-    height = PAD_TOP + GRID_ROWS * (CELL + GAP) + PAD_BOTTOM
+    grid_w = cols * stride - GAP
+    grid_h = GRID_ROWS * stride - GAP
+    legend_x = PAD_X + grid_w + 20
+    width = legend_x + 130
+    height = PAD_TOP + grid_h + PAD_BOTTOM
+
+    now = dt.datetime.now(VN_TZ)
+    start = (now - dt.timedelta(days=days - 1)).date()
+    today_date = now.date()
 
     img = Image.new("RGB", (width, height), (255, 255, 255))
     draw = ImageDraw.Draw(img)
 
-    font_title = load_font(14, bold=True)
-    font_sub = load_font(11)
-    font_small = load_font(9)
+    font_title = load_font(18, bold=True)
+    font_sub = load_font(12)
+    font_small = load_font(10)
+    font_num = load_font(30, bold=True)
 
-    start = dt.datetime.now(VN_TZ).date() - dt.timedelta(days=days - 1)
-    today_date = dt.datetime.now(VN_TZ).date()
-
-    draw.text((PAD_X, 12), f"Commit Dashboard — {repo}", fill=(36, 41, 46), font=font_title)
+    draw.text((PAD_X, 14), f"Commit Dashboard — {repo}", fill=(36, 41, 46), font=font_title)
     draw.text(
-        (PAD_X, 34),
-        f"{start.strftime('%d %b')} – {today_date.strftime('%d %b %Y')}  •  Today {today}/{target}  •  Avg {week_avg:.1f}/ngày  •  Total {total}",
+        (PAD_X, 42),
+        f"{start.strftime('%d %b')} – {today_date.strftime('%d %b %Y')}",
         fill=(88, 96, 105),
         font=font_sub,
     )
@@ -129,7 +135,7 @@ def draw_grid(counts, days, target, today, week_avg, total, repo, out):
     grid_left = PAD_X
 
     for r, dow in enumerate(DOW):
-        draw.text((8, grid_top + r * (CELL + GAP) + 1), dow, fill=(110, 118, 129), font=font_small)
+        draw.text((8, grid_top + r * stride + 3), dow, fill=(110, 118, 129), font=font_small)
 
     prev_month = None
     for i in range(days):
@@ -138,25 +144,43 @@ def draw_grid(counts, days, target, today, week_avg, total, repo, out):
         row = i % GRID_ROWS
         if date.month != prev_month:
             prev_month = date.month
-            label = MONTHS[date.month - 1]
-            draw.text((grid_left + col * (CELL + GAP), grid_top - 16), label, fill=(110, 118, 129), font=font_small)
-        x = grid_left + col * (CELL + GAP)
-        y = grid_top + row * (CELL + GAP)
-        cnt = counts.get(date.isoformat(), 0)
-        color = PALETTE[level(cnt)]
+            draw.text(
+                (grid_left + col * stride, grid_top - 16),
+                MONTHS[date.month - 1],
+                fill=(110, 118, 129),
+                font=font_small,
+            )
+        x = grid_left + col * stride
+        y = grid_top + row * stride
+        color = PALETTE[level(counts.get(date.isoformat(), 0))]
         draw.rectangle([x, y, x + CELL, y + CELL], fill=color)
         if date == today_date:
             draw.rectangle([x - 2, y - 2, x + CELL + 2, y + CELL + 2], outline=(33, 110, 57), width=2)
 
+    draw.text((legend_x, grid_top), f"{today}", fill=(36, 41, 46), font=font_num)
+    draw.text((legend_x, grid_top + 42), "commits today", fill=(88, 96, 105), font=font_small)
+    draw.text((legend_x, grid_top + 62), f"Target {target}/ngày", fill=(88, 96, 105), font=font_small)
+    draw.text((legend_x, grid_top + 80), f"Avg 7 ngày: {week_avg:.1f}", fill=(88, 96, 105), font=font_small)
+    draw.text((legend_x, grid_top + 98), f"Total: {total}", fill=(88, 96, 105), font=font_small)
+
+    scale_y = grid_top + grid_h - 20
+    draw.text((legend_x, scale_y), "Less", fill=(88, 96, 105), font=font_small)
+    for i, color in enumerate(PALETTE):
+        sx = legend_x + 42 + i * 16
+        draw.rectangle([sx, scale_y, sx + 12, scale_y + 12], fill=color)
+    draw.text((legend_x + 42 + len(PALETTE) * 16 + 4, scale_y), "More", fill=(88, 96, 105), font=font_small)
+
     bar_x = PAD_X
-    bar_y = grid_top + GRID_ROWS * (CELL + GAP) + 10
+    bar_y = PAD_TOP + grid_h + 20
     bar_w = width - PAD_X - 16
-    bar_h = 16
+    bar_h = 18
     fill_frac = min(1.0, today / target) if target > 0 else 0.0
-    draw.rounded_rectangle([bar_x, bar_y, bar_x + bar_w, bar_y + bar_h], radius=8, fill=(228, 230, 235))
+    pct = int(round(fill_frac * 100))
+    draw.text((bar_x, bar_y - 16), f"Today {today}/{target} ({pct}%)", fill=(36, 41, 46), font=font_small)
+    draw.rounded_rectangle([bar_x, bar_y, bar_x + bar_w, bar_y + bar_h], radius=9, fill=(228, 230, 235))
     fill_w = int(bar_w * fill_frac)
     if fill_w > 0:
-        draw.rounded_rectangle([bar_x, bar_y, bar_x + fill_w, bar_y + bar_h], radius=8, fill=(46, 160, 67))
+        draw.rounded_rectangle([bar_x, bar_y, bar_x + fill_w, bar_y + bar_h], radius=9, fill=(46, 160, 67))
 
     img.save(out)
 
