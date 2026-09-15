@@ -102,34 +102,47 @@ def load_font(size, bold=False):
     return ImageFont.load_default()
 
 
+def text_width(font, text):
+    try:
+        return font.getlength(text)
+    except AttributeError:
+        probe = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+        return probe.textlength(text, font=font)
+
+
 def draw_grid(counts, days, target, today, week_avg, total, repo, out):
     stride = CELL + GAP
     cols = (days + GRID_ROWS - 1) // GRID_ROWS
     grid_w = cols * stride - GAP
     grid_h = GRID_ROWS * stride - GAP
     legend_x = PAD_X + grid_w + 20
-    width = legend_x + 130
-    height = PAD_TOP + grid_h + PAD_BOTTOM
 
     now = dt.datetime.now(VN_TZ)
     start = (now - dt.timedelta(days=days - 1)).date()
     today_date = now.date()
-
-    img = Image.new("RGB", (width, height), (255, 255, 255))
-    draw = ImageDraw.Draw(img)
 
     font_title = load_font(18, bold=True)
     font_sub = load_font(12)
     font_small = load_font(10)
     font_num = load_font(30, bold=True)
 
-    draw.text((PAD_X, 14), f"Commit Dashboard — {repo}", fill=(36, 41, 46), font=font_title)
-    draw.text(
-        (PAD_X, 42),
-        f"{start.strftime('%d %b')} – {today_date.strftime('%d %b %Y')}",
-        fill=(88, 96, 105),
-        font=font_sub,
+    title_text = f"Commit Dashboard — {repo}"
+    date_text = f"{start.strftime('%d %b')} – {today_date.strftime('%d %b %Y')}"
+    legend_w = max(
+        text_width(font_small, "Avg 7 ngày: 99.9"),
+        text_width(font_small, "Target 999/ngày"),
+        text_width(font_small, "Total: 99999"),
+        text_width(font_small, "commits today"),
+        text_width(font_small, "Less") + 42 + len(PALETTE) * 16 + 4 + text_width(font_small, "More"),
     )
+    width = max(320, int(PAD_X + text_width(font_title, title_text) + 16), int(PAD_X + text_width(font_sub, date_text) + 16), int(legend_x + legend_w + 12))
+    height = int(PAD_TOP + grid_h + PAD_BOTTOM)
+
+    img = Image.new("RGB", (width, height), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+
+    draw.text((PAD_X, 14), title_text, fill=(36, 41, 46), font=font_title)
+    draw.text((PAD_X, 42), date_text, fill=(88, 96, 105), font=font_sub)
 
     grid_top = PAD_TOP
     grid_left = PAD_X
