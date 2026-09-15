@@ -1,0 +1,62 @@
+name: Discord Contribution Dashboard
+
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-contribution
+  cancel-in-progress: false
+
+jobs:
+  dashboard:
+    name: Send contribution dashboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Asia/Ho_Chi_Minh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Pillow
+        run: pip install pillow
+
+      - name: Generate grid and post to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TARGET_COMMITS: ${{ vars.TARGET_COMMITS }}
+          REPO: ${{ github.repository }}
+        run: |
+          TARGET="${TARGET_COMMITS:-5}"
+          python3 .github/scripts/discord_contribution.py \
+            --repo "$REPO" --target "$TARGET" --out /tmp/grid.png > /tmp/stats.txt
+          cat /tmp/stats.txt
+          TODAY=$(grep '^TODAY=' /tmp/stats.txt | cut -d= -f2)
+          WEEK_AVG=$(grep '^WEEK_AVG=' /tmp/stats.txt | cut -d= -f2)
+          TOTAL=$(grep '^TOTAL=' /tmp/stats.txt | cut -d= -f2)
+          PAYLOAD=$(jq -n \
+            --arg today "$TODAY" \
+            --arg weekAvg "$WEEK_AVG" \
+            --arg total "$TOTAL" \
+            --arg target "$TARGET" \
+            '{embeds:[{
+              title:"Commit Dashboard — '"$REPO"'",
+              color:5763719,
+              fields:[
+                {name:"Today", value:($today+" / "+$target+" commits"), inline:true},
+                {name:"Weekly avg", value:($weekAvg+" / ngày"), inline:true},
+                {name:"Total 6 tuần", value:$total, inline:false}
+              ],
+              image:{url:"attachment://grid.png"}
+            }]}')
+          curl -sS -w "\nHTTP:%{http_code}\n" -X POST "$DISCORD_WEBHOOK_URL" \
+            -F "payload_json=$PAYLOAD" \
+            -F "file=@/tmp/grid.png;filename=grid.png"
