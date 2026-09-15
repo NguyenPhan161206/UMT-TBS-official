@@ -1,0 +1,60 @@
+name: Discord CI Status
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+concurrency:
+  group: discord-ci-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    name: Notify Discord CI result
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Build and send Discord embed
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          DISPLAY: ${{ github.event.workflow_run.display_title }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ "$CONCLUSION" = "success" ]; then
+            STATUS="OK"
+            COLOR=5763719
+            EMOJI=":white_check_mark:"
+          else
+            STATUS="FAILED"
+            COLOR=15548997
+            EMOJI=":x:"
+          fi
+          PAYLOAD=$(jq -n \
+            --arg title "CI $STATUS · $BRANCH" \
+            --arg emoji "$EMOJI" \
+            --arg conclusion "$CONCLUSION" \
+            --arg branch "$BRANCH" \
+            --arg display "$DISPLAY" \
+            --arg repo "$REPO" \
+            --arg sha "$SHA" \
+            --argjson color "$COLOR" \
+            --arg runUrl "$RUN_URL" \
+            '{embeds:[{
+              title:($title+" "+$emoji),
+              color:$color,
+              url:$runUrl,
+              fields:[
+                {name:"Conclusion", value:$conclusion, inline:true},
+                {name:"Branch", value:$branch, inline:true},
+                {name:"Workflow", value:$display, inline:false},
+                {name:"Commit", value:("https://github.com/"+$repo+"/commit/"+$sha), inline:false}
+              ]
+            }]}')
+          curl -sS -w "\nHTTP:%{http_code}\n" -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
