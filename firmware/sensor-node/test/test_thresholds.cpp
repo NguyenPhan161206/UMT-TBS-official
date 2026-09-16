@@ -60,8 +60,8 @@ void test_sensor_pins_map_to_slots(void)
 
 void test_espnow_msg_size(void)
 {
-    // Packed struct: 6*float + 6*uint8 = 30 byte. Lệch layout = lệch dữ liệu giữa 2 board.
-    TEST_ASSERT_EQUAL_INT(30, (int)sizeof(espnow_sensor_msg_t));
+    // Packed struct: 2(seq) + 6*float(24) + 6*uint8(valid=6) + 6*uint8(health=6) = 38 byte.
+    TEST_ASSERT_EQUAL_INT(38, (int)sizeof(espnow_sensor_msg_t));
 }
 
 // setup()/loop() nằm ở test_runner.cpp (main duy nhất cho C++ host).

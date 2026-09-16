@@ -20,11 +20,11 @@ extern "C" {
 #define EXAMPLE_LCD_H_RES (800)
 #define EXAMPLE_LCD_V_RES (480)
 
-// RGB Panel Timing & Clock
-#define EXAMPLE_LCD_PIXEL_CLOCK_HZ (16 * 1000 * 1000)
+// RGB Panel Timing & Clock (12MHz + 40-line bounce buffer for zero-jitter with Wi-Fi)
+#define EXAMPLE_LCD_PIXEL_CLOCK_HZ (12 * 1000 * 1000)
 #define EXAMPLE_RGB_BIT_PER_PIXEL (16)
 #define EXAMPLE_RGB_DATA_WIDTH (16)
-#define EXAMPLE_RGB_BOUNCE_BUFFER_SIZE (EXAMPLE_LCD_H_RES * 10 * EXAMPLE_RGB_DATA_WIDTH / 8)
+#define EXAMPLE_RGB_BOUNCE_BUFFER_SIZE (EXAMPLE_LCD_H_RES * 40)
 
 // RGB LCD Signal Pins
 #define EXAMPLE_LCD_IO_RGB_DISP (GPIO_NUM_NC)

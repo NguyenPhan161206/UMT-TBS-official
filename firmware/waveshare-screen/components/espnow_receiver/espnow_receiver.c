@@ -80,6 +80,8 @@ esp_err_t espnow_receiver_init(espnow_rx_cb_t cb)
         return err;
     }
 
+    esp_wifi_set_ps(WIFI_PS_NONE);
+
     s_espnow_ready = true;
     ESP_LOGI(TAG, "ESP-NOW receiver ready (default/fallback channel %d)", ESPNOW_CHANNEL);
     return ESP_OK;

@@ -46,13 +46,10 @@ extern "C" {
  */
 static const uint8_t ESPNOW_PEER_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-/* Tần suất gửi ESP-NOW (tách biệt MEASURE_INTERVAL_MS - vòng đo/lọc cục bộ). */
-#define ESPNOW_SEND_INTERVAL_MS 500
-/* Link timeout (receiver): dung sai ~6 gói miss (500ms/gói). 3000ms thay vì
- * 1500ms vì AP (iPhone hotspot) gây micro-gap 1-2s khi chuyển kênh mỗi ~30s —
- * đủ chịu để label LINK/NO LINK không nhấp nháy theo nhịp AP, vẫn reset cảnh
- * báo trong <=3s. */
-#define ESPNOW_LINK_TIMEOUT_MS 3000
+/* Tần suất gửi ESP-NOW: 100ms (10 gói/giây) cho phản xạ cảnh báo tức thì. */
+#define ESPNOW_SEND_INTERVAL_MS 100
+/* Link timeout (receiver): 1500ms (dung sai 15 gói miss liên tiếp). */
+#define ESPNOW_LINK_TIMEOUT_MS 1500
 
 /* Số vị trí cảm biến trên "dây" — PHẢI khớp SENSOR_COUNT (thresholds.h).
  * Cố định 6: khớp mô hình sensor_model/ui_dashboard bên waveshare-screen. */
@@ -69,18 +66,29 @@ typedef enum {
     ESPNOW_SLOT_RIGHT_REAR = 5,  /* S5  */
 } espnow_slot_t;
 
-/* Payload nhị phân gửi qua ESP-NOW - packed, kích thước cố định.
- * Luôn gửi đủ ESPNOW_SENSOR_SLOT_COUNT vị trí; valid[i]=0 nghĩa là "null"
- * cho slot đó (cảm biến lỗi/mất tín hiệu hoặc chưa lắp) - bên waveshare
- * phải xử lý hiển thị khi valid[i]=0, không đọc distance_cm[i] làm số hợp lệ. */
+/* Payload nhị phân gửi qua ESP-NOW — packed, kích thước cố định.
+ * Luôn gửi đủ ESPNOW_SENSOR_SLOT_COUNT vị trí;
+ *   valid[i] = 0 và health[i] = SENSOR_HEALTH_DISCONNECTED: slot hỏng/mất
+ *   valid[i] = 0 và health[i] = SENSOR_HEALTH_OUT_OF_RANGE: thoáng, không vật cản
+ *   valid[i] = 1 và health[i] = SENSOR_HEALTH_OK: đo tốt, distance_cm[i] hợp lệ
+ * Bên waveshare-screen KHÔNG được đọc distance_cm[i] làm số hợp lệ khi
+ * valid[i]=0 hoặc health[i] ở trạng thái lỗi. */
 typedef struct __attribute__((packed)) {
-    float distance_cm[ESPNOW_SENSOR_SLOT_COUNT];
-    uint8_t valid[ESPNOW_SENSOR_SLOT_COUNT];
+    uint16_t seq;                                   /* Số thứ tự gói (freshness) */
+    float    distance_cm[ESPNOW_SENSOR_SLOT_COUNT]; /* Khoảng cách (cm) — chỉ hợp lệ khi valid[i]==1 */
+    uint8_t  valid[ESPNOW_SENSOR_SLOT_COUNT];       /* 1 = có đị; 0 = null slot */
+    uint8_t  health[ESPNOW_SENSOR_SLOT_COUNT];      /* sensor_health_t: OK / OUT_OF_RANGE / DISCONNECTED / STALE */
 } espnow_sensor_msg_t;
 
 /* Chặn lệch giữa số slot trên dây và số cảm biến vật lý (R2/R4). */
 TBS_STATIC_ASSERT(ESPNOW_SENSOR_SLOT_COUNT == SENSOR_COUNT,
                   "ESP-NOW wire slot count must match physical SENSOR_COUNT");
+/* Chặn vỡ layout khi thêm trường mới mà quên cập nhật cả hai board. */
+TBS_STATIC_ASSERT(sizeof(espnow_sensor_msg_t) ==
+                  sizeof(uint16_t) +
+                  sizeof(float) * ESPNOW_SENSOR_SLOT_COUNT +
+                  sizeof(uint8_t) * ESPNOW_SENSOR_SLOT_COUNT * 2,
+                  "espnow_sensor_msg_t size mismatch — update both firmwares");
 
 #ifdef __cplusplus
 }

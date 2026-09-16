@@ -153,3 +153,33 @@ grep -rn "ESPNOW_PEER_MAC\[6\]" firmware/ --include=*.h → firmware/shared/espn
   mới nào sau `15:41:49` (lúc `usb 3-2` — sensor-node cũ — disconnect, device 99).
 - → Chưa flash/verify sensor-node và chưa xác nhận **ESP-NOW: LINKED** trên màn (cần cả 2
   board). Chờ người dùng cắm lại sensor-node bằng cáp USB-data/đầu nối ok để enum được.
+
+---
+
+# BỔ SUNG 2026-09-10 — Khắc phục chập chờn ESP-NOW (Power Save, Interval/Watchdog, Debounce UI, Cảnh báo lệch kênh)
+
+## Mục tiêu
+Khắc phục hiện tượng kết nối ESP-NOW bị chập chờn, nhấp nháy LINKED / NO LINK và số đo sensor giật/mất liên tục:
+1. **Tắt Wi-Fi Power Save (`WIFI_PS_NONE`)**: Ngăn chặn ESP32-S3 tự động sleep radio theo chu kỳ DTIM beacon làm miss broadcast packet.
+2. **Nâng tần suất gửi & nới rộng Watchdog**:
+   - `ESPNOW_SEND_INTERVAL_MS`: từ 500ms -> 200ms (5 gói/giây, tăng độ nhạy cảnh báo va chạm).
+   - `ESPNOW_LINK_TIMEOUT_MS`: từ 1500ms -> 3000ms (chịu được mất tới 15 gói tin liên tiếp mà không bị nhấp nháy mất link).
+   - Watchdog timer LVGL: từ 500ms -> 250ms để cập nhật UI mượt mà.
+3. **Chống chớp tắt hiển thị khi cảm biến miss xung**: Bỏ lệnh `ui_dashboard_clear_sensor(i)` tức thì khi `valid[i]==0` trong `on_espnow_rx`. Giữ giá trị đo và để watchdog timeout xử lý clear nếu mất tín hiệu thực sự quá `ESPNOW_LINK_TIMEOUT_MS`.
+4. **Cảnh báo lệch kênh Wi-Fi**: Bổ sung log cảnh báo khi Router Wi-Fi AP chạy ở kênh khác với `ESPNOW_CHANNEL`.
+5. **Giảm tải Serial UART**: Bỏ log spam `[ESPNOW] Send OK` mỗi 200ms trên sensor-node.
+
+## File đã sửa
+- `firmware/shared/espnow_protocol.h` (R2) — cập nhật `ESPNOW_SEND_INTERVAL_MS` (200) và `ESPNOW_LINK_TIMEOUT_MS` (3000).
+- `firmware/sensor-node/src/espnow_client.cpp` — thêm `esp_wifi_set_ps(WIFI_PS_NONE)`, chỉ in serial khi gửi FAILED.
+- `firmware/waveshare-screen/components/coreiot_client/coreiot_client.c` — thêm `esp_wifi_set_ps(WIFI_PS_NONE)` sau `esp_wifi_start()`, thêm cảnh báo nếu `primary_ch != ESPNOW_CHANNEL`.
+- `firmware/waveshare-screen/components/espnow_receiver/espnow_receiver.c` — đảm bảo `esp_wifi_set_ps(WIFI_PS_NONE)` trong `espnow_receiver_init()`.
+- `firmware/waveshare-screen/src/main.c` — chuyển log rx sang `ESP_LOGD`, bỏ clear tức thì khi `valid[i]==0`, đổi watchdog timer sang 250ms.
+
+## Kết quả kiểm thử
+- Secret scan: `python tools/guard/scan_secrets.py` -> OK.
+- Guard test: `pytest tools/guard/test_guard.py` -> 16/16 PASSED.
+- Host unit test: `pio test -e native` -> 22/22 PASSED.
+- Build sensor-node: `pio run -e yolo_uno` & `pio run -e yolo_uno_coreiot` -> SUCCESS.
+- Build waveshare-screen: `pio run -e yolo_uno` -> SUCCESS.
+- R7: Mọi file đều $\le 400$ dòng.

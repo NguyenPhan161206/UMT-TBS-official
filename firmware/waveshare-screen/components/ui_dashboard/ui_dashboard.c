@@ -139,27 +139,32 @@ void evaluate_hazard(void)
 
     uint16_t dist_cm[SENSOR_MODEL_COUNT];
     bool is_stale[SENSOR_MODEL_COUNT];
+    uint8_t health[SENSOR_MODEL_COUNT];
     for (int i = 0; i < SENSOR_MODEL_COUNT; i++) {
-        dist_cm[i] = readings[i].distance_cm;
+        dist_cm[i]  = readings[i].distance_cm;
         is_stale[i] = readings[i].is_stale;
+        health[i]   = (uint8_t)readings[i].health;
     }
 
-    /* Worst zone — skip stale (hazard_core giữ hành vi cũ: distance_cm=0 không
-     * được tính thành DANGER khi sensor chưa report). */
-    sensor_zone_t worst = hazard_worst_zone(dist_cm, is_stale, SENSOR_MODEL_COUNT);
+    /* Worst zone — dùng hazard_worst_zone: bỏ qua slot DISCONNECTED/STALE
+     * hoàn toàn khỏi phép tính. Safety-Critical: không dùng số cũ để báo DANGER. */
+    sensor_zone_t worst = hazard_worst_zone(dist_cm, is_stale, health, SENSOR_MODEL_COUNT);
+    bool any_fault = hazard_has_sensor_fault(health, SENSOR_MODEL_COUNT);
 
     if (s_lbl_hazard_overall) {
-        const char *text = worst == SENSOR_ZONE_DANGER ? "OVERALL: DANGER"
-                          : worst == SENSOR_ZONE_CAUTION ? "OVERALL: CAUTION"
-                          : "OVERALL: SAFE";
-        /* Alarm state only silences the blink/animation on DANGER zones (see mute_btn_cb) -
-         * the banner itself must still say so, otherwise a muted DANGER looks identical to SAFE.
-         */
+        char banner[64];
         if (worst == SENSOR_ZONE_DANGER && s_alarm_muted) {
-            lv_label_set_text(s_lbl_hazard_overall, "OVERALL: DANGER (MUTED)");
+            snprintf(banner, sizeof(banner), "OVERALL: DANGER (MUTED)%s",
+                     any_fault ? " | SENSOR FAULT" : "");
         } else {
-            lv_label_set_text(s_lbl_hazard_overall, text);
+            const char *zone_text = worst == SENSOR_ZONE_DANGER  ? "OVERALL: DANGER"
+                                  : worst == SENSOR_ZONE_CAUTION ? "OVERALL: CAUTION"
+                                                                 : "OVERALL: SAFE";
+            snprintf(banner, sizeof(banner), "%s%s",
+                     zone_text, any_fault ? " | SENSOR FAULT" : "");
         }
+        lv_label_set_text(s_lbl_hazard_overall, banner);
+        /* Màu zone (FAULT không che đổi màu zone): thiết kế an toàn. */
         lv_obj_set_style_text_color(s_lbl_hazard_overall, zone_color(worst), 0);
     }
 
@@ -320,6 +325,12 @@ void ui_dashboard_set_buzzer_state(bool buzzer_on)
 
 void ui_dashboard_set_espnow_status(bool linked)
 {
+    static int s_prev_status = -1;
+    if (s_prev_status == (int)linked) {
+        return;
+    }
+    s_prev_status = (int)linked;
+
     if (!s_lbl_espnow_status) {
         return;
     }
