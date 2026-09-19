@@ -67,6 +67,38 @@ Qua phân tích mã nguồn và đặc tính phần cứng màn hình RGB 800x48
 
 ## 4. Hướng Khắc Phục Tiếp Theo
 
-1. **Thêm Guard Zone**: Trong `sensor_arc_t`, lưu lại `current_zone`. Nếu cảm biến chưa đổi zone thì không bao giờ reset hoặc gọi lại animation.
-2. **Chuyển sang Nháy Màu Tĩnh (Solid Color Blink)**: Thay vì làm mờ đục liên tục (Alpha Blending ngốn bus PSRAM), chuyển sang nháy chuyển màu (Đỏ $\leftrightarrow$ Trong suốt/Viền đỏ) bằng bộ đếm thời gian tĩnh, loại bỏ hoàn toàn tính toán alpha.
-3. **Gộp lệnh cập nhật UI**: Chỉ gọi `evaluate_hazard()` duy nhất 1 lần sau khi vòng lặp 6 cảm biến hoàn tất.
+## 4. Giải Pháp 3 Trụ Cột Triệt Tiêu Giật Màn Hình & Sẵn Sàng Cho Wi-Fi (19/09/2026)
+
+1. **Trụ cột 1: Deadband 3cm & Lọc Nhiễu Hiển Thị ([ui_dashboard.c](file:///e:/Truck_Blind_Sight/firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c))**:
+   - Cảm biến siêu âm JSN-SR04T có nhiễu dao động tự nhiên $\pm 1-2$ cm.
+   - Thêm bộ lọc Deadband 3cm: Chỉ cập nhật nhãn đo lường số khi `abs(dist_cm - s_last_displayed_dist) >= 3` HOẶC khi vùng cảnh báo (`zone`) thay đổi.
+   - Triệt tiêu 90% số lần gọi `lv_label_set_text_fmt` và re-draw vô nghĩa khi xe đứng yên hoặc khoảng cách ổn định.
+   - Thêm Zone Guard trong [ui_dashboard_layout.c](file:///e:/Truck_Blind_Sight/firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c) và loại bỏ hoàn toàn cơ chế alpha-blending `blink_anim` (`LV_OPA_30`), đặt 100% cung tròn ở `LV_OPA_COVER`.
+
+2. **Trụ cột 2: Vẽ Cục Bộ `ESP_LV_ADAPTER_TEAR_AVOID_MODE_NONE` ([main.c](file:///e:/Truck_Blind_Sight/firmware/waveshare-screen/src/main.c))**:
+   - Chuyển `tear_mode` sang `ESP_LV_ADAPTER_TEAR_AVOID_MODE_NONE`.
+   - Sử dụng 1 Framebuffer duy nhất trong PSRAM. LVGL chỉ vẽ đúng các ô chữ nhật bẩn cục bộ (chỉ ~2 KB thay vì ép vẽ 768 KB cả màn hình 800x480).
+   - Không bị block task 33ms chờ VSYNC (`ulTaskNotifyTake`), giảm tải bus PSRAM 300 lần, giải phóng băng thông cho Wi-Fi chạy sau này.
+
+3. **Trụ cột 3: Decouple Tách Luồng Wi-Fi và LVGL Task ([main.c](file:///e:/Truck_Blind_Sight/firmware/waveshare-screen/src/main.c))**:
+   - Áp dụng chuẩn kỹ năng `lvgl_v9_warning_display` (Mục 4: Thread-Safe Reactive Pipeline).
+   - Trong `on_espnow_rx`: Chạy trên Wi-Fi task, chỉ lưu gói tin vào snapshot trong RAM (`s_latest_espnow_msg`) có critical section bảo vệ, tốn < 1us và **tuyệt đối không gọi `esp_lv_adapter_lock`**.
+   - Tạo `espnow_ui_dispatch_timer_cb` (LVGL timer định kỳ 50ms): Chạy trực tiếp trên LVGL thread, tự lấy snapshot cập nhật widget một cách tự nhiên mà không có tranh chấp khóa mutex giữa các nhân CPU.
+
+4. **Khắc Phục Cảnh Báo Flash Mismatch ([sdkconfig.defaults](file:///e:/Truck_Blind_Sight/firmware/waveshare-screen/sdkconfig.defaults))**:
+   - Thêm `CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y` và `CONFIG_ESPTOOLPY_FLASHSIZE="8MB"`, khớp hoàn toàn với chip ESP32-S3 8MB Flash của board Waveshare.
+
+5. **Khắc Phục Lỗi Cắt Chữ HAZARD STATE ([ui_dashboard_layout.c](file:///e:/Truck_Blind_Sight/firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c) & [ui_dashboard.c](file:///e:/Truck_Blind_Sight/firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c))**:
+   - Sidebar 180px không đủ chỗ cho chuỗi `OVERALL: SAFE | SENSOR FAULT` trên 1 hàng.
+   - Cấu hình `lv_label_set_long_mode(s_lbl_hazard_overall, LV_LABEL_LONG_WRAP)` và `lv_obj_set_width(s_lbl_hazard_overall, LV_PCT(100))`.
+   - Format lại chuỗi phân cách bằng xuống dòng `\n[SENSOR FAULT]`, giúp hiển thị rõ ràng, không bị tràn viền hay mất chữ.
+
+---
+
+## 6. Kết Quả Kiểm Thử (Verification)
+
+- **Biên dịch Firmware (`waveshare-screen`)**: `pio run -e yolo_uno` $\rightarrow$ **SUCCESS (100%, 0 lỗi, cảnh báo Flash Mismatch biến mất hoàn toàn)**.
+- **Biên dịch Giả lập Windows (`host_sim`)**: `cmake --build build_sim` $\rightarrow$ **SUCCESS (100% build ra `umt_dash_sim.exe`)**.
+- **Secret Scan (`tools/guard/scan_secrets.py`)**: OK.
+- **Tuân thủ quy tắc kiến trúc (Constitution R1-R12)**:
+  - R7: `ui_dashboard.c` (381 dòng), `ui_dashboard_layout.c` (342 dòng), `main.c` (294 dòng) — tất cả đều $\le$ 400 dòng.

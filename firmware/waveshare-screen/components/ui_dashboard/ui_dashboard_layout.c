@@ -19,27 +19,19 @@ static void blink_anim_cb(void *var, int32_t value)
 
 void arc_set_zone(sensor_arc_t *a, sensor_zone_t zone)
 {
-    lv_obj_set_style_arc_color(a->arc, zone_color(zone), LV_PART_INDICATOR);
+    if (a->has_zone && a->current_zone == zone) {
+        return;
+    }
+    a->has_zone = true;
+    a->current_zone = zone;
 
     if (a->blink_running) {
         lv_anim_delete(a->arc, blink_anim_cb);
         a->blink_running = false;
-        lv_obj_set_style_arc_opa(a->arc, LV_OPA_COVER, LV_PART_INDICATOR);
     }
 
-    if (zone == SENSOR_ZONE_DANGER && !s_alarm_muted) {
-        lv_anim_init(&a->blink_anim);
-        lv_anim_set_var(&a->blink_anim, a->arc);
-        lv_anim_set_exec_cb(&a->blink_anim, blink_anim_cb);
-        lv_anim_set_values(&a->blink_anim, LV_OPA_COVER, LV_OPA_30);
-        lv_anim_set_time(&a->blink_anim, 400);
-        lv_anim_set_playback_time(&a->blink_anim, 400);
-        lv_anim_set_repeat_count(&a->blink_anim, LV_ANIM_REPEAT_INFINITE);
-        lv_anim_start(&a->blink_anim);
-        a->blink_running = true;
-    } else {
-        lv_obj_set_style_arc_opa(a->arc, zone == SENSOR_ZONE_SAFE ? (LV_OPA_60) : (LV_OPA_80), LV_PART_INDICATOR);
-    }
+    lv_obj_set_style_arc_color(a->arc, zone_color(zone), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_opa(a->arc, LV_OPA_COVER, LV_PART_INDICATOR);
 }
 
 /* Neutral "no data" style for a slot that has never reported or just went from
@@ -48,12 +40,18 @@ void arc_set_zone(sensor_arc_t *a, sensor_zone_t zone)
  */
 void arc_set_nodata(sensor_arc_t *a)
 {
+    if (a->has_zone && !a->blink_running && a->current_zone == (sensor_zone_t)-1) {
+        return;
+    }
+    a->has_zone = true;
+    a->current_zone = (sensor_zone_t)-1;
+
     if (a->blink_running) {
         lv_anim_delete(a->arc, blink_anim_cb);
         a->blink_running = false;
     }
     lv_obj_set_style_arc_color(a->arc, lv_color_hex(COLOR_NODATA), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_opa(a->arc, LV_OPA_30, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_opa(a->arc, LV_OPA_COVER, LV_PART_INDICATOR);
 }
 
 static lv_obj_t *make_arc(lv_obj_t *parent, int16_t local_x, int16_t local_y, int16_t mid_angle_deg)
@@ -80,7 +78,7 @@ static lv_obj_t *make_arc(lv_obj_t *parent, int16_t local_x, int16_t local_y, in
     lv_obj_set_style_arc_width(arc, 24, LV_PART_MAIN);
     lv_obj_set_style_arc_opa(arc, LV_OPA_10, LV_PART_MAIN);
     lv_obj_set_style_arc_color(arc, lv_color_hex(COLOR_SAFE), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_opa(arc, LV_OPA_60, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_opa(arc, LV_OPA_COVER, LV_PART_INDICATOR);
 
     return arc;
 }
@@ -241,6 +239,8 @@ lv_obj_t *build_center_canvas(lv_obj_t *parent)
         s_arcs[i].mid_angle_deg = k_layout[i].angle;
         s_arcs[i].arc = make_arc(canvas, k_layout[i].x, k_layout[i].y, k_layout[i].angle);
         s_arcs[i].blink_running = false;
+        s_arcs[i].has_zone = false;
+        s_arcs[i].current_zone = (sensor_zone_t)-1;
     }
 
     return canvas;
@@ -265,6 +265,8 @@ lv_obj_t *build_right_sidebar(lv_obj_t *parent)
     s_lbl_hazard_overall = lv_label_create(sidebar);
     lv_label_set_text(s_lbl_hazard_overall, "OVERALL: SAFE");
     lv_obj_set_style_text_color(s_lbl_hazard_overall, lv_color_hex(COLOR_SAFE), 0);
+    lv_label_set_long_mode(s_lbl_hazard_overall, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(s_lbl_hazard_overall, LV_PCT(100));
 
     lv_obj_t *risk_hdr = lv_label_create(sidebar);
     lv_label_set_text(risk_hdr, "CROSSING RISK");

@@ -1,0 +1,3 @@
+# Flash size 8MB matching board yolo_uno (ESP32-S3 8MB Flash)
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="8MB"

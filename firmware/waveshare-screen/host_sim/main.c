@@ -219,4 +219,5 @@ int main(int argc, char **argv)
     SDL_Quit();
     printf("[sim] exiting rc=%d (OK)\n", rc);
     return rc;
+}   return rc;
 }

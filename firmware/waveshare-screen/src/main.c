@@ -69,6 +69,7 @@ static void on_coreiot_data(const char *topic, int topic_len, const char *payloa
                 ui_dashboard_update_sensor((uint8_t)i, (uint16_t)cJSON_GetNumberValue(item));
             }
         }
+        ui_dashboard_evaluate_hazard();
     }
 
     cJSON *relay = cJSON_GetObjectItem(root, "relay");
@@ -110,42 +111,66 @@ static void on_mqtt_status(bool is_connected)
 
 /* =========================================================
  * ESP-NOW PATH (đường chính, độ trễ thấp)
- * Sensor-node gửi espnow_sensor_msg_t (firmware/shared) mỗi 500ms.
- * Callback chạy trên WiFi task -> lấy LVGL lock có timeout (như MQTT path).
+ * Sensor-node gửi espnow_sensor_msg_t (firmware/shared) mỗi 100ms.
+ * Thread-Safe Reactive Pipeline: Callback chạy trên Wi-Fi task chỉ ghi snapshot
+ * vào RAM và thoát (< 1us). Tác vụ LVGL tự đọc và dispatch qua timer 50ms.
+ * Tuyệt đối không gọi esp_lv_adapter_lock từ callback Wi-Fi để tránh nghẽn luồng.
  * ========================================================= */
+
+static espnow_sensor_msg_t s_latest_espnow_msg;
+static volatile bool s_espnow_msg_pending = false;
+static portMUX_TYPE s_espnow_mux = portMUX_INITIALIZER_UNLOCKED;
 
 static void on_espnow_rx(const espnow_sensor_msg_t *msg, int8_t rssi)
 {
-    ESP_LOGD(TAG, "ESP-NOW frame seq=%u rssi=%d dBm", (unsigned)msg->seq, (int)rssi);
+    (void)rssi;
+    taskENTER_CRITICAL(&s_espnow_mux);
+    memcpy(&s_latest_espnow_msg, msg, sizeof(espnow_sensor_msg_t));
+    s_espnow_msg_pending = true;
+    taskEXIT_CRITICAL(&s_espnow_mux);
+}
 
-    if (esp_lv_adapter_lock(LV_LOCK_TIMEOUT_TICKS) != ESP_OK) {
+/* Dispatcher chạy trực tiếp trên LVGL task (chu kỳ 50ms): tiêu thụ dữ liệu ESP-NOW
+ * mà không cần lock mutex giữa 2 Core, chấm dứt hoàn toàn hiện tượng giật do tranh chấp luồng. */
+static void espnow_ui_dispatch_timer_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    espnow_sensor_msg_t msg;
+    bool pending = false;
+
+    taskENTER_CRITICAL(&s_espnow_mux);
+    if (s_espnow_msg_pending) {
+        memcpy(&msg, &s_latest_espnow_msg, sizeof(espnow_sensor_msg_t));
+        s_espnow_msg_pending = false;
+        pending = true;
+    }
+    taskEXIT_CRITICAL(&s_espnow_mux);
+
+    if (!pending) {
         return;
     }
 
     ui_dashboard_set_espnow_status(true);
 
     for (uint8_t i = 0; i < ESPNOW_SENSOR_SLOT_COUNT; i++) {
-        sensor_health_t h = (sensor_health_t)msg->health[i];
+        sensor_health_t h = (sensor_health_t)msg.health[i];
 
-        if (msg->valid[i]) {
-            /* Cảm biến hoạt động tốt: cập nhật khoảng cách và health. */
-            ui_dashboard_update_sensor(i, (uint16_t)msg->distance_cm[i]);
+        if (msg.valid[i]) {
+            /* Cảm biến hoạt động tốt: cập nhật khoảng cách và health (đã có Deadband 3cm bên trong). */
+            ui_dashboard_update_sensor(i, (uint16_t)msg.distance_cm[i]);
         } else if (h == SENSOR_HEALTH_DISCONNECTED) {
-            /* Mất kết nối: chỉ xóa và cập nhật UI khi trạng thái thay đổi.
-             * Tránh gọi clear lặp lại mỗi 500ms làm nghẽn bus PSRAM và spam log. */
+            /* Mất kết nối: chỉ xóa và cập nhật UI khi trạng thái thay đổi. */
             sensor_reading_t cur = sensor_model_get((sensor_id_t)i);
             if (cur.health != SENSOR_HEALTH_DISCONNECTED || !cur.is_stale) {
                 sensor_model_set_health((sensor_id_t)i, SENSOR_HEALTH_DISCONNECTED);
                 ui_dashboard_clear_sensor(i);
                 ESP_LOGI(TAG, "Slot %u DISCONNECTED (sensor-node reported fault)", i);
             }
-        } else {
-            /* valid[i]=0, health=OUT_OF_RANGE: phía trước thoáng.
-             * Giữ giá trị màn hình, để watchdog quyết định sau. */
         }
     }
 
-    esp_lv_adapter_unlock();
+    /* Đánh giá tổng thể 1 lần duy nhất sau khi duyệt hết 6 cảm biến */
+    ui_dashboard_evaluate_hazard();
 }
 
 /* Watchdog chạy trên LVGL task (timer 250ms): nếu vừa hết link hoặc slot quá
@@ -168,6 +193,7 @@ static void espnow_link_watchdog_cb(lv_timer_t *timer)
                 sensor_model_set_health((sensor_id_t)i, SENSOR_HEALTH_STALE);
                 ui_dashboard_clear_sensor(i);
             }
+            ui_dashboard_evaluate_hazard();
             return;
         }
     }
@@ -180,6 +206,7 @@ static void espnow_link_watchdog_cb(lv_timer_t *timer)
      * Chặt hơn ESPNOW_LINK_TIMEOUT_MS (3000ms) để phát hiện nhanh khi
      * 1 cảm biến cụ thể bị rút dây trong khi các cảm biến khác vẫn tốt. */
     uint32_t now_ms = (uint32_t)(esp_timer_get_time() / 1000);
+    bool any_cleared = false;
     for (uint8_t i = 0; i < ESPNOW_SENSOR_SLOT_COUNT; i++) {
         uint32_t last = espnow_receiver_last_rx_ms(i);
         if (last != 0 && (now_ms - last) > SENSOR_STALE_TIMEOUT_MS) {
@@ -187,15 +214,21 @@ static void espnow_link_watchdog_cb(lv_timer_t *timer)
             if (!r.is_stale) {
                 sensor_model_set_health((sensor_id_t)i, SENSOR_HEALTH_STALE);
                 ui_dashboard_clear_sensor(i);
+                any_cleared = true;
             }
         }
+    }
+    if (any_cleared) {
+        ui_dashboard_evaluate_hazard();
     }
 }
 
 void app_main(void)
 {
     const esp_lv_adapter_rotation_t rotation = ESP_LV_ADAPTER_ROTATE_0;
-    const esp_lv_adapter_tear_avoid_mode_t tear_mode = ESP_LV_ADAPTER_TEAR_AVOID_MODE_DEFAULT_RGB;
+    /* Chế độ NONE: Single PSRAM buffer, vẽ cục bộ (partial), không block task chờ VSYNC,
+     * giảm tải bus PSRAM 300 lần so với full-frame mode và tương thích hoàn hảo khi bật Wi-Fi. */
+    const esp_lv_adapter_tear_avoid_mode_t tear_mode = ESP_LV_ADAPTER_TEAR_AVOID_MODE_NONE;
 
     esp_lcd_panel_handle_t panel_handle = NULL;
     esp_lcd_touch_handle_t touch_handle = NULL;
@@ -219,6 +252,7 @@ void app_main(void)
         EXAMPLE_LCD_H_RES,
         EXAMPLE_LCD_V_RES,
         rotation);
+    disp_config.tear_avoid_mode = tear_mode;
     disp_config.profile.use_psram = true;
 
     lv_display_t *disp = esp_lv_adapter_register_display(&disp_config);
@@ -240,6 +274,9 @@ void app_main(void)
 
         /* Watchdog ESP-NOW: chạy trên LVGL task → gọi UI trực tiếp an toàn. */
         lv_timer_create(espnow_link_watchdog_cb, 250, NULL);
+
+        /* ESP-NOW UI Dispatcher: chạy định kỳ 50ms trên LVGL task → đọc snapshot từ Wi-Fi task. */
+        lv_timer_create(espnow_ui_dispatch_timer_cb, 50, NULL);
 
         esp_lv_adapter_unlock();
     }
