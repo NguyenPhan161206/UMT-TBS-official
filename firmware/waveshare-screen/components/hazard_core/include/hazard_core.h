@@ -52,10 +52,18 @@ typedef struct {
  * Thuần, không FreeRTOS. */
 sensor_zone_t hazard_classify(uint16_t distance_cm);
 
-/* Zone tệ nhất giữa n slot; skip slot stale (is_stale[i] == true) — giữ hành
- * vi evaluate_hazard() cũ (distance_cm=0 mặc định không bị tính thành DANGER
- * khi sensor chưa report). dist/stale NULL hoặc n==0 -> SAFE. */
-sensor_zone_t hazard_worst_zone(const uint16_t *dist_cm, const bool *is_stale, size_t n);
+/* Zone tệ nhất giữa n slot; skip slot stale (is_stale[i] == true) hoặc slot
+ * có health là DISCONNECTED/STALE (nếu health != NULL). Safety-Critical:
+ * slot hỏng/mất nguồn không được dùng khoảng cách cũ để báo DANGER.
+ * dist/stale NULL hoặc n==0 -> SAFE. */
+sensor_zone_t hazard_worst_zone(const uint16_t *dist_cm,
+                                const bool     *is_stale,
+                                const uint8_t  *health,
+                                size_t          n);
+
+/* Kiểm tra xà hệ thống có ít nhất 1 cảm biến lỗi/mất kết nối.
+ * Trả về true nếu bất kỳ slot nào ở DISCONNECTED hoặc STALE. */
+bool hazard_has_sensor_fault(const uint8_t *health, size_t n);
 
 /* Heuristic crossing-traffic (T2.3): front_close = cur[FRONT] < 150; quét side
  * slots (LEFT_FRONT..RIGHT_REAR), active khi có slot |cur-prev| >= 40.

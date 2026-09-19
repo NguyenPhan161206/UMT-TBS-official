@@ -47,25 +47,49 @@ static void test_worst_zone_skip_stale(void)
     /* Sensor chưa report (stale) với distance_cm=0 KHÔNG được tính DANGER. */
     const uint16_t dist_all_stale[] = {0, 0, 0, 0, 0, 0};
     const bool stale_all[] = {true, true, true, true, true, true};
-    CHECK(hazard_worst_zone(dist_all_stale, stale_all, 6) == SENSOR_ZONE_SAFE, "all stale -> SAFE");
+    CHECK(hazard_worst_zone(dist_all_stale, stale_all, NULL, 6) == SENSOR_ZONE_SAFE, "all stale -> SAFE");
 
     const uint16_t dist_one_live_danger[] = {0, 20, 0, 0, 0, 0};
     const bool stale_one_live[] = {true, false, true, true, true, true};
-    CHECK(hazard_worst_zone(dist_one_live_danger, stale_one_live, 6) == SENSOR_ZONE_DANGER,
+    CHECK(hazard_worst_zone(dist_one_live_danger, stale_one_live, NULL, 6) == SENSOR_ZONE_DANGER,
           "1 live DANGER -> DANGER");
 
     const uint16_t dist_live_caution[] = {55, 0, 0, 0, 0, 0};
     const bool stale_live_caution[] = {false, true, true, true, true, true};
-    CHECK(hazard_worst_zone(dist_live_caution, stale_live_caution, 6) == SENSOR_ZONE_CAUTION,
+    CHECK(hazard_worst_zone(dist_live_caution, stale_live_caution, NULL, 6) == SENSOR_ZONE_CAUTION,
           "1 live CAUTION -> CAUTION");
 
     const uint16_t dist_mixed[] = {55, 20, 150, 0, 0, 0};
     const bool stale_mixed[] = {false, false, false, true, true, true};
-    CHECK(hazard_worst_zone(dist_mixed, stale_mixed, 6) == SENSOR_ZONE_DANGER,
+    CHECK(hazard_worst_zone(dist_mixed, stale_mixed, NULL, 6) == SENSOR_ZONE_DANGER,
           "live 20cm -> DANGER beats CAUTION");
 
+    /* Safety-Critical: Sensor có health=DISCONNECTED hoặc STALE không được dùng khoảng cách cũ để báo DANGER */
+    const uint16_t dist_fault[] = {20, 20, 20, 20, 20, 20};
+    const bool not_stale[6] = {false, false, false, false, false, false};
+    const uint8_t health_all_disconnected[6] = {
+        (uint8_t)SENSOR_HEALTH_DISCONNECTED, (uint8_t)SENSOR_HEALTH_DISCONNECTED,
+        (uint8_t)SENSOR_HEALTH_DISCONNECTED, (uint8_t)SENSOR_HEALTH_DISCONNECTED,
+        (uint8_t)SENSOR_HEALTH_DISCONNECTED, (uint8_t)SENSOR_HEALTH_DISCONNECTED
+    };
+    CHECK(hazard_worst_zone(dist_fault, not_stale, health_all_disconnected, 6) == SENSOR_ZONE_SAFE,
+          "all disconnected sensors -> SAFE even if old dist was 20cm");
+    CHECK(hazard_has_sensor_fault(health_all_disconnected, 6) == true, "has_sensor_fault -> true");
+
+    const uint8_t health_one_ok_danger[6] = {
+        (uint8_t)SENSOR_HEALTH_OK, (uint8_t)SENSOR_HEALTH_DISCONNECTED,
+        (uint8_t)SENSOR_HEALTH_STALE, (uint8_t)SENSOR_HEALTH_DISCONNECTED,
+        (uint8_t)SENSOR_HEALTH_DISCONNECTED, (uint8_t)SENSOR_HEALTH_DISCONNECTED
+    };
+    CHECK(hazard_worst_zone(dist_fault, not_stale, health_one_ok_danger, 6) == SENSOR_ZONE_DANGER,
+          "one live OK sensor with 20cm -> DANGER");
+    CHECK(hazard_has_sensor_fault(health_one_ok_danger, 6) == true, "has_sensor_fault -> true");
+
+    const uint8_t health_all_ok[6] = {0, 0, 0, 0, 0, 0};
+    CHECK(hazard_has_sensor_fault(health_all_ok, 6) == false, "all OK -> no sensor fault");
+
     /* Edge: n = 0 và NULL -> SAFE (không crash). */
-    CHECK(hazard_worst_zone(NULL, NULL, 0) == SENSOR_ZONE_SAFE, "NULL/NULL/0 -> SAFE");
+    CHECK(hazard_worst_zone(NULL, NULL, NULL, 0) == SENSOR_ZONE_SAFE, "NULL/NULL/NULL/0 -> SAFE");
 }
 
 static void test_crossing_delta(void)

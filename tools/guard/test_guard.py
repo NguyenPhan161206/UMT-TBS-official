@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -141,7 +142,8 @@ def load_tool_module():
 
 def test_build_payload_v2_format():
     t = load_tool_module()
-    p = t.build_payload(20.0)
+    # build_payload nhận list[float] 6 phần tử kể từ V2
+    p = t.build_payload([20.0] * 6)
     assert {k: p[k] for k in ("d1", "d2", "d3", "d4", "d5", "d6")} == {
         k: 20.0 for k in ("d1", "d2", "d3", "d4", "d5", "d6")
     }
@@ -154,7 +156,7 @@ def test_build_payload_v2_format():
 def test_classify_boundaries():
     t = load_tool_module()
     assert t.classify(29.9) == "DANGER"
-    assert t.classify(30.0) == "DANGER"   # x <= 30
+    assert t.classify(30.0) == "DANGER"   # x <= 30 (thresholds.h)
     assert t.classify(30.1) == "CAUTION"
     assert t.classify(100.0) == "CAUTION"  # 30 < x <= 100
     assert t.classify(100.1) == "NORMAL"
@@ -162,10 +164,11 @@ def test_classify_boundaries():
 
 def test_dry_run_without_token():
     # --dry-run không cần token/paho; in payload JSON, exit 0.
+    env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
     p = subprocess.run(
         [sys.executable, str(ROOT / "tools" / "test_mqtt_coreiot.py"),
          "--dry-run", "--distance", "25"],
-        capture_output=True, text=True, cwd=ROOT,
+        capture_output=True, text=True, encoding="utf-8", cwd=ROOT, env=env,
     )
     assert p.returncode == 0, p.stderr
     assert '"warning_status": "DANGER"' in p.stdout

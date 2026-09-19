@@ -47,6 +47,8 @@ typedef struct {
     int16_t mid_angle_deg; /* LVGL angle convention: 0=right, 90=down, 180=left, 270=up */
     lv_anim_t blink_anim;
     bool blink_running;
+    sensor_zone_t current_zone;
+    bool has_zone;
 } sensor_arc_t;
 
 typedef struct {

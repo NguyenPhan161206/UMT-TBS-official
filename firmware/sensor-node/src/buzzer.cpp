@@ -29,7 +29,7 @@ void buzzerTask(void *pvParameters)
     buzzerInit();
 
     uint32_t lastBeepStartMs = millis();
-    bool beeping = false;
+    bool beeping   = false;
     bool continuous = false;
 
     for (;;)
@@ -37,47 +37,67 @@ void buzzerTask(void *pvParameters)
         float nearestCm = 0.0f;
         bool hasNearest = sharedStateGetNearest(nearestCm);
 
-        bool danger = hasNearest && nearestCm > 0.0f && nearestCm <= SENSOR_DANGER_CM;
-        bool caution = hasNearest && nearestCm > 0.0f && nearestCm <= SENSOR_CAUTION_CM;
-
         uint32_t now = millis();
+
+        /* Tắt còi ngay lập tức nếu KHÔNG có cảm biến hợp lệ nào
+         * (tất cả đã mất kết nối / bị rút nguồn). */
+        if (!hasNearest || nearestCm <= 0.0f)
+        {
+            if (beeping || continuous)
+            {
+                buzzerToneOff();
+                continuous = false;
+                beeping    = false;
+            }
+            vTaskDelay(pdMS_TO_TICKS(TASK_POLL_INTERVAL_MS));
+            continue;
+        }
+
+        /* Phân loại zone dùng ngưỡng dùng chung (thresholds.h R3). */
+        bool danger  = nearestCm <= (float)SENSOR_DANGER_CM;
+        bool caution = !danger && nearestCm <= (float)SENSOR_CAUTION_CM;
 
         if (danger)
         {
+            /* DANGER: kêu liên tục. */
             if (!continuous)
             {
                 buzzerToneOn();
                 continuous = true;
+                beeping    = true;
+                lastBeepStartMs = now;
+            }
+        }
+        else if (caution)
+        {
+            /* CAUTION: bip ngắt quãng mỗi BUZZER_WARNING_PERIOD_MS. */
+            if (continuous)
+            {
+                /* Vừa thoát khỏi DANGER, dừng kêu liên tục. */
+                buzzerToneOff();
+                continuous = false;
+                beeping    = false;
+            }
+            if (!beeping && (now - lastBeepStartMs >= BUZZER_WARNING_PERIOD_MS))
+            {
+                buzzerToneOn();
                 beeping = true;
                 lastBeepStartMs = now;
+            }
+            else if (beeping && (now - lastBeepStartMs >= BUZZER_BEEP_ON_MS))
+            {
+                buzzerToneOff();
+                beeping = false;
             }
         }
         else
         {
-            if (continuous)
+            /* SAFE: tắt còi. */
+            if (continuous || beeping)
             {
                 buzzerToneOff();
                 continuous = false;
-                beeping = false;
-            }
-            if (caution)
-            {
-                if (!beeping && (now - lastBeepStartMs >= BUZZER_WARNING_PERIOD_MS))
-                {
-                    buzzerToneOn();
-                    beeping = true;
-                    lastBeepStartMs = now;
-                }
-                else if (beeping && (now - lastBeepStartMs >= BUZZER_BEEP_ON_MS))
-                {
-                    buzzerToneOff();
-                    beeping = false;
-                }
-            }
-            else if (beeping)
-            {
-                buzzerToneOff();
-                beeping = false;
+                beeping    = false;
             }
         }
 
