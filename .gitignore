@@ -23,8 +23,6 @@ build/
 **/.pio/
 sdkconfig*
 **/sdkconfig*
-!sdkconfig.defaults
-!**/sdkconfig.defaults
 build_sim/
 **/build_sim/
 managed_components/

@@ -85,8 +85,9 @@ Qua phân tích mã nguồn và đặc tính phần cứng màn hình RGB 800x48
    - Trong `on_espnow_rx`: Chạy trên Wi-Fi task, chỉ lưu gói tin vào snapshot trong RAM (`s_latest_espnow_msg`) có critical section bảo vệ, tốn < 1us và **tuyệt đối không gọi `esp_lv_adapter_lock`**.
    - Tạo `espnow_ui_dispatch_timer_cb` (LVGL timer định kỳ 50ms): Chạy trực tiếp trên LVGL thread, tự lấy snapshot cập nhật widget một cách tự nhiên mà không có tranh chấp khóa mutex giữa các nhân CPU.
 
-4. **Khắc Phục Cảnh Báo Flash Mismatch ([sdkconfig.defaults](file:///e:/Truck_Blind_Sight/firmware/waveshare-screen/sdkconfig.defaults))**:
-   - Thêm `CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y` và `CONFIG_ESPTOOLPY_FLASHSIZE="8MB"`, khớp hoàn toàn với chip ESP32-S3 8MB Flash của board Waveshare.
+4. **Tuân Thủ Hiến Pháp R8 (Không track sdkconfig)**:
+   - Bản phân vùng `partitions.csv` và board definition `boards/yolo_uno.json` đã cấu hình chuẩn 8MB.
+   - Để tuân thủ tuyệt đối quy tắc **R8 trong CONSTITUTION.md** (không bao giờ đưa bất kỳ file `sdkconfig*` nào vào git), các file cấu hình tạm `sdkconfig*` được giữ trong `.gitignore`.
 
 5. **Khắc Phục Lỗi Cắt Chữ HAZARD STATE ([ui_dashboard_layout.c](file:///e:/Truck_Blind_Sight/firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c) & [ui_dashboard.c](file:///e:/Truck_Blind_Sight/firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c))**:
    - Sidebar 180px không đủ chỗ cho chuỗi `OVERALL: SAFE | SENSOR FAULT` trên 1 hàng.
