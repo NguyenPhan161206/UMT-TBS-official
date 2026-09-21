@@ -50,9 +50,14 @@ static void syncPeerChannelToHome()
 
 void EspNowClient::begin()
 {
+#if USE_COREIOT
+    // Không ngắt WiFi vì đang dùng chung với CoreIoT
+    WiFi.mode(WIFI_STA);
+#else
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+#endif
     esp_wifi_set_ps(WIFI_PS_NONE);
 
     // Tắt modem-sleep: khi env _coreiot associate vào AP, PS mặc định làm trễ
