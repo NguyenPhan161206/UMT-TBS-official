@@ -292,6 +292,11 @@ FilterResult DistanceFilter::process(float rawDistanceCm)
             _stableDistanceCm = (currRaw + prevRaw) / 2.0f;
             clearJumpCandidate();
             
+            // THÊM MỚI: Xóa mảng lịch sử cũ, chỉ giữ lại 2 tia hiện tại
+            // để bộ phân cụm chậm không bị kéo về quá khứ.
+            float fastTrackMembers[2] = {prevRaw, currRaw};
+            replaceHistoryWith(fastTrackMembers, 2);
+            
             result.hasOutput = true;
             result.outputCm = _stableDistanceCm;
             result.status = "FAST_TRACK_CROSSING";

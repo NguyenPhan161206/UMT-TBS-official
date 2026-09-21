@@ -151,7 +151,7 @@ void test_filter_fast_track_crossing(void)
     
     // 4. Xe đã đi qua, trả về nền cũ. Mẫu 3 chưa đủ khẳng định (vẫn giữ 51cm chờ xác nhận).
     FilterResult r3 = f.process(300.0f);
-    TEST_ASSERT_EQUAL_STRING("HOLD_JUMP", r3.status); // Vẫn tìm thấy cụm 300cm nhưng bị hold
+    TEST_ASSERT_EQUAL_STRING("WARMUP", r3.status); // Lịch sử đã bị reset, chờ thu thập đủ 5 mẫu mới
     TEST_ASSERT_FLOAT_WITHIN(2.0f, 51.0f, r3.outputCm);
 
     // 5. Mẫu 4 giống mẫu 3 -> Khoảng trống thật. Nền kéo về 300cm lập tức.
