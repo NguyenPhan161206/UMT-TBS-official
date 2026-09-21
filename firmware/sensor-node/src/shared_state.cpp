@@ -9,6 +9,7 @@ namespace
 {
 SemaphoreHandle_t s_mutex = nullptr;
 float s_distanceCm[SENSOR_COUNT] = {0};
+bool s_isMuted = false;
 bool s_valid[SENSOR_COUNT] = {false};
 /* Trạng thái sức khỏe từng cảm biến; khởi tạo DISCONNECTED để tránh
  * cảnh báo ma trước khi cảm biến báo cáo lần đầu tiên. */
@@ -105,4 +106,18 @@ bool sharedStateGetNearest(float &nearestCm)
         xSemaphoreGive(s_mutex);
     }
     return found;
+}
+void sharedStateSetMute(bool mute)
+{
+    xSemaphoreTake(s_mutex, portMAX_DELAY);
+    s_isMuted = mute;
+    xSemaphoreGive(s_mutex);
+}
+
+bool sharedStateGetMute()
+{
+    xSemaphoreTake(s_mutex, portMAX_DELAY);
+    bool m = s_isMuted;
+    xSemaphoreGive(s_mutex);
+    return m;
 }

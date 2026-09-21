@@ -262,6 +262,12 @@ void app_main(void)
         esp_lv_adapter_touch_config_t touch_config = ESP_LV_ADAPTER_TOUCH_DEFAULT_CONFIG(disp, touch_handle);
         lv_indev_t *touch = esp_lv_adapter_register_touch(&touch_config);
         assert(touch != NULL);
+        
+        // Bật con trỏ chuột ảo để debug lỗi lệch cảm ứng
+        lv_obj_t * cursor_obj = lv_label_create(lv_screen_active());
+        lv_label_set_text(cursor_obj, LV_SYMBOL_GPS);
+        lv_obj_set_style_text_color(cursor_obj, lv_color_hex(0xFF0000), 0);
+        lv_indev_set_cursor(touch, cursor_obj);
     }
 
     ESP_ERROR_CHECK(esp_lv_adapter_start());

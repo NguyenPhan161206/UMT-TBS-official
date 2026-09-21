@@ -24,3 +24,8 @@ sensor_health_t sharedStateGetHealth(size_t sensorIndex);
 // Trả về true nếu có ít nhất một cảm biến có giá trị hợp lệ.
 // Dùng cho buzzer/telemetry: chỉ cần vật cản gần nhất trong tầm.
 bool sharedStateGetNearest(float &nearestCm);
+
+// Ghi trạng thái Mute còi (nhận từ màn hình)
+void sharedStateSetMute(bool mute);
+// Đọc trạng thái Mute còi
+bool sharedStateGetMute();

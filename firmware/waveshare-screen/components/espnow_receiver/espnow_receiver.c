@@ -122,3 +122,17 @@ esp_err_t espnow_receiver_force_channel(void)
     }
     return err;
 }
+esp_err_t espnow_receiver_send_cmd(const espnow_cmd_msg_t *cmd)
+{
+    // Tạo peer info broadcast (gửi ngược cho tất cả sensor-node)
+    esp_now_peer_info_t peer = {0};
+    memcpy(peer.peer_addr, ESPNOW_PEER_MAC, 6);
+    // Peer channel không cần thiết lập vì broadcast trên kênh hiện tại
+    
+    // Thêm peer nếu chưa tồn tại
+    if (!esp_now_is_peer_exist(ESPNOW_PEER_MAC)) {
+        esp_now_add_peer(&peer);
+    }
+    
+    return esp_now_send(ESPNOW_PEER_MAC, (const uint8_t *)cmd, sizeof(espnow_cmd_msg_t));
+}

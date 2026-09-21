@@ -90,6 +90,16 @@ TBS_STATIC_ASSERT(sizeof(espnow_sensor_msg_t) ==
                   sizeof(uint8_t) * ESPNOW_SENSOR_SLOT_COUNT * 2,
                   "espnow_sensor_msg_t size mismatch — update both firmwares");
 
+
+/* Lệnh điều khiển từ Màn hình gửi ngược về Cảm biến (Reverse ESP-NOW).
+ * Dùng kích thước struct (len) để phân biệt với espnow_sensor_msg_t. */
+typedef struct __attribute__((packed)) {
+    uint8_t cmd_type; /* ESPNOW_CMD_MUTE_BUZZER */
+    uint8_t payload;  /* 1 = Mute, 0 = Unmute */
+} espnow_cmd_msg_t;
+
+#define ESPNOW_CMD_MUTE_BUZZER 1
+
 #ifdef __cplusplus
 }
 #endif
