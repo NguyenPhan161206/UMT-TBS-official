@@ -1,10 +1,26 @@
 #include "espnow_client.h"
+#include "shared_state.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <esp_now.h>
 #include <string.h>
 
+
+static void onDataRecv(const uint8_t *macAddr, const uint8_t *data, int len)
+{
+    Serial.printf("[ESPNOW] RECV pkt len: %d\n", len);
+    if (len == sizeof(espnow_cmd_msg_t))
+    {
+        espnow_cmd_msg_t cmd;
+        memcpy(&cmd, data, sizeof(espnow_cmd_msg_t));
+        Serial.printf("[ESPNOW] RECV CMD type: %d, payload: %d\n", cmd.cmd_type, cmd.payload);
+        if (cmd.cmd_type == ESPNOW_CMD_MUTE_BUZZER)
+        {
+            sharedStateSetMute(cmd.payload != 0);
+        }
+    }
+}
 static void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
     (void)mac_addr;
@@ -71,6 +87,7 @@ void EspNowClient::begin()
     }
 
     esp_now_register_send_cb(onDataSent);
+    esp_now_register_recv_cb(onDataRecv);
 
     // Broadcast (ESPNOW_PEER_MAC = FF:FF:FF:FF:FF:FF) không bắt buộc add_peer,
     // esp_now_send() tới broadcast làm việc trực tiếp. Cố gắng add_peer tương

@@ -7,6 +7,8 @@
  */
 
 #include "ui_dashboard_private.h"
+#include "espnow_receiver.h"
+
 
 #include "coreiot_client.h"
 #include "esp_log.h"
@@ -76,11 +78,14 @@ void mute_btn_cb(lv_event_t *e)
     s_alarm_muted = !s_alarm_muted;
     update_mute_button_visual();
 
-    sensor_reading_t readings[SENSOR_MODEL_COUNT];
-    sensor_model_get_all(readings);
-    for (int i = 0; i < SENSOR_MODEL_COUNT; i++) {
-        arc_set_zone(&s_arcs[i], hazard_classify(readings[i].distance_cm));
-    }
+    // Gửi lệnh MUTE qua ESP-NOW
+    espnow_cmd_msg_t cmd;
+    cmd.cmd_type = ESPNOW_CMD_MUTE_BUZZER;
+    cmd.payload = s_alarm_muted ? 1 : 0;
+    esp_err_t err = espnow_receiver_send_cmd(&cmd);
+    ESP_LOGI("UI", "Send MUTE cmd=%d, err=0x%x", cmd.payload, err);
+
+    // Chỉ cập nhật banner/status, KHÔNG thay màu arc của sensor
     evaluate_hazard();
 }
 
@@ -182,6 +187,14 @@ void evaluate_hazard(void)
             lv_label_set_text(s_lbl_hazard_overall, banner);
             /* Màu zone (FAULT không che đổi màu zone): thiết kế an toàn. */
             lv_obj_set_style_text_color(s_lbl_hazard_overall, zone_color(worst), 0);
+            
+            if (s_lbl_buzzer_state) {
+                if (s_alarm_muted) {
+                    lv_label_set_text(s_lbl_buzzer_state, "BUZZER: MUTED");
+                } else {
+                    lv_label_set_text_fmt(s_lbl_buzzer_state, "BUZZER: %s", (worst != SENSOR_ZONE_SAFE) ? "ON" : "OFF");
+                }
+            }
         }
     }
 

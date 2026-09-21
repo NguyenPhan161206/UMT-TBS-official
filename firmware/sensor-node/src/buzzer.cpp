@@ -39,9 +39,10 @@ void buzzerTask(void *pvParameters)
 
         uint32_t now = millis();
 
-        /* Tắt còi ngay lập tức nếu KHÔNG có cảm biến hợp lệ nào
-         * (tất cả đã mất kết nối / bị rút nguồn). */
-        if (!hasNearest || nearestCm <= 0.0f)
+        bool isMuted = sharedStateGetMute();
+
+        /* Tắt còi ngay lập tức nếu KHÔNG có cảm biến hợp lệ nào, hoặc bị MUTE từ màn hình. */
+        if (!hasNearest || nearestCm <= 0.0f || isMuted)
         {
             if (beeping || continuous)
             {

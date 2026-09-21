@@ -63,6 +63,12 @@ esp_err_t espnow_receiver_force_channel(void);
  */
 uint32_t espnow_receiver_last_rx_ms(uint8_t slot);
 
+/**
+ * @brief Gửi lệnh điều khiển ngược lại sensor-node (VD: Mute Buzzer).
+ */
+esp_err_t espnow_receiver_send_cmd(const espnow_cmd_msg_t *cmd);
+
+
 #ifdef __cplusplus
 }
 #endif
