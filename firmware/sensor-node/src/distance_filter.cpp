@@ -275,27 +275,46 @@ FilterResult DistanceFilter::process(float rawDistanceCm)
 
     addToHistory(rawDistanceCm);
 
-    // FAST-TRACK: Crossing Vehicle Heuristic (T2.3)
-    // Nếu có 2 mẫu thô (raw) liên tiếp rất giống nhau, nhưng khác xa kết quả ổn định,
-    // đây là vật cắt ngang cực nhanh. Lập tức chèn ngang kết quả để gửi đi.
-    if (_hasStable && _historyCount >= 2)
+    // FAST-TRACK: Asymmetric Crossing Vehicle Heuristic (T2.3)
+    // Chiều VÀO (Khoảng cách giảm đột ngột): Cần 2 mẫu sát nhau để chống nhiễu
+    // Chiều RA (Khoảng cách tăng đột ngột): Cần 1 mẫu duy nhất để ngắt cảnh báo siêu tốc
+    if (_hasStable && _historyCount >= 1)
     {
-        float prevRaw = _rawHistory[_historyCount - 2];
         float currRaw = _rawHistory[_historyCount - 1];
+        float diffFromStableAbs = fabsf(currRaw - _stableDistanceCm);
         
-        float diffFromPrev = fabsf(currRaw - prevRaw);
-        float diffFromStable = fabsf(currRaw - _stableDistanceCm);
+        bool isJumpOut = (currRaw > _stableDistanceCm) && 
+                         (diffFromStableAbs >= FILTER_MIN_JUMP_THRESHOLD_CM);
+                         
+        bool isJumpIn = false;
+        float prevRaw = 0.0f;
         
-        if (diffFromPrev <= FILTER_BASE_CLUSTER_TOLERANCE_CM &&
-            diffFromStable >= FILTER_MIN_JUMP_THRESHOLD_CM)
+        if (!isJumpOut && _historyCount >= 2)
         {
-            _stableDistanceCm = (currRaw + prevRaw) / 2.0f;
+            prevRaw = _rawHistory[_historyCount - 2];
+            float diffFromPrev = fabsf(currRaw - prevRaw);
+            
+            isJumpIn = (currRaw < _stableDistanceCm) && 
+                       (diffFromStableAbs >= FILTER_MIN_JUMP_THRESHOLD_CM) &&
+                       (diffFromPrev <= FILTER_BASE_CLUSTER_TOLERANCE_CM);
+        }
+        
+        if (isJumpIn || isJumpOut)
+        {
+            _stableDistanceCm = isJumpIn ? ((currRaw + prevRaw) / 2.0f) : currRaw;
             clearJumpCandidate();
             
-            // THÊM MỚI: Xóa mảng lịch sử cũ, chỉ giữ lại 2 tia hiện tại
-            // để bộ phân cụm chậm không bị kéo về quá khứ.
-            float fastTrackMembers[2] = {prevRaw, currRaw};
-            replaceHistoryWith(fastTrackMembers, 2);
+            // Xóa mảng lịch sử cũ, chỉ giữ lại mẫu hiện tại để tránh giằng co
+            if (isJumpIn)
+            {
+                float fastTrackMembers[2] = {prevRaw, currRaw};
+                replaceHistoryWith(fastTrackMembers, 2);
+            }
+            else
+            {
+                float fastTrackMembers[1] = {currRaw};
+                replaceHistoryWith(fastTrackMembers, 1);
+            }
             
             result.hasOutput = true;
             result.outputCm = _stableDistanceCm;

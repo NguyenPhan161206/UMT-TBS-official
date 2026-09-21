@@ -187,17 +187,19 @@ static void sensorTask(void *pvParameters)
                     distanceToText(hasStable, stableCm).c_str(),
                     s_invalidCount[i]);
 
-                /* Fast-disconnect: SENSOR_FAULT_CONSECUTIVE_MISS lần liên tiếp
-                 * (~300ms) → kết luận lỗi phần cứng, chuyển ngay sang DISCONNECTED.
-                 * Không chờ 15 lần (cũ) để tránh cảnh báo treo sau khi rút dây. */
-                if (s_invalidCount[i] >= SENSOR_FAULT_CONSECUTIVE_MISS)
+                /* Dynamic Fast-disconnect (Asymmetric Timeout):
+                 * Nếu xe đang ở gần (< 150cm) mà bị mất tín hiệu, xe máy đã đi khuất vào hư không.
+                 * Chỉ chờ 2 nhịp (200ms) để ngắt cảnh báo thay vì chờ 3 nhịp (300ms). */
+                int missThreshold = (hasStable && stableCm < 150.0f) ? 2 : SENSOR_FAULT_CONSECUTIVE_MISS;
+
+                if (s_invalidCount[i] >= missThreshold)
                 {
                     s_filters[i].reset();
                     sharedStateSet(i, 0.0f, false);
                     sharedStateSetHealth(i, SENSOR_HEALTH_DISCONNECTED);
                     s_invalidCount[i] = 0;
                     Serial.printf("[S%u] DISCONNECTED (x%d miss)\n",
-                                  (unsigned)i, SENSOR_FAULT_CONSECUTIVE_MISS);
+                                  (unsigned)i, missThreshold);
                 }
                 /* Fallback (vẫn giữ FILTER_RESET_AFTER_INVALID cũ làm an toàn lưới bộ lọc). */
                 else if (s_invalidCount[i] >= FILTER_RESET_AFTER_INVALID)
