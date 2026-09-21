@@ -12,13 +12,20 @@ def find_idf_paths():
         paths['idf_path'] = os.environ['IDF_PATH']
     else:
         # Check standard locations
-        candidates = [
-            r"E:\esp\v6.0.2\esp-idf",
-            r"C:\Espressif\frameworks\esp-idf*",
-            r"E:\esp\*\esp-idf",
-            r"C:\esp\esp-idf*",
-            r"C:\Users\*\esp\esp-idf*"
-        ]
+        if sys.platform == "win32":
+            candidates = [
+                r"E:\esp\v6.0.2\esp-idf",
+                r"C:\Espressif\frameworks\esp-idf*",
+                r"E:\esp\*\esp-idf",
+                r"C:\esp\esp-idf*",
+                r"C:\Users\*\esp\esp-idf*"
+            ]
+        else:
+            candidates = [
+                os.path.expanduser("~/esp/esp-idf*"),
+                os.path.expanduser("~/esp*/esp-idf*"),
+                "/opt/esp/esp-idf*"
+            ]
         for pattern in candidates:
             matches = glob.glob(pattern)
             if matches:
@@ -26,37 +33,59 @@ def find_idf_paths():
                 break
     
     # Check IDF_TOOLS_PATH
-    tools_path = os.environ.get('IDF_TOOLS_PATH', r"C:\Espressif\tools")
+    if sys.platform == "win32":
+        tools_path = os.environ.get('IDF_TOOLS_PATH', r"C:\Espressif\tools")
+    else:
+        tools_path = os.environ.get('IDF_TOOLS_PATH', os.path.expanduser("~/.espressif"))
+        
     if os.path.exists(tools_path):
         paths['idf_tools_path'] = tools_path
         
-        # Look for PowerShell profile
-        profiles = glob.glob(os.path.join(tools_path, "*PowerShell_profile.ps1"))
-        if profiles:
-            paths['shell_profile'] = profiles[0]
+        if sys.platform == "win32":
+            # Look for PowerShell profile
+            profiles = glob.glob(os.path.join(tools_path, "*PowerShell_profile.ps1"))
+            if profiles:
+                paths['shell_profile'] = profiles[0]
+                
+            # Look for Python venv (prefer directories starting with 'v' like v6.0.2)
+            python_dir = os.path.join(tools_path, "python")
+            if os.path.exists(python_dir):
+                entries = sorted(os.listdir(python_dir), reverse=True)
+                for entry in entries:
+                    if entry.startswith("v"):
+                        venv_candidate = os.path.join(python_dir, entry, "venv")
+                        if os.path.isdir(venv_candidate):
+                            paths['python_venv'] = venv_candidate
+                            break
+        else:
+            export_script = os.path.join(paths.get('idf_path', ''), "export.sh")
+            if os.path.exists(export_script):
+                paths['shell_profile'] = export_script
             
-        # Look for Python venv (prefer directories starting with 'v' like v6.0.2)
-        python_dir = os.path.join(tools_path, "python")
-        if os.path.exists(python_dir):
-            entries = sorted(os.listdir(python_dir), reverse=True)
-            for entry in entries:
-                if entry.startswith("v"):
-                    venv_candidate = os.path.join(python_dir, entry, "venv")
-                    if os.path.isdir(venv_candidate):
-                        paths['python_venv'] = venv_candidate
-                        break
+            python_dir = os.path.join(tools_path, "python_env")
+            if os.path.exists(python_dir):
+                entries = sorted(os.listdir(python_dir), reverse=True)
+                if entries:
+                    paths['python_venv'] = os.path.join(python_dir, entries[0])
 
     return paths
 
 def get_com_ports():
     ports = []
-    try:
-        # Use PowerShell to get COM ports
-        cmd = "powershell -NoProfile -Command \"[System.IO.Ports.SerialPort]::GetPortNames()\""
-        out = subprocess.check_output(cmd, shell=True, text=True)
-        ports = [p.strip() for p in out.splitlines() if p.strip()]
-    except Exception:
-        pass
+    if sys.platform == "win32":
+        try:
+            # Use PowerShell to get COM ports
+            cmd = "powershell -NoProfile -Command \"[System.IO.Ports.SerialPort]::GetPortNames()\""
+            out = subprocess.check_output(cmd, shell=True, text=True)
+            ports = [p.strip() for p in out.splitlines() if p.strip()]
+        except Exception:
+            pass
+    elif sys.platform.startswith("linux"):
+        import glob
+        ports = glob.glob("/dev/ttyUSB*") + glob.glob("/dev/ttyACM*")
+    elif sys.platform == "darwin":
+        import glob
+        ports = glob.glob("/dev/tty.usb*") + glob.glob("/dev/cu.usb*")
     return ports
 
 def replace_placeholder(text, placeholder_pattern, replacement_value):
@@ -70,22 +99,37 @@ def scan_and_update(write_file=True):
     info = find_idf_paths()
     com_ports = get_com_ports()
     
-    idf_path = info.get('idf_path', r'E:\esp\v6.0.2\esp-idf')
-    idf_tools = info.get('idf_tools_path', r'C:\Espressif\tools')
-    py_venv = info.get('python_venv', r'C:\Espressif\tools\python\v6.0.2\venv')
-    sh_profile = info.get('shell_profile', r'C:\Espressif\tools\Microsoft.v6.0.2.PowerShell_profile.ps1')
+    if sys.platform == "win32":
+        default_idf = r'E:\esp\v6.0.2\esp-idf'
+        default_tools = r'C:\Espressif\tools'
+        default_venv = r'C:\Espressif\tools\python\v6.0.2\venv'
+        default_shell = r'C:\Espressif\tools\Microsoft.v6.0.2.PowerShell_profile.ps1'
+        default_sensor = "COM8"
+        default_screen = "COM9"
+    else:
+        default_idf = os.path.expanduser('~/esp/esp-idf')
+        default_tools = os.path.expanduser('~/.espressif')
+        default_venv = os.path.expanduser('~/.espressif/python_env/idf5.0_py3.10_env')
+        default_shell = os.path.join(default_idf, 'export.sh')
+        default_sensor = "/dev/ttyUSB0"
+        default_screen = "/dev/ttyACM0"
+
+    idf_path = info.get('idf_path', default_idf)
+    idf_tools = info.get('idf_tools_path', default_tools)
+    py_venv = info.get('python_venv', default_venv)
+    sh_profile = info.get('shell_profile', default_shell)
     
     # Keep current ports in AGENTS.md if matching defaults, or use scanned ports
-    sensor_port = "COM8"
-    screen_port = "COM9"
+    sensor_port = default_sensor
+    screen_port = default_screen
     if com_ports:
-        if "COM8" in com_ports:
-            sensor_port = "COM8"
+        if default_sensor in com_ports:
+            sensor_port = default_sensor
         elif len(com_ports) > 0:
             sensor_port = com_ports[0]
             
-        if "COM9" in com_ports:
-            screen_port = "COM9"
+        if default_screen in com_ports:
+            screen_port = default_screen
         elif len(com_ports) > 1:
             screen_port = com_ports[1]
     
