@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <Preferences.h>
+#include "sys_settings.h"
 
 // Credential từ credentials.h (sinh bởi gen_credentials.py, gitignored):
 //   WIFI_SSID, WIFI_PASSWORD, COREIOT_BROKER, COREIOT_PORT,
@@ -12,10 +14,21 @@ static PubSubClient s_mqttClient(s_wifiClient);
 void CoreiotClient::begin()
 {
     s_mqttClient.setServer(COREIOT_BROKER, COREIOT_PORT);
-
     WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    Serial.printf("[NET] Connecting to WiFi SSID: %s...\n", WIFI_SSID);
+
+    Preferences pref;
+    pref.begin("sys_wifi", true);
+    sys_wifi_config_t wifi_cfg;
+    size_t len = pref.getBytes("sys_wifi", &wifi_cfg, sizeof(wifi_cfg));
+    pref.end();
+
+    if (len == sizeof(sys_wifi_config_t) && strlen(wifi_cfg.ssid) > 0) {
+        WiFi.begin(wifi_cfg.ssid, wifi_cfg.password);
+        Serial.printf("[NET] Connecting to UI-Configured WiFi SSID: %s...\n", wifi_cfg.ssid);
+    } else {
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+        Serial.printf("[NET] Connecting to Hardcoded WiFi SSID: %s...\n", WIFI_SSID);
+    }
 }
 
 void CoreiotClient::ensureWifiConnected()

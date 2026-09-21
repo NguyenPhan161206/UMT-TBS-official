@@ -19,6 +19,7 @@ idf_component_register(
         coreiot_client
         espnow_receiver
         ui_dashboard
+        sys_settings
         nvs_flash
         esp_wifi
         esp_event

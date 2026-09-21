@@ -23,6 +23,7 @@
 #include "espnow_receiver.h"
 #include "sensor_model.h"
 #include "ui_dashboard.h"
+#include "sys_settings_manager.h"
 #include "waveshare_rgb_lcd_port.h"
 
 #include "freertos/FreeRTOS.h"
@@ -225,6 +226,8 @@ static void espnow_link_watchdog_cb(lv_timer_t *timer)
 
 void app_main(void)
 {
+    sys_settings_init();
+    
     const esp_lv_adapter_rotation_t rotation = ESP_LV_ADAPTER_ROTATE_0;
     /* Chế độ NONE: Single PSRAM buffer, vẽ cục bộ (partial), không block task chờ VSYNC,
      * giảm tải bus PSRAM 300 lần so với full-frame mode và tương thích hoàn hảo khi bật Wi-Fi. */

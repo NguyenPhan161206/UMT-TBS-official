@@ -44,9 +44,9 @@ typedef enum {
     SENSOR_ZONE_DANGER = 2, /* x <= DANGER_CM          */
 } sensor_zone_t;
 
-/* Ngưỡng zone (cm) — nguồn duy nhất (R3). */
-#define SENSOR_CAUTION_CM 100
-#define SENSOR_DANGER_CM 30
+/* Ngưỡng zone (cm) — dùng làm fallback khi NVS trống (Dual-WiFi/Settings Fallback). */
+#define DEFAULT_SENSOR_CAUTION_CM 100
+#define DEFAULT_SENSOR_DANGER_CM 30
 
 /* Trạng thái sức khỏe từng cảm biến — dùng chung cả 2 board (R2/R3).
  * Phân biệt rõ "Không có vật cản" vs "Hỏng / mất kết nối cảm biến".

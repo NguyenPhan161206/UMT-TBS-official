@@ -5,5 +5,5 @@ idf_component_register(
         "ui_dashboard_system.c"
     INCLUDE_DIRS "include" "../../../shared" "../hazard_core/include"
     REQUIRES lvgl sensor_model hazard_core coreiot_client freertos esp_wifi esp_system
-             esp_app_format esp_hw_support spi_flash
+             esp_app_format esp_hw_support spi_flash sys_settings
 )

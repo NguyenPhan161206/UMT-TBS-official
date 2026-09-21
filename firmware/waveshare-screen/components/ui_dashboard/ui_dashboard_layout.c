@@ -9,6 +9,7 @@
  */
 
 #include "ui_dashboard_private.h"
+#include "sys_settings_manager.h"
 
 /* --------------------------- sensor arc styling --------------------------- */
 
@@ -299,17 +300,19 @@ lv_obj_t *build_right_sidebar(lv_obj_t *parent)
 
     /* Legend — ngưỡng đọc TRỰC TIẾP từ thresholds.h (R3), không copy string
      * cứng (xem docs/HARDCODED_CONFIG_NOTES.md mục A). Đổi ngưỡng = tự cập nhật. */
+    sys_settings_t settings;
+    sys_settings_get(&settings);
     lv_obj_t *lbl;
     lbl = lv_label_create(sidebar);
-    lv_label_set_text_fmt(lbl, "> %dcm : Safe", SENSOR_CAUTION_CM);
+    lv_label_set_text_fmt(lbl, "> %dcm : Safe", settings.caution_cm);
     lv_obj_set_style_text_color(lbl, lv_color_hex(COLOR_SAFE), 0);
 
     lbl = lv_label_create(sidebar);
-    lv_label_set_text_fmt(lbl, "%d-%dcm : Caution", SENSOR_DANGER_CM, SENSOR_CAUTION_CM);
+    lv_label_set_text_fmt(lbl, "%d-%dcm : Caution", settings.danger_cm, settings.caution_cm);
     lv_obj_set_style_text_color(lbl, lv_color_hex(COLOR_CAUTION), 0);
 
     lbl = lv_label_create(sidebar);
-    lv_label_set_text_fmt(lbl, "<= %dcm : Danger", SENSOR_DANGER_CM);
+    lv_label_set_text_fmt(lbl, "<= %dcm : Danger", settings.danger_cm);
     lv_obj_set_style_text_color(lbl, lv_color_hex(COLOR_DANGER), 0);
 
     return sidebar;

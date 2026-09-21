@@ -1,4 +1,7 @@
 #include "espnow_client.h"
+#include "sys_settings.h"
+#include <Preferences.h>
+#include <WiFi.h>
 #include "shared_state.h"
 #include <Arduino.h>
 #include <WiFi.h>
@@ -18,6 +21,35 @@ static void onDataRecv(const uint8_t *macAddr, const uint8_t *data, int len)
         if (cmd.cmd_type == ESPNOW_CMD_MUTE_BUZZER)
         {
             sharedStateSetMute(cmd.payload != 0);
+        }
+    }
+    else if (len == sizeof(espnow_sync_settings_msg_t))
+    {
+        espnow_sync_settings_msg_t sync;
+        memcpy(&sync, data, sizeof(sync));
+        if (sync.cmd_type == ESPNOW_CMD_TYPE_SYNC_SETTINGS)
+        {
+            Serial.printf("[ESPNOW] RECV Settings: danger=%d, caution=%d\n", sync.settings.danger_cm, sync.settings.caution_cm);
+            Preferences pref;
+            pref.begin("sys_settings", false);
+            pref.putBytes("sys_settings", &sync.settings, sizeof(sys_settings_t));
+            pref.end();
+            // TODO: Apply live if needed, or reboot
+            ESP.restart();
+        }
+    }
+    else if (len == sizeof(espnow_sync_wifi_msg_t))
+    {
+        espnow_sync_wifi_msg_t sync;
+        memcpy(&sync, data, sizeof(sync));
+        if (sync.cmd_type == ESPNOW_CMD_TYPE_SYNC_WIFI)
+        {
+            Serial.printf("[ESPNOW] RECV WiFi config: SSID=%s\n", sync.wifi.ssid);
+            Preferences pref;
+            pref.begin("sys_wifi", false);
+            pref.putBytes("sys_wifi", &sync.wifi, sizeof(sys_wifi_config_t));
+            pref.end();
+            ESP.restart();
         }
     }
 }

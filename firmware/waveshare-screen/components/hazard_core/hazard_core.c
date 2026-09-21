@@ -6,13 +6,13 @@
  * Chỉ include hazard_core.h (+ shared qua đó). KHÔNG static mutable (B2). */
 #include "hazard_core.h"
 
-sensor_zone_t hazard_classify(uint16_t distance_cm)
+sensor_zone_t hazard_classify(uint16_t distance_cm, uint16_t danger_cm, uint16_t caution_cm)
 {
-    if (distance_cm <= SENSOR_DANGER_CM)
+    if (distance_cm <= danger_cm)
     {
         return SENSOR_ZONE_DANGER;
     }
-    if (distance_cm <= SENSOR_CAUTION_CM)
+    if (distance_cm <= caution_cm)
     {
         return SENSOR_ZONE_CAUTION;
     }
@@ -22,7 +22,9 @@ sensor_zone_t hazard_classify(uint16_t distance_cm)
 sensor_zone_t hazard_worst_zone(const uint16_t *dist_cm,
                                 const bool     *is_stale,
                                 const uint8_t  *health,
-                                size_t          n)
+                                size_t          n,
+                                uint16_t        danger_cm,
+                                uint16_t        caution_cm)
 {
     sensor_zone_t worst = SENSOR_ZONE_SAFE;
     if (dist_cm == NULL || is_stale == NULL)
@@ -42,7 +44,7 @@ sensor_zone_t hazard_worst_zone(const uint16_t *dist_cm,
         {
             continue;
         }
-        sensor_zone_t z = hazard_classify(dist_cm[i]);
+        sensor_zone_t z = hazard_classify(dist_cm[i], danger_cm, caution_cm);
         if (z > worst)
         {
             worst = z;

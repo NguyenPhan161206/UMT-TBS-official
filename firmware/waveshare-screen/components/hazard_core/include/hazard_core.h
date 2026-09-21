@@ -50,7 +50,7 @@ typedef struct {
  *   x <= CAUTION_CM -> CAUTION
  *   else            -> SAFE
  * Thuần, không FreeRTOS. */
-sensor_zone_t hazard_classify(uint16_t distance_cm);
+sensor_zone_t hazard_classify(uint16_t distance_cm, uint16_t danger_cm, uint16_t caution_cm);
 
 /* Zone tệ nhất giữa n slot; skip slot stale (is_stale[i] == true) hoặc slot
  * có health là DISCONNECTED/STALE (nếu health != NULL). Safety-Critical:
@@ -59,7 +59,9 @@ sensor_zone_t hazard_classify(uint16_t distance_cm);
 sensor_zone_t hazard_worst_zone(const uint16_t *dist_cm,
                                 const bool     *is_stale,
                                 const uint8_t  *health,
-                                size_t          n);
+                                size_t          n,
+                                uint16_t        danger_cm,
+                                uint16_t        caution_cm);
 
 /* Kiểm tra xà hệ thống có ít nhất 1 cảm biến lỗi/mất kết nối.
  * Trả về true nếu bất kỳ slot nào ở DISCONNECTED hoặc STALE. */

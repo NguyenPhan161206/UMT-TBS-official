@@ -3,6 +3,8 @@
 #include <Arduino.h>
 
 #include "shared_state.h"
+#include <Preferences.h>
+#include "sys_settings.h"
 #include "task_cfg.h"
 
 void buzzerInit()
@@ -30,6 +32,18 @@ void buzzerTask(void *pvParameters)
 
     uint32_t lastBeepStartMs = millis();
     bool beeping   = false;
+    uint16_t danger_cm = DEFAULT_SENSOR_DANGER_CM;
+    uint16_t caution_cm = DEFAULT_SENSOR_CAUTION_CM;
+    Preferences pref;
+    pref.begin("sys_settings", true);
+    sys_settings_t set;
+    size_t len = pref.getBytes("sys_settings", &set, sizeof(set));
+    pref.end();
+    if (len == sizeof(sys_settings_t)) {
+        danger_cm = set.danger_cm;
+        caution_cm = set.caution_cm;
+    }
+
     bool continuous = false;
 
     for (;;)
@@ -55,8 +69,8 @@ void buzzerTask(void *pvParameters)
         }
 
         /* Phân loại zone dùng ngưỡng dùng chung (thresholds.h R3). */
-        bool danger  = nearestCm <= (float)SENSOR_DANGER_CM;
-        bool caution = !danger && nearestCm <= (float)SENSOR_CAUTION_CM;
+        bool danger  = nearestCm <= (float)danger_cm;
+        bool caution = !danger && nearestCm <= (float)caution_cm;
 
         if (danger)
         {

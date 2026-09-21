@@ -7,6 +7,7 @@
  */
 
 #include "ui_dashboard_private.h"
+#include "sys_settings_manager.h"
 #include "espnow_receiver.h"
 
 
@@ -146,6 +147,9 @@ void ui_dashboard_init(void)
 
 void evaluate_hazard(void)
 {
+    sys_settings_t settings;
+    sys_settings_get(&settings);
+
     sensor_reading_t readings[SENSOR_MODEL_COUNT];
     sensor_model_get_all(readings);
 
@@ -160,7 +164,7 @@ void evaluate_hazard(void)
 
     /* Worst zone — dùng hazard_worst_zone: bỏ qua slot DISCONNECTED/STALE
      * hoàn toàn khỏi phép tính. Safety-Critical: không dùng số cũ để báo DANGER. */
-    sensor_zone_t worst = hazard_worst_zone(dist_cm, is_stale, health, SENSOR_MODEL_COUNT);
+    sensor_zone_t worst = hazard_worst_zone(dist_cm, is_stale, health, SENSOR_MODEL_COUNT, settings.danger_cm, settings.caution_cm);
     bool any_fault = hazard_has_sensor_fault(health, SENSOR_MODEL_COUNT);
 
     static sensor_zone_t s_prev_worst = (sensor_zone_t)-1;
@@ -247,8 +251,10 @@ void ui_dashboard_update_sensor(uint8_t sensor_id, uint16_t dist_cm)
         return;
     }
 
+    sys_settings_t settings;
+    sys_settings_get(&settings);
     sensor_model_set_distance((sensor_id_t)sensor_id, dist_cm);
-    sensor_zone_t zone = hazard_classify(dist_cm);
+    sensor_zone_t zone = hazard_classify(dist_cm, settings.danger_cm, settings.caution_cm);
 
     /* Deadband 3cm: Nếu Zone không đổi và khoảng cách lệch < 3cm,
      * bỏ qua cập nhật label để loại bỏ hoàn toàn nhiễu sóng siêu âm làm bão hòa redraw. */
