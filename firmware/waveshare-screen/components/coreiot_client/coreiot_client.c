@@ -284,8 +284,6 @@ void coreiot_client_init(void)
         .sta = {
             .ssid = WIFI_SSID,
             .password = WIFI_PASSWORD,
-            .scan_method = WIFI_FAST_SCAN,
-            .channel = ESPNOW_CHANNEL,
             .threshold.authmode = WIFI_AUTH_OPEN,
         },
     };
