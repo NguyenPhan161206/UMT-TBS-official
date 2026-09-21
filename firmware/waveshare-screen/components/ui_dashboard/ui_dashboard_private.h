@@ -63,6 +63,8 @@ extern bool s_forced_crossing_warning;
 /* ------------------- cross-file functions (ui_dashboard_layout) ----------- */
 void arc_set_zone(sensor_arc_t *a, sensor_zone_t zone);
 void arc_set_nodata(sensor_arc_t *a);
+void ui_dashboard_create_settings(lv_obj_t *parent);
+
 void build_header(lv_obj_t *parent);
 lv_obj_t *build_left_sidebar(lv_obj_t *parent);
 lv_obj_t *build_center_canvas(lv_obj_t *parent);

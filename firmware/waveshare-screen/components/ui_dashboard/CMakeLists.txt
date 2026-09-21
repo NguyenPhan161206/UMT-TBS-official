@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "ui_dashboard.c"
         "ui_dashboard_layout.c"
+        "ui_dashboard_settings.c"
         "ui_dashboard_system.c"
     INCLUDE_DIRS "include" "../../../shared" "../hazard_core/include"
     REQUIRES lvgl sensor_model hazard_core coreiot_client freertos esp_wifi esp_system

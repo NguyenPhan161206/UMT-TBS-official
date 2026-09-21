@@ -86,6 +86,10 @@ static lv_obj_t *make_arc(lv_obj_t *parent, int16_t local_x, int16_t local_y, in
 
 /* -------------------------------- header --------------------------------- */
 
+static void open_settings_cb(lv_event_t *e) {
+    ui_dashboard_create_settings(lv_scr_act());
+}
+
 void build_header(lv_obj_t *parent)
 {
     lv_obj_t *header = lv_obj_create(parent);
@@ -116,6 +120,17 @@ void build_header(lv_obj_t *parent)
     s_tab_btn_system = lv_btn_create(header);
     lv_obj_set_size(s_tab_btn_system, 100, 28);
     lv_obj_align(s_tab_btn_system, LV_ALIGN_CENTER, 55, 0);
+
+    lv_obj_t *settings_btn = lv_btn_create(header);
+    lv_obj_set_size(settings_btn, 32, 28);
+    lv_obj_align(settings_btn, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_t *settings_lbl = lv_label_create(settings_btn);
+    lv_label_set_text(settings_lbl, LV_SYMBOL_SETTINGS);
+    lv_obj_center(settings_lbl);
+    lv_obj_add_event_cb(settings_btn, open_settings_cb, LV_EVENT_CLICKED, NULL);
+    
+    // Hàm callback cần gọi hàm ui_dashboard_create_settings(lv_scr_act());
+
     lv_obj_t *lbl2 = lv_label_create(s_tab_btn_system);
     lv_label_set_text(lbl2, "SYSTEM");
     lv_obj_center(lbl2);
