@@ -275,6 +275,54 @@ FilterResult DistanceFilter::process(float rawDistanceCm)
 
     addToHistory(rawDistanceCm);
 
+    // FAST-TRACK: Asymmetric Crossing Vehicle Heuristic (T2.3)
+    // Chiều VÀO (Khoảng cách giảm đột ngột): Cần 2 mẫu sát nhau để chống nhiễu
+    // Chiều RA (Khoảng cách tăng đột ngột): Cần 1 mẫu duy nhất để ngắt cảnh báo siêu tốc
+    if (_hasStable && _historyCount >= 1)
+    {
+        float currRaw = _rawHistory[_historyCount - 1];
+        float diffFromStableAbs = fabsf(currRaw - _stableDistanceCm);
+        
+        bool isJumpOut = (currRaw > _stableDistanceCm) && 
+                         (diffFromStableAbs >= FILTER_MIN_JUMP_THRESHOLD_CM);
+                         
+        bool isJumpIn = false;
+        float prevRaw = 0.0f;
+        
+        if (!isJumpOut && _historyCount >= 2)
+        {
+            prevRaw = _rawHistory[_historyCount - 2];
+            float diffFromPrev = fabsf(currRaw - prevRaw);
+            
+            isJumpIn = (currRaw < _stableDistanceCm) && 
+                       (diffFromStableAbs >= FILTER_MIN_JUMP_THRESHOLD_CM) &&
+                       (diffFromPrev <= FILTER_BASE_CLUSTER_TOLERANCE_CM);
+        }
+        
+        if (isJumpIn || isJumpOut)
+        {
+            _stableDistanceCm = isJumpIn ? ((currRaw + prevRaw) / 2.0f) : currRaw;
+            clearJumpCandidate();
+            
+            // Xóa mảng lịch sử cũ, chỉ giữ lại mẫu hiện tại để tránh giằng co
+            if (isJumpIn)
+            {
+                float fastTrackMembers[2] = {prevRaw, currRaw};
+                replaceHistoryWith(fastTrackMembers, 2);
+            }
+            else
+            {
+                float fastTrackMembers[1] = {currRaw};
+                replaceHistoryWith(fastTrackMembers, 1);
+            }
+            
+            result.hasOutput = true;
+            result.outputCm = _stableDistanceCm;
+            result.status = "FAST_TRACK_CROSSING";
+            return result;
+        }
+    }
+
     // Chưa đủ mẫu
     if (_historyCount < (size_t)FILTER_MIN_SAMPLES)
     {

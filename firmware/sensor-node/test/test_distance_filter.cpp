@@ -61,8 +61,9 @@ void test_filter_noise_keeps_old(void)
     float old = 0.0f;
     TEST_ASSERT_TRUE(f.getStable(old));
 
-    // Các mẫu rời rạc trải khắp dải đo: làm cụm cũ vỡ, không cụm mới đủ 5 phiếu
-    const float noise[5] = {200.0f, 300.0f, 55.0f, 150.0f, 90.0f};
+    // Dùng nhiễu nằm trong khoảng < 30cm đối với chiều OUT (để không kích hoạt Asymmetric Jump OUT)
+    // và nhiễu ngẫu nhiên rời rạc 1 tia đối với chiều IN (để không kích hoạt Jump IN)
+    const float noise[5] = {120.0f, 125.0f, 55.0f, 110.0f, 90.0f};
     for (int i = 0; i < 5; ++i)
     {
         FilterResult r = f.process(noise[i]);
@@ -84,9 +85,11 @@ void test_filter_jump_hold_then_accept(void)
 
     bool sawHold = false;
     bool sawAccept = false;
-    const float newTarget = 30.0f; // nhảy xa 70cm >> ngưỡng nhảy 30cm
+    // Dùng 2 giá trị xen kẽ cách nhau 8.5cm để TRÁNH kích hoạt Fast-Track (yêu cầu <= 8cm)
+    // nhưng VẪN tạo thành một cluster (vì cả 2 đều nằm trong dải tolerance quanh giá trị trung bình 34.25)
     for (int i = 0; i < 12; ++i)
     {
+        float newTarget = (i % 2 == 0) ? 30.0f : 38.5f;
         FilterResult r = f.process(newTarget);
         if (strcmp(r.status, "HOLD_JUMP") == 0)
         {
@@ -127,9 +130,35 @@ void test_filter_reset(void)
     TEST_ASSERT_FALSE(f.getStable(out)); // reset -> mất state ổn định
 }
 
+
+// Thử nghiệm khả năng Fast-Track bắt xe chạy nhanh (2 mẫu)
+void test_filter_fast_track_crossing(void)
+{
+    DistanceFilter f;
+    f.reset();
+
+    // 1. Giả lập nền thoáng ở 300cm
+    for (int i = 0; i < 8; ++i) { f.process(300.0f); }
+
+    // 2. Xe xẹt qua. Mẫu 1 (chiều VÀO): chưa đủ khẳng định, kết quả vẫn giữ nguyên nền cũ
+    FilterResult r1 = f.process(50.0f);
+    TEST_ASSERT_EQUAL_STRING("OK", r1.status); 
+    TEST_ASSERT_FLOAT_WITHIN(1.0f, 300.0f, r1.outputCm);
+
+    // 3. Mẫu 2 giống mẫu 1 -> Xe thật! Fast-Track kích hoạt lập tức
+    FilterResult r2 = f.process(52.0f);
+    TEST_ASSERT_EQUAL_STRING("FAST_TRACK_CROSSING", r2.status);
+    TEST_ASSERT_FLOAT_WITHIN(2.0f, 51.0f, r2.outputCm);
+    
+    // 4. Xe đã đi qua (chiều RA). Khoảng cách tăng vọt > 30cm.
+    // Asymmetric Fast-Track: Nhả chốt chỉ trong 1 mẫu!
+    FilterResult r3 = f.process(300.0f);
+    TEST_ASSERT_EQUAL_STRING("FAST_TRACK_CROSSING", r3.status); 
+    TEST_ASSERT_FLOAT_WITHIN(2.0f, 300.0f, r3.outputCm);
+}
+
 // ─── Test cases bổ sung ───────────────────────────────────────────────────────
 
-// Hai instance DistanceFilter hoạt động hoàn toàn độc lập (mô phỏng 2 cảm biến).
 void test_filter_two_instances_independent(void)
 {
     DistanceFilter fa, fb;
