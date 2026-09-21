@@ -275,6 +275,30 @@ FilterResult DistanceFilter::process(float rawDistanceCm)
 
     addToHistory(rawDistanceCm);
 
+    // FAST-TRACK: Crossing Vehicle Heuristic (T2.3)
+    // Nếu có 2 mẫu thô (raw) liên tiếp rất giống nhau, nhưng khác xa kết quả ổn định,
+    // đây là vật cắt ngang cực nhanh. Lập tức chèn ngang kết quả để gửi đi.
+    if (_hasStable && _historyCount >= 2)
+    {
+        float prevRaw = _rawHistory[_historyCount - 2];
+        float currRaw = _rawHistory[_historyCount - 1];
+        
+        float diffFromPrev = fabsf(currRaw - prevRaw);
+        float diffFromStable = fabsf(currRaw - _stableDistanceCm);
+        
+        if (diffFromPrev <= FILTER_BASE_CLUSTER_TOLERANCE_CM &&
+            diffFromStable >= FILTER_MIN_JUMP_THRESHOLD_CM)
+        {
+            _stableDistanceCm = (currRaw + prevRaw) / 2.0f;
+            clearJumpCandidate();
+            
+            result.hasOutput = true;
+            result.outputCm = _stableDistanceCm;
+            result.status = "FAST_TRACK_CROSSING";
+            return result;
+        }
+    }
+
     // Chưa đủ mẫu
     if (_historyCount < (size_t)FILTER_MIN_SAMPLES)
     {

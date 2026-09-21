@@ -20,6 +20,7 @@ void test_filter_reset(void);
 void test_filter_two_instances_independent(void);
 void test_filter_history_full(void);
 void test_filter_max_range_input(void);
+void test_filter_fast_track_crossing(void);
 void test_filter_stable_at_danger_boundary(void);
 void test_filter_cluster_dynamic_tolerance(void);
 
@@ -50,6 +51,7 @@ int main(void)
     RUN_TEST(test_filter_two_instances_independent);
     RUN_TEST(test_filter_history_full);
     RUN_TEST(test_filter_max_range_input);
+    RUN_TEST(test_filter_fast_track_crossing);
     RUN_TEST(test_filter_stable_at_danger_boundary);
     RUN_TEST(test_filter_cluster_dynamic_tolerance);
 

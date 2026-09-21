@@ -84,9 +84,11 @@ void test_filter_jump_hold_then_accept(void)
 
     bool sawHold = false;
     bool sawAccept = false;
-    const float newTarget = 30.0f; // nhảy xa 70cm >> ngưỡng nhảy 30cm
+    // Dùng 2 giá trị xen kẽ cách nhau 8.5cm để TRÁNH kích hoạt Fast-Track (yêu cầu <= 8cm)
+    // nhưng VẪN tạo thành một cluster (vì cả 2 đều nằm trong dải tolerance quanh giá trị trung bình 34.25)
     for (int i = 0; i < 12; ++i)
     {
+        float newTarget = (i % 2 == 0) ? 30.0f : 38.5f;
         FilterResult r = f.process(newTarget);
         if (strcmp(r.status, "HOLD_JUMP") == 0)
         {
@@ -125,6 +127,37 @@ void test_filter_reset(void)
 
     f.reset();
     TEST_ASSERT_FALSE(f.getStable(out)); // reset -> mất state ổn định
+}
+
+
+// Thử nghiệm khả năng Fast-Track bắt xe chạy nhanh (2 mẫu)
+void test_filter_fast_track_crossing(void)
+{
+    DistanceFilter f;
+    f.reset();
+
+    // 1. Giả lập nền thoáng ở 300cm
+    for (int i = 0; i < 8; ++i) { f.process(300.0f); }
+
+    // 2. Xe xẹt qua. Mẫu 1: chưa đủ khẳng định, kết quả vẫn giữ nguyên nền cũ
+    FilterResult r1 = f.process(50.0f);
+    TEST_ASSERT_EQUAL_STRING("OK", r1.status); // Vẫn tìm thấy cụm 300cm trong lịch sử
+    TEST_ASSERT_FLOAT_WITHIN(1.0f, 300.0f, r1.outputCm);
+
+    // 3. Mẫu 2 giống mẫu 1 -> Xe thật! Fast-Track kích hoạt lập tức
+    FilterResult r2 = f.process(52.0f);
+    TEST_ASSERT_EQUAL_STRING("FAST_TRACK_CROSSING", r2.status);
+    TEST_ASSERT_FLOAT_WITHIN(2.0f, 51.0f, r2.outputCm);
+    
+    // 4. Xe đã đi qua, trả về nền cũ. Mẫu 3 chưa đủ khẳng định (vẫn giữ 51cm chờ xác nhận).
+    FilterResult r3 = f.process(300.0f);
+    TEST_ASSERT_EQUAL_STRING("HOLD_JUMP", r3.status); // Vẫn tìm thấy cụm 300cm nhưng bị hold
+    TEST_ASSERT_FLOAT_WITHIN(2.0f, 51.0f, r3.outputCm);
+
+    // 5. Mẫu 4 giống mẫu 3 -> Khoảng trống thật. Nền kéo về 300cm lập tức.
+    FilterResult r4 = f.process(300.0f);
+    TEST_ASSERT_EQUAL_STRING("FAST_TRACK_CROSSING", r4.status);
+    TEST_ASSERT_FLOAT_WITHIN(2.0f, 300.0f, r4.outputCm);
 }
 
 // ─── Test cases bổ sung ───────────────────────────────────────────────────────
