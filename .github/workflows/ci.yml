@@ -148,7 +148,7 @@ jobs:
 
       - name: R8 asserts — sdkconfig / keys.json không được track
         run: |
-          tracked=$(git ls-files | grep -E '(^|/)sdkconfig|(^|/)keys\.json$' || true)
+          tracked=$(git ls-files | grep -E '(^|/)sdkconfig$|(^|/)sdkconfig\.old$|(^|/)keys\.json$' || true)
           if [ -n "$tracked" ]; then
             echo "::error::R8 violation — các file sau đang bị track: $tracked"
             exit 1
