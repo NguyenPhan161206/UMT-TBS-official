@@ -6,7 +6,11 @@ void UltrasonicSensor::begin(uint8_t trigPin, uint8_t echoPin) {
 
     pinMode(_trigPin, OUTPUT);
     digitalWrite(_trigPin, LOW);
-    pinMode(_echoPin, INPUT);
+    /* INPUT_PULLDOWN: khi dây Echo bị rút hoặc cảm biến mất nguồn, chân
+     * không trôi nổi (floating) nên không sinh xung ảo cho ISR. Điều này
+     * đảm bảo sau khi rút dây, mọi lần đọc sẽ timeout thay vì báo khoảng
+     * cách ngẫu nhiên (gây cảnh báo ma). */
+    pinMode(_echoPin, INPUT_PULLDOWN);
 
     _echoSemaphore = xSemaphoreCreateBinary();
 

@@ -16,6 +16,18 @@ void test_filter_noise_keeps_old(void);
 void test_filter_jump_hold_then_accept(void);
 void test_filter_reset(void);
 
+// distance_filter: test cases bổ sung
+void test_filter_two_instances_independent(void);
+void test_filter_history_full(void);
+void test_filter_max_range_input(void);
+void test_filter_stable_at_danger_boundary(void);
+void test_filter_cluster_dynamic_tolerance(void);
+
+// Unity stubs: cân bằng giới hạn API của các trình chạy chất lượng (GCC,
+// MinGW). Hàm bỏ trống vì các test dùng fixture cục bộ, không state chung.
+void setUp(void) {}
+void tearDown(void) {}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -27,12 +39,19 @@ int main(void)
     RUN_TEST(test_sensor_pins_map_to_slots);
     RUN_TEST(test_espnow_msg_size);
 
-    // distance_filter
+    // distance_filter — hành vi cơ bản
     RUN_TEST(test_filter_stable_readings);
     RUN_TEST(test_filter_warmup);
     RUN_TEST(test_filter_noise_keeps_old);
     RUN_TEST(test_filter_jump_hold_then_accept);
     RUN_TEST(test_filter_reset);
+
+    // distance_filter — edge case & robustness
+    RUN_TEST(test_filter_two_instances_independent);
+    RUN_TEST(test_filter_history_full);
+    RUN_TEST(test_filter_max_range_input);
+    RUN_TEST(test_filter_stable_at_danger_boundary);
+    RUN_TEST(test_filter_cluster_dynamic_tolerance);
 
     return UNITY_END();
 }

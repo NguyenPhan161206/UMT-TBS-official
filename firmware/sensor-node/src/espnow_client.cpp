@@ -8,7 +8,10 @@
 static void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
     (void)mac_addr;
-    Serial.printf("[ESPNOW] Send %s\n", status == ESP_NOW_SEND_SUCCESS ? "OK" : "FAILED");
+    if (status != ESP_NOW_SEND_SUCCESS)
+    {
+        Serial.println("[ESPNOW] Send FAILED");
+    }
 }
 
 /* Kênh WiFi hiện tại (theo AP khi STA đã nối). Trước khi associate dùng
@@ -50,6 +53,7 @@ void EspNowClient::begin()
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    esp_wifi_set_ps(WIFI_PS_NONE);
 
     // Tắt modem-sleep: khi env _coreiot associate vào AP, PS mặc định làm trễ
     // TX ESP-NOW theo cửa sổ ngủ/thức → rơi gói. Giữ radio thức mọi lúc.

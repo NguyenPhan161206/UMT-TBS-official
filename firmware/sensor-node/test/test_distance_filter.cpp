@@ -127,4 +127,107 @@ void test_filter_reset(void)
     TEST_ASSERT_FALSE(f.getStable(out)); // reset -> mất state ổn định
 }
 
+// ─── Test cases bổ sung ───────────────────────────────────────────────────────
+
+// Hai instance DistanceFilter hoạt động hoàn toàn độc lập (mô phỏng 2 cảm biến).
+void test_filter_two_instances_independent(void)
+{
+    DistanceFilter fa, fb;
+    fa.reset();
+    fb.reset();
+
+    // fa: feed 100cm; fb: feed 300cm
+    for (int i = 0; i < 10; ++i)
+    {
+        fa.process(100.0f);
+        fb.process(300.0f);
+    }
+
+    float a = 0.0f, b = 0.0f;
+    TEST_ASSERT_TRUE(fa.getStable(a));
+    TEST_ASSERT_TRUE(fb.getStable(b));
+    TEST_ASSERT_FLOAT_WITHIN(5.0f, 100.0f, a);
+    TEST_ASSERT_FLOAT_WITHIN(5.0f, 300.0f, b);
+
+    // State của fa không ảnh hưởng fb và ngược lại
+    TEST_ASSERT_FALSE_MESSAGE(fabsf(a - b) < 10.0f, "Hai instance phải độc lập");
+}
+
+// Fill đúng FILTER_HISTORY_SIZE mẫu — không crash, không buffer overflow.
+void test_filter_history_full(void)
+{
+    DistanceFilter f;
+    f.reset();
+
+    // Nạp nhiều hơn FILTER_HISTORY_SIZE (9) mẫu — vẫn phải ổn định
+    for (int i = 0; i < FILTER_HISTORY_SIZE * 3; ++i)
+    {
+        FilterResult r = f.process(150.0f);
+        (void)r; // không crash là pass
+    }
+
+    float stable = 0.0f;
+    TEST_ASSERT_TRUE(f.getStable(stable));
+    TEST_ASSERT_FLOAT_WITHIN(10.0f, 150.0f, stable);
+}
+
+// Input đúng MAX_DISTANCE_CM (500cm) không làm filter crash hay trả về NaN.
+void test_filter_max_range_input(void)
+{
+    DistanceFilter f;
+    f.reset();
+
+    for (int i = 0; i < 10; ++i)
+    {
+        FilterResult r = f.process(MAX_DISTANCE_CM);
+        // outputCm không được là NaN
+        if (r.hasOutput)
+        {
+            TEST_ASSERT_FALSE_MESSAGE(r.outputCm != r.outputCm, "outputCm must not be NaN");
+            TEST_ASSERT_FLOAT_WITHIN(20.0f, MAX_DISTANCE_CM, r.outputCm);
+        }
+    }
+}
+
+// Ngưỡng ranh giới DANGER (30cm) — bộ lọc phải ổn định đúng vùng nguy hiểm.
+void test_filter_stable_at_danger_boundary(void)
+{
+    DistanceFilter f;
+    f.reset();
+
+    const float target = (float)SENSOR_DANGER_CM; // 30cm
+    for (int i = 0; i < 10; ++i)
+    {
+        f.process(target);
+    }
+
+    float stable = 0.0f;
+    TEST_ASSERT_TRUE(f.getStable(stable));
+    TEST_ASSERT_FLOAT_WITHIN(5.0f, target, stable);
+}
+
+// Cluster tolerance tăng theo khoảng cách: 2 cụm cách nhau 10cm gần 50cm
+// dễ merge hơn ở 50cm (tolerance ~12cm) so với 500cm (tolerance ~48cm).
+// Test đảm bảo filter không reject cluster hợp lệ do tolerance quá chặt.
+void test_filter_cluster_dynamic_tolerance(void)
+{
+    // Ở khoảng cách 50cm, tolerance = max(8, 50*0.08) = max(8, 4) = 8cm
+    // Feed các mẫu trong dải ±7cm quanh 50cm → phải tạo được cluster
+    DistanceFilter f;
+    f.reset();
+
+    bool gotOutput = false;
+    const float values[] = {50.0f, 57.0f, 44.0f, 53.0f, 48.0f,
+                             55.0f, 46.0f, 52.0f, 49.0f};
+    for (int i = 0; i < (int)(sizeof(values) / sizeof(values[0])); ++i)
+    {
+        FilterResult r = f.process(values[i]);
+        if (r.hasOutput)
+        {
+            gotOutput = true;
+        }
+    }
+    TEST_ASSERT_TRUE_MESSAGE(gotOutput, "Cluster trong dải tolerance phải tạo được output");
+}
+
 // setup()/loop() nằm ở test_runner.cpp (main duy nhất cho C++ host).

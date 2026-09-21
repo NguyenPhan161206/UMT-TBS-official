@@ -19,7 +19,10 @@ sensor_zone_t hazard_classify(uint16_t distance_cm)
     return SENSOR_ZONE_SAFE;
 }
 
-sensor_zone_t hazard_worst_zone(const uint16_t *dist_cm, const bool *is_stale, size_t n)
+sensor_zone_t hazard_worst_zone(const uint16_t *dist_cm,
+                                const bool     *is_stale,
+                                const uint8_t  *health,
+                                size_t          n)
 {
     sensor_zone_t worst = SENSOR_ZONE_SAFE;
     if (dist_cm == NULL || is_stale == NULL)
@@ -29,7 +32,13 @@ sensor_zone_t hazard_worst_zone(const uint16_t *dist_cm, const bool *is_stale, s
 
     for (size_t i = 0; i < n; i++)
     {
+        /* Bỏ qua slot nếu: (1) is_stale, (2) health là DISCONNECTED hoặc STALE */
         if (is_stale[i])
+        {
+            continue;
+        }
+        if (health != NULL && (health[i] == (uint8_t)SENSOR_HEALTH_DISCONNECTED ||
+                               health[i] == (uint8_t)SENSOR_HEALTH_STALE))
         {
             continue;
         }
@@ -40,6 +49,23 @@ sensor_zone_t hazard_worst_zone(const uint16_t *dist_cm, const bool *is_stale, s
         }
     }
     return worst;
+}
+
+bool hazard_has_sensor_fault(const uint8_t *health, size_t n)
+{
+    if (health == NULL)
+    {
+        return false;
+    }
+    for (size_t i = 0; i < n; i++)
+    {
+        if (health[i] == (uint8_t)SENSOR_HEALTH_DISCONNECTED ||
+            health[i] == (uint8_t)SENSOR_HEALTH_STALE)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 hazard_crossing_result_t hazard_eval_crossing(const uint16_t *cur_cm,

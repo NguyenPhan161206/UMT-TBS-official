@@ -65,6 +65,11 @@ void ui_dashboard_set_buzzer_state(bool buzzer_on);
  */
 void ui_dashboard_set_espnow_status(bool linked);
 
+/**
+ * @brief Re-evaluate overall hazard & crossing hazard across all sensors and update banners.
+ */
+void ui_dashboard_evaluate_hazard(void);
+
 #ifdef __cplusplus
 }
 #endif

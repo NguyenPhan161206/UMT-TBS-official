@@ -4,6 +4,10 @@
  *
  * thresholds.h — SHARED CONTRACT (R2/R3/R4).
  *
+ * 2026-09-16: Thêm sensor_health_t và hằng số phát hiện lỗi cảm biến
+ *   (SENSOR_FAULT_CONSECUTIVE_MISS, SENSOR_STALE_TIMEOUT_MS) — dùng chung
+ *   để phân biệt "mất cảm biến" vs "không có vật cản" (Safety-Critical).
+ *
  * SINGLE source of truth for every threshold, zone semantic, measurement
  * parameter and physical sensor layout used by BOTH firmwares:
  *   - firmware/sensor-node        (Arduino / C++, ESP32-S3)
@@ -44,6 +48,28 @@ typedef enum {
 #define SENSOR_CAUTION_CM 100
 #define SENSOR_DANGER_CM 30
 
+/* Trạng thái sức khỏe từng cảm biến — dùng chung cả 2 board (R2/R3).
+ * Phân biệt rõ "Không có vật cản" vs "Hỏng / mất kết nối cảm biến".
+ * QUAN TRỌNG (Safety-Critical): DISCONNECTED/STALE phải bị loại HOÀN
+ * TOÀN khỏi phép tính hazard; không dùng khoảng cách cũ để báo DANGER. */
+typedef enum {
+    SENSOR_HEALTH_OK = 0,        /* Cảm biến đo tốt, có vật cản trong dải hợp lệ */
+    SENSOR_HEALTH_OUT_OF_RANGE,  /* Cảm biến tốt, phía trước thoáng (echo timeout) */
+    SENSOR_HEALTH_DISCONNECTED,  /* Mất kết nối / mất nguồn / đứt dây Echo-Trig    */
+    SENSOR_HEALTH_STALE,         /* Quá hạn: màn hình không nhận dữ liệu mới        */
+} sensor_health_t;
+
+/* Ngưỡng phát hiện lỗi nhanh trên sensor-node:
+ * SENSOR_FAULT_CONSECUTIVE_MISS lần đo liên tiếp thất bại (timeout/miss)
+ * → chuyển ngay sang SENSOR_HEALTH_DISCONNECTED, không chờ 15 lần cũ.
+ * 3 × MEASURE_INTERVAL_MS (100ms) = ~300ms phát hiện. */
+#define SENSOR_FAULT_CONSECUTIVE_MISS 3
+
+/* Ngưỡng timeout per-sensor trên waveshare-screen:
+ * Nếu quá SENSOR_STALE_TIMEOUT_MS không nhận gói mới cho slot đó,
+ * tự động đánh dấu STALE và loại khỏi phép tính hazard. */
+#define SENSOR_STALE_TIMEOUT_MS 1000
+
 /* ==================================================================
  * Cảnh báo còi (buzzer) — vật lý nằm trên sensor-node
  * ================================================================== */
@@ -75,10 +101,13 @@ typedef enum {
 #define FILTER_EMA_ALPHA 0.30f
 #define FILTER_MIN_JUMP_THRESHOLD_CM 30.0f
 #define FILTER_JUMP_THRESHOLD_RATIO 0.25f
-#define FILTER_JUMP_CONFIRM_COUNT 3
+#define FILTER_JUMP_CONFIRM_COUNT 2
 #define FILTER_BASE_JUMP_TOLERANCE_CM 12.0f
 #define FILTER_JUMP_TOLERANCE_RATIO 0.10f
-#define FILTER_RESET_AFTER_INVALID 15
+/* Bộ lọc fallback: nếu sensor-node chưa áp dụng SENSOR_FAULT_CONSECUTIVE_MISS,
+ * đây vẫn là lưới cuối reset bộ lọc cluster. Giá trị lớn hơn để tránh reset
+ * nhầm khi chỉ miss vài xung lẻ tẻ do nhiễu âm học. */
+#define FILTER_RESET_AFTER_INVALID 3
 
 /* ==================================================================
  * Layout vật lý 6 cảm biến (sensor-node)

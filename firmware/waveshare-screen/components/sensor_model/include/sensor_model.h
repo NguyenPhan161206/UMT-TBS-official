@@ -32,6 +32,7 @@ typedef espnow_slot_t sensor_id_t;
 typedef struct {
     uint16_t distance_cm;
     bool is_stale;
+    sensor_health_t health; /* Trạng thái sức khỏe: OK/OUT_OF_RANGE/DISCONNECTED/STALE */
 } sensor_reading_t;
 
 /**
@@ -51,6 +52,12 @@ void sensor_model_set_distance(sensor_id_t id, uint16_t distance_cm);
  *        last distance_cm as live. Thread-safe.
  */
 void sensor_model_clear(sensor_id_t id);
+
+/**
+ * @brief Update only the health state for a sensor slot (called when ESP-NOW
+ *        packet reports explicit health without a distance update). Thread-safe.
+ */
+void sensor_model_set_health(sensor_id_t id, sensor_health_t health);
 
 /**
  * @brief Read a single sensor's current reading. Thread-safe.

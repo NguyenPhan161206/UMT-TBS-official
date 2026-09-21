@@ -55,14 +55,34 @@ add_custom_command(
     VERBATIM
 )
 
-FetchContent_Declare(
-    lvgl
-    GIT_REPOSITORY https://github.com/lvgl/lvgl.git
-    GIT_TAG        v9.1.0
-    GIT_SHALLOW    TRUE
-)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../managed_components/lvgl__lvgl/CMakeLists.txt")
+    FetchContent_Declare(
+        lvgl
+        SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../managed_components/lvgl__lvgl"
+    )
+else()
+    FetchContent_Declare(
+        lvgl
+        GIT_REPOSITORY https://github.com/lvgl/lvgl.git
+        GIT_TAG        v9.1.0
+        GIT_SHALLOW    TRUE
+    )
+endif()
 set(LV_CONF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/lv_conf.h" CACHE FILEPATH "" FORCE)
 FetchContent_MakeAvailable(lvgl)
+
+if(WIN32)
+    FetchContent_Declare(
+        SDL2_prebuilt
+        URL https://github.com/libsdl-org/SDL/releases/download/release-2.30.10/SDL2-devel-2.30.10-mingw.zip
+    )
+    FetchContent_MakeAvailable(SDL2_prebuilt)
+    set(SDL2_ROOT "${sdl2_prebuilt_SOURCE_DIR}/x86_64-w64-mingw32")
+    file(READ "${SDL2_ROOT}/lib/cmake/SDL2/sdl2-config.cmake" _sdl2_cfg)
+    string(REPLACE "/tmp/tardir/SDL2-2.30.10/build-mingw/install-x86_64-w64-mingw32" "${SDL2_ROOT}" _sdl2_cfg "${_sdl2_cfg}")
+    file(WRITE "${SDL2_ROOT}/lib/cmake/SDL2/sdl2-config.cmake" "${_sdl2_cfg}")
+    list(PREPEND CMAKE_PREFIX_PATH "${SDL2_ROOT}")
+endif()
 
 find_package(SDL2 REQUIRED)
 
@@ -89,6 +109,12 @@ target_link_libraries(umt_dash_sim PRIVATE lvgl SDL2::SDL2)
 target_compile_features(umt_dash_sim PRIVATE c_std_11)
 if(NOT WIN32)
     target_link_libraries(umt_dash_sim PRIVATE m)
+else()
+    add_custom_command(TARGET umt_dash_sim POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${sdl2_prebuilt_SOURCE_DIR}/x86_64-w64-mingw32/bin/SDL2.dll"
+        $<TARGET_FILE_DIR:umt_dash_sim>
+    )
 endif()
 
 # ---------------------------------------------------------------------------- #

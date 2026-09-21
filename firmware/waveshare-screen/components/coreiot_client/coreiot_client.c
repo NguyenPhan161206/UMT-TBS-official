@@ -43,7 +43,9 @@ static coreiot_data_cb_t s_data_cb = NULL;
  * cố định 3s thì radio chạy scan/auth liên tục, gây flapping ESP-NOW). */
 #define WIFI_RECONNECT_BASE_MS (3000)
 #define WIFI_RECONNECT_MAX_MS (30000)
+#define WIFI_MAX_STANDALONE_RETRIES 3
 static uint32_t s_reconnect_delay_ms = WIFI_RECONNECT_BASE_MS;
+static int s_wifi_retry_count = 0;
 static uint8_t s_last_ap_channel = 0;
 static esp_timer_handle_t s_mqtt_down_timer = NULL;
 static bool s_mqtt_reported_up = false;
@@ -87,7 +89,19 @@ static esp_timer_handle_t s_wifi_reconnect_timer = NULL;
 static void wifi_reconnect_timer_cb(void *arg)
 {
     (void)arg;
-    ESP_LOGI(TAG, "Wi-Fi reconnect retry after %u ms...", (unsigned)s_reconnect_delay_ms);
+    ESP_LOGI(TAG, "Wi-Fi reconnect retry after %u ms (locked to channel %u)...",
+             (unsigned)s_reconnect_delay_ms,
+             (unsigned)((s_last_ap_channel != 0) ? s_last_ap_channel : ESPNOW_CHANNEL));
+
+    /* Khóa kênh quét: luôn ép STA chỉ quét đúng kênh ESP-NOW (hoặc kênh AP cuối).
+     * Tránh tuyệt đối việc chip nhảy 13 kênh (channel hopping) làm rơi gói ESP-NOW
+     * và nghẽn bus PSRAM gây giật màn hình khi không có Wi-Fi. */
+    wifi_config_t cfg;
+    if (esp_wifi_get_config(WIFI_IF_STA, &cfg) == ESP_OK) {
+        cfg.sta.scan_method = WIFI_FAST_SCAN;
+        cfg.sta.channel = (s_last_ap_channel != 0) ? s_last_ap_channel : ESPNOW_CHANNEL;
+        esp_wifi_set_config(WIFI_IF_STA, &cfg);
+    }
     esp_wifi_connect();
 }
 
@@ -196,15 +210,23 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         } else {
             espnow_receiver_force_channel();
         }
-        /* Reconnect có backoff luỹ thừa — tránh loop dồn dập làm flapping ESP-NOW. */
-        wifi_reconnect_arm();
-        if (s_reconnect_delay_ms < WIFI_RECONNECT_MAX_MS) {
-            s_reconnect_delay_ms *= 2;
-            if (s_reconnect_delay_ms > WIFI_RECONNECT_MAX_MS) {
-                s_reconnect_delay_ms = WIFI_RECONNECT_MAX_MS;
+
+        /* Reconnect có backoff luỹ thừa và giới hạn 3 lần thử. Khi không có router,
+         * dừng quét ngầm để tránh xung đột RF làm giật màn hình và rơi gói ESP-NOW. */
+        if (s_wifi_retry_count < WIFI_MAX_STANDALONE_RETRIES) {
+            s_wifi_retry_count++;
+            wifi_reconnect_arm();
+            if (s_reconnect_delay_ms < WIFI_RECONNECT_MAX_MS) {
+                s_reconnect_delay_ms *= 2;
+                if (s_reconnect_delay_ms > WIFI_RECONNECT_MAX_MS) {
+                    s_reconnect_delay_ms = WIFI_RECONNECT_MAX_MS;
+                }
             }
+        } else {
+            ESP_LOGI(TAG, "Wi-Fi AP khong kha dung -> Chuyen sang che do ESP-NOW doc lap (dung scan RF de chong giat man hinh).");
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        s_wifi_retry_count = 0;
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         char ip_str[32];
         snprintf(ip_str, sizeof(ip_str), IPSTR, IP2STR(&event->ip_info.ip));
@@ -215,6 +237,10 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         if (esp_wifi_get_channel(&primary_ch, &second_ch) == ESP_OK) {
             s_last_ap_channel = primary_ch;
             ESP_LOGI(TAG, "Wi-Fi channel primary=%u secondary=%d", (unsigned)primary_ch, (int)second_ch);
+            if (primary_ch != ESPNOW_CHANNEL) {
+                ESP_LOGW(TAG, "CANH BAO: AP Wi-Fi dang o kenh %u != ESPNOW_CHANNEL (%d)! ESP-NOW se khong the nhan goi neu sensor-node phat o kenh khac.",
+                         (unsigned)primary_ch, ESPNOW_CHANNEL);
+            }
         } else {
             ESP_LOGW(TAG, "esp_wifi_get_channel failed");
         }
@@ -258,6 +284,8 @@ void coreiot_client_init(void)
         .sta = {
             .ssid = WIFI_SSID,
             .password = WIFI_PASSWORD,
+            .scan_method = WIFI_FAST_SCAN,
+            .channel = ESPNOW_CHANNEL,
             .threshold.authmode = WIFI_AUTH_OPEN,
         },
     };
@@ -265,6 +293,7 @@ void coreiot_client_init(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
 
     /* Tắt modem-sleep: ESP-NOW là đường chính, receiver phải thức liên tục
      * để nhận broadcast từ sensor-node (PS mặc định rơi gói giữa beacon ~102ms). */

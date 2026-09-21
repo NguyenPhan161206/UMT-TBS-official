@@ -27,6 +27,7 @@ void sensor_model_init(void)
     {
         s_readings[i].distance_cm = 0;
         s_readings[i].is_stale = true;
+        s_readings[i].health = SENSOR_HEALTH_DISCONNECTED;
     }
     xSemaphoreGive(s_mutex);
 }
@@ -50,6 +51,7 @@ void sensor_model_set_distance(sensor_id_t id, uint16_t distance_cm)
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     s_readings[id].distance_cm = distance_cm;
     s_readings[id].is_stale = false;
+    s_readings[id].health = SENSOR_HEALTH_OK;
     xSemaphoreGive(s_mutex);
 }
 
@@ -63,6 +65,24 @@ void sensor_model_clear(sensor_id_t id)
     xSemaphoreTake(s_mutex, portMAX_DELAY);
     s_readings[id].distance_cm = 0;
     s_readings[id].is_stale = true;
+    s_readings[id].health = SENSOR_HEALTH_DISCONNECTED;
+    xSemaphoreGive(s_mutex);
+}
+
+void sensor_model_set_health(sensor_id_t id, sensor_health_t health)
+{
+    if (id >= SENSOR_MODEL_COUNT || s_mutex == NULL)
+    {
+        return;
+    }
+    xSemaphoreTake(s_mutex, portMAX_DELAY);
+    s_readings[id].health = health;
+    /* Nếu cảm biến được đánh dấu DISCONNECTED/STALE, đồng thời clear dữ liệu cũ. */
+    if (health == SENSOR_HEALTH_DISCONNECTED || health == SENSOR_HEALTH_STALE)
+    {
+        s_readings[id].distance_cm = 0;
+        s_readings[id].is_stale = true;
+    }
     xSemaphoreGive(s_mutex);
 }
 

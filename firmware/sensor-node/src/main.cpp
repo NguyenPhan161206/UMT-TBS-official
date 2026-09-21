@@ -39,6 +39,9 @@ static CoreiotClient s_coreiotClient;
 static TaskHandle_t s_coreiotTaskHandle = nullptr;
 #endif
 
+// Chu kỳ gói ESP-NOW (sequence counter)
+static uint16_t s_espnow_seq = 0;
+
 // Mảng tĩnh, kích thước cố định = SENSOR_COUNT (thresholds.h) - không dùng
 // std::vector nên không có cấp phát heap/mảnh vụn bộ nhớ khi chạy.
 static UltrasonicSensor s_sensors[SENSOR_COUNT];
@@ -151,11 +154,22 @@ static void sensorTask(void *pvParameters)
     Serial.println("========================================");
 
     TickType_t lastWakeTime = xTaskGetTickCount();
+    uint32_t loopCount = 0;
 
     for (;;)
     {
+        ++loopCount;
         for (size_t i = 0; i < SENSOR_COUNT; ++i)
         {
+            /* Cảm biến đã xác nhận DISCONNECTED: chỉ thăm dò lại 1 lần mỗi 10 chu kỳ (~1s).
+             * Tránh phí 40ms timeout trên mỗi chân chưa cắm, giúp vòng lặp đo của cảm biến
+             * đang hoạt động chạy đúng chuẩn 100ms siêu nhạy. */
+            sensor_health_t curHealth = sharedStateGetHealth(i);
+            if (curHealth == SENSOR_HEALTH_DISCONNECTED && ((loopCount + i) % 10 != 0))
+            {
+                continue;
+            }
+
             SensorReading reading = s_sensors[i].readOnce();
 
             if (reading.error != nullptr)
@@ -173,7 +187,20 @@ static void sensorTask(void *pvParameters)
                     distanceToText(hasStable, stableCm).c_str(),
                     s_invalidCount[i]);
 
-                if (s_invalidCount[i] >= FILTER_RESET_AFTER_INVALID)
+                /* Fast-disconnect: SENSOR_FAULT_CONSECUTIVE_MISS lần liên tiếp
+                 * (~300ms) → kết luận lỗi phần cứng, chuyển ngay sang DISCONNECTED.
+                 * Không chờ 15 lần (cũ) để tránh cảnh báo treo sau khi rút dây. */
+                if (s_invalidCount[i] >= SENSOR_FAULT_CONSECUTIVE_MISS)
+                {
+                    s_filters[i].reset();
+                    sharedStateSet(i, 0.0f, false);
+                    sharedStateSetHealth(i, SENSOR_HEALTH_DISCONNECTED);
+                    s_invalidCount[i] = 0;
+                    Serial.printf("[S%u] DISCONNECTED (x%d miss)\n",
+                                  (unsigned)i, SENSOR_FAULT_CONSECUTIVE_MISS);
+                }
+                /* Fallback (vẫn giữ FILTER_RESET_AFTER_INVALID cũ làm an toàn lưới bộ lọc). */
+                else if (s_invalidCount[i] >= FILTER_RESET_AFTER_INVALID)
                 {
                     s_filters[i].reset();
                     sharedStateSet(i, 0.0f, false);
@@ -187,6 +214,12 @@ static void sensorTask(void *pvParameters)
                 FilterResult result = s_filters[i].process(reading.distanceCm);
 
                 sharedStateSet(i, result.outputCm, result.hasOutput);
+
+                /* Xác định health theo kết quả đo. */
+                sensor_health_t h = result.hasOutput
+                                    ? SENSOR_HEALTH_OK
+                                    : SENSOR_HEALTH_OUT_OF_RANGE;
+                sharedStateSetHealth(i, h);
             }
         }
 
@@ -215,14 +248,18 @@ static void networkTask(void *pvParameters)
             lastSendMs = now;
 
             // Message luôn mang đủ ESPNOW_SENSOR_SLOT_COUNT (6) vị trí.
-            // Chỉ slot có phần cứng thật được set valid=1; slot không lắp
-            // giữ valid=0 -> waveshare-screen hiển thị "--".
+            // Chỉ slot có phần cứng thật được set valid=1 và health=OK;
+            // slot không lắp giữ valid=0 và health=DISCONNECTED.
             espnow_sensor_msg_t msg = {};
+            ++s_espnow_seq;
+            msg.seq = s_espnow_seq;
 
             for (size_t i = 0; i < SENSOR_COUNT; ++i)
             {
                 float distanceCm;
                 uint8_t slot = SENSOR_ESPNOW_SLOT[i];
+                sensor_health_t h = sharedStateGetHealth(i);
+                msg.health[slot] = (uint8_t)h;
                 if (sharedStateGet(i, distanceCm))
                 {
                     msg.distance_cm[slot] = distanceCm;

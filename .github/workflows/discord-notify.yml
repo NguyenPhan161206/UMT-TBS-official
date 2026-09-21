@@ -1,0 +1,74 @@
+name: Discord Push Notification
+
+on:
+  push:
+
+concurrency:
+  group: discord-notify-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    name: Notify Discord on push
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Build and send Discord embed
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+          MESSAGE: ${{ github.event.head_commit.message }}
+          AUTHOR: ${{ github.event.head_commit.author.name }}
+          REPO: ${{ github.repository }}
+        run: |
+          FILES=$(git diff-tree --no-commit-id --name-status -r HEAD)
+          ADDED=$(printf '%s\n' "$FILES" | grep -c '^A' || true)
+          MODIFIED=$(printf '%s\n' "$FILES" | grep -c '^M' || true)
+          DELETED=$(printf '%s\n' "$FILES" | grep -c '^D' || true)
+          TOTAL=$(printf '%s\n' "$FILES" | grep -c '' || true)
+          if [ -n "$FILES" ]; then
+            DETAILS=$(printf '%s\n' "$FILES" | awk '{
+              status=$1; path=$0; sub(/^[A-Z][0-9]*\t/, "", path);
+              if (status=="A") print "➕ " path;
+              else if (status=="M") print "✏️ " path;
+              else if (status=="D") print "🗑️ " path;
+              else print "• " path;
+            }')
+            if [ ${#DETAILS} -gt 1000 ]; then
+              DETAILS="${DETAILS:0:997}..."
+            fi
+          else
+            DETAILS="No file changes (merge / empty commit)"
+          fi
+          PAYLOAD=$(jq -n \
+            --arg title "Push $BRANCH · $REPO" \
+            --arg msg "$MESSAGE" \
+            --arg author "$AUTHOR" \
+            --arg branch "$BRANCH" \
+            --arg repo "$REPO" \
+            --arg sha "$SHA" \
+            --argjson added "$ADDED" \
+            --argjson modified "$MODIFIED" \
+            --argjson deleted "$DELETED" \
+            --argjson total "$TOTAL" \
+            --arg details "$DETAILS" \
+            '{embeds:[{
+              title:$title,
+              color:8760690,
+              url:("https://github.com/"+$repo+"/commit/"+$sha),
+              fields:[
+                {name:"Commit", value:$msg, inline:false},
+                {name:"Author", value:$author, inline:true},
+                {name:"Branch", value:$branch, inline:true},
+                {name:"Files changed", value:("+"+($added|tostring)+" / ~"+($modified|tostring)+" / -"+($deleted|tostring)+"  (total "+($total|tostring)+")"), inline:false},
+                {name:"Details", value:$details, inline:false}
+              ]
+            }]}')
+          curl -sS -w "\nHTTP:%{http_code}\n" -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"

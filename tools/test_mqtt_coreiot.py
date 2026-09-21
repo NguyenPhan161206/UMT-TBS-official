@@ -68,8 +68,10 @@ def classify(distance: float) -> str:
     return "NORMAL"
 
 
-def build_payload(distance: float, seq: int | None = None) -> dict:
+def build_payload(distance: float | list[float] | tuple[float, ...], seq: int | None = None) -> dict:
     """Telemetry đúng format sensor-node V2: 6 slot + nearest_cm + has_nearest."""
+    if isinstance(distance, (list, tuple)):
+        return build_payload_from_distances(distance, seq=seq)
     dist = round(float(distance), 1)
     payload = {key: dist for key in SENSOR_KEYS}
     payload["nearest_cm"] = dist
