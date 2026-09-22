@@ -16,7 +16,7 @@ Hệ thống **Cảnh báo va chạm xe tải** — **Hybrid V2**:
    độ trễ thấp) và qua **CoreIoT Rule-Chain** (phụ). Default Port: **<WAVESHARE_SCREEN_PORT, e.g. /dev/ttyACM1>**.
 
 ## Kiến trúc & Quy tắc bắt buộc (đọc trước khi code)
-- **`CONSTITUTION.md` (R1–R12)**: đọc tại `.opencode/docs/CONSTITUTION.md`.
+- **`CONSTITUTION.md` (R1–R12)**: được nạp tự động qua `.agents/rules/constitution.md`.
 - **R2**: mọi struct/define dùng chung giữa 2 board **chỉ nằm ở `firmware/shared/`** — cấm define trùng lặp.
 - **R3**: ngưỡng cảnh báo **chỉ ở `firmware/shared/thresholds.h`** (sensor-node và screen cùng include).
 - **R4**: `SENSOR_COUNT = sizeof(SENSOR_PINS)/sizeof(SENSOR_PINS[0])` + `static_assert`.
@@ -96,7 +96,7 @@ Mọi yêu cầu lớn hơn một sửa đơn file — feature, refactor, migrat
 break this down" — gọi skill `dev-orchestrator` **trước khi viết code**:
 
 ```
-Skill(skill="dev-orchestrator")
+Kích hoạt skill `dev-orchestrator` hoặc sử dụng Slash Command `/plan`
 ```
 
 - **MODE 1 — Decomposition:** tạo `docs/roadmaps/<slug>.roadmap.json` + bảng tóm tắt atomic steps.
