@@ -132,6 +132,18 @@ SDL_VIDEODRIVER=dummy /tmp/host_sim/umt_dash_sim --scenario slam --exit-after 3
 Cờ hữu ích: `--scenario <name>`, `--replay <file.jsonl>`, `--exit-after <giây>`,
 `--interval <ms>` (tốc độ feed mốc), `--help`.
 
+### 3.6 Kiểm thử giao diện Settings mới (Branch UI-UX)
+
+Trên nhánh `UI-UX`, thanh tiêu đề (`header`) của dashboard đã được tích hợp thêm nút **Settings** (`LV_SYMBOL_SETTINGS`) ở góc phải bên cạnh tab SYSTEM.
+
+- **Cách tương tác / kiểm thử trên Host Simulator (`umt_dash_sim`):**
+  1. Chạy host simulator:
+     ```bash
+     /tmp/host_sim/umt_dash_sim --scenario normal --interval 1000 --exit-after 20
+     ```
+  2. Quan sát góc phải header trên giao diện mô phỏng: Biểu tượng nút cài đặt (Settings icon) xuất hiện.
+  3. Click vào nút Settings: Kích hoạt sự kiện `open_settings_cb` gọi hàm `ui_dashboard_create_settings(lv_scr_act())`, mở ra bảng cấu hình/settings view.
+
 ---
 
 ## 4. Gửi telemetry thử lên CoreIoT (MQTT)
