@@ -270,6 +270,9 @@ static void networkTask(void *pvParameters)
             }
 
             s_espNowClient.sendReading(msg);
+            Serial.printf("DIST: [%.1f, %.1f, %.1f, %.1f, %.1f, %.1f]\n",
+                          msg.distance_cm[0], msg.distance_cm[1], msg.distance_cm[2],
+                          msg.distance_cm[3], msg.distance_cm[4], msg.distance_cm[5]);
         }
 
         vTaskDelay(pdMS_TO_TICKS(TASK_POLL_INTERVAL_MS));
