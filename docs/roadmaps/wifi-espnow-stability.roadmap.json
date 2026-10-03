@@ -7,11 +7,11 @@
       "task_title": "Cập nhật WiFi credential trong config/keys.json",
       "target_files": ["config/keys.json"],
       "prerequisites": [],
-      "objective": "Đổi WIFI_SSID='iPhone' và WIFI_PASSWORD='anh131106' trong config/keys.json (giữ nguyên broker/token). File gitignored, là nguồn duy nhất của credential (R1).",
-      "definition_of_done": "gen_credentials.py --check thoát 0; WIFI_SSID == 'iPhone' và WIFI_PASSWORD == 'anh131106' trong keys.json.",
+      "objective": "Đổi WIFI_SSID và WIFI_PASSWORD trong config/keys.json (giữ nguyên broker/token). File gitignored, là nguồn duy nhất của credential (R1).",
+      "definition_of_done": "gen_credentials.py --check thoát 0; WIFI_SSID và WIFI_PASSWORD hợp lệ trong keys.json.",
       "verification_command": "python3 tools/guard/gen_credentials.py --check && grep -E '\"(WIFI_SSID|WIFI_PASSWORD)\"' config/keys.json",
       "risk": "low",
-      "notes": "Không commit keys.json (R1). Giá trị do người dùng xác nhận: SSID 'iPhone', pass 'anh131106'."
+      "notes": "Không commit keys.json (R1). Giá trị do người dùng xác nhận trong keys.json."
     },
     {
       "step_id": 2,
@@ -22,8 +22,8 @@
       ],
       "prerequisites": [1],
       "objective": "Chạy tools/guard/gen_credentials.py với --out lần lượt cho 2 đường dẫn trên để tái sinh credentials.h từ keys.json (không sửa tay). Cả 2 file gitignored.",
-      "definition_of_done": "Cả 2 file chứa chuỗi 'iPhone' và 'anh131106'; python3 tools/guard/scan_secrets.py thoát 0 (không credential nào nằm trong file tracked).",
-      "verification_command": "python3 tools/guard/gen_credentials.py --out firmware/sensor-node/include/credentials.h && python3 tools/guard/gen_credentials.py --out firmware/waveshare-screen/components/coreiot_client/include/credentials.h && python3 tools/guard/scan_secrets.py && grep -c '\"iPhone\"' firmware/sensor-node/include/credentials.h firmware/waveshare-screen/components/coreiot_client/include/credentials.h",
+      "definition_of_done": "Cả 2 file credentials.h được tạo thành công; python3 tools/guard/scan_secrets.py thoát 0 (không credential nào nằm trong file tracked).",
+      "verification_command": "python3 tools/guard/gen_credentials.py --out firmware/sensor-node/include/credentials.h && python3 tools/guard/gen_credentials.py --out firmware/waveshare-screen/components/coreiot_client/include/credentials.h && python3 tools/guard/scan_secrets.py",
       "risk": "low"
     },
     {
@@ -31,7 +31,7 @@
       "task_title": "Thêm log channel WiFi thực tế sau GOT_IP",
       "target_files": ["firmware/waveshare-screen/components/coreiot_client/coreiot_client.c"],
       "prerequisites": [2],
-      "objective": "Trong wifi_event_handler nhánh IP_EVENT_STA_GOT_IP, sau khi log IP hãy gọi esp_wifi_get_channel(&primary, &secondary) và ESP_LOGI dòng 'channel primary=...'. Mục đích: xác định channel thật của hotspot iPhone để bước 4 căn chỉnh ESPNOW_CHANNEL.",
+      "objective": "Trong wifi_event_handler nhánh IP_EVENT_STA_GOT_IP, sau khi log IP hãy gọi esp_wifi_get_channel(&primary, &secondary) và ESP_LOGI dòng 'channel primary=...'. Mục đích: xác định channel thật của AP để bước 4 căn chỉnh ESPNOW_CHANNEL.",
       "definition_of_done": "waveshare-screen build OK; sau khi flash và kết nối được WiFi, serial log có dòng channel primary=<số>.",
       "verification_command": "cd firmware/waveshare-screen && /home/binhnguyen/.venv-pio/bin/pio run -e yolo_uno",
       "risk": "low",

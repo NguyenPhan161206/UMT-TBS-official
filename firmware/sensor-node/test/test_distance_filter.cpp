@@ -150,11 +150,101 @@ void test_filter_fast_track_crossing(void)
     TEST_ASSERT_EQUAL_STRING("FAST_TRACK_CROSSING", r2.status);
     TEST_ASSERT_FLOAT_WITHIN(2.0f, 51.0f, r2.outputCm);
     
-    // 4. Xe đã đi qua (chiều RA). Khoảng cách tăng vọt > 30cm.
-    // Asymmetric Fast-Track: Nhả chốt chỉ trong 1 mẫu!
+    // 4. Xe đã đi qua (chiều RA). "Nhanh vào – chậm ra": phải có FILTER_RELEASE_CONFIRM_SAMPLES
+    // mẫu xa liên tiếp mới nhả; trước đó vẫn giữ kết quả gần (không nhảy theo 1 echo xa).
+    for (int i = 0; i < FILTER_RELEASE_CONFIRM_SAMPLES - 1; ++i)
+    {
+        FilterResult rk = f.process(300.0f);
+        TEST_ASSERT_FLOAT_WITHIN(5.0f, 51.0f, rk.outputCm);
+    }
     FilterResult r3 = f.process(300.0f);
-    TEST_ASSERT_EQUAL_STRING("FAST_TRACK_CROSSING", r3.status); 
+    TEST_ASSERT_EQUAL_STRING("FAST_TRACK_CROSSING", r3.status);
     TEST_ASSERT_FLOAT_WITHIN(2.0f, 300.0f, r3.outputCm);
+}
+
+// Echo ảo xa lẻ tẻ (giá trị 190/247/498cm lấy từ log thật) KHÔNG được làm đầu ra nhảy xa
+// khi vật vẫn ở gần. Mỗi đợt echo ảo ngắn hơn FILTER_RELEASE_CONFIRM_SAMPLES mẫu.
+void test_filter_release_ignores_isolated_far_echoes(void)
+{
+    DistanceFilter f;
+    f.reset();
+    for (int i = 0; i < 8; ++i) { f.process(50.0f); }
+
+    const float ghosts[3] = {190.2f, 247.2f, 497.7f};
+    const int run = (FILTER_RELEASE_CONFIRM_SAMPLES > 2) ? 2 : 1;
+    int g = 0;
+    for (int round = 0; round < 8; ++round)
+    {
+        for (int k = 0; k < run; ++k)
+        {
+            FilterResult r = f.process(ghosts[g++ % 3]);
+            TEST_ASSERT_TRUE(r.hasOutput);
+            TEST_ASSERT_FLOAT_WITHIN(10.0f, 50.0f, r.outputCm);
+        }
+        for (int k = 0; k < 3; ++k)
+        {
+            FilterResult r = f.process(50.0f);
+            TEST_ASSERT_TRUE(r.hasOutput);
+            TEST_ASSERT_FLOAT_WITHIN(10.0f, 50.0f, r.outputCm);
+        }
+    }
+}
+
+// N-1 mẫu xa liên tiếp: chưa nhả. Mẫu thứ N: nhả về mẫu GẦN NHẤT trong N mẫu (thận trọng),
+// không phải mẫu cuối (có thể là echo ảo rất xa).
+void test_filter_release_after_confirmed_far_samples(void)
+{
+    DistanceFilter f;
+    f.reset();
+    for (int i = 0; i < 8; ++i) { f.process(50.0f); }
+
+    // Mẫu gần nhất (300) nằm ở vị trí thứ 2 nên đúng với mọi N >= 2.
+    const float far[9] = {320.0f, 300.0f, 340.0f, 310.0f, 330.0f, 350.0f, 360.0f, 370.0f, 380.0f};
+    for (int i = 0; i < FILTER_RELEASE_CONFIRM_SAMPLES - 1; ++i)
+    {
+        FilterResult r = f.process(far[i]);
+        TEST_ASSERT_FLOAT_WITHIN(10.0f, 50.0f, r.outputCm);
+        TEST_ASSERT_TRUE_MESSAGE(strcmp(r.status, "FAST_TRACK_CROSSING") != 0, "Chưa đủ N mẫu xa thì chưa được nhả");
+    }
+    FilterResult rn = f.process(far[FILTER_RELEASE_CONFIRM_SAMPLES - 1]);
+    TEST_ASSERT_EQUAL_STRING("FAST_TRACK_CROSSING", rn.status);
+    TEST_ASSERT_FLOAT_WITHIN(1.0f, 300.0f, rn.outputCm);
+}
+
+// Chuỗi giả-ngẫu-nhiên CỐ ĐỊNH (LCG) để test lặp lại được trên mọi máy.
+static uint32_t lcgNext(uint32_t &s)
+{
+    s = s * 1664525u + 1013904223u;
+    return s >> 8;
+}
+
+// Mô phỏng log thật: vật cố định ở 22,6cm, mỗi mẫu 20% trả echo ảo xa.
+// Bản 21/9 (nhả 1 mẫu) cho ~100/285 đầu ra "xa". Chuỗi cố định này tình cờ có 1 đợt 5 echo ảo
+// LIÊN TIẾP (nhả hợp lệ theo thiết kế, ~4 mẫu "xa" trước khi quay lại) nên ngưỡng là <= 10 (~3%).
+void test_filter_near_target_with_ghost_echoes_stays_near(void)
+{
+    const float ghosts[3] = {190.2f, 247.2f, 497.7f};
+    DistanceFilter f;
+    f.reset();
+    uint32_t seed = 12345u;
+    int outputs = 0;
+    int farOutputs = 0;
+    for (int i = 0; i < 300; ++i)
+    {
+        float raw = 22.6f + (float)(lcgNext(seed) % 7) * 0.1f - 0.3f;
+        if ((lcgNext(seed) % 100) < 20)
+        {
+            raw = ghosts[lcgNext(seed) % 3];
+        }
+        FilterResult r = f.process(raw);
+        if (i >= 15 && r.hasOutput)
+        {
+            ++outputs;
+            if (r.outputCm > 100.0f) { ++farOutputs; }
+        }
+    }
+    TEST_ASSERT_TRUE_MESSAGE(outputs > 250, "Phải có output gần như mọi mẫu sau warmup");
+    TEST_ASSERT_TRUE_MESSAGE(farOutputs <= 10, "Echo ảo xa lẻ tẻ không được làm đầu ra nhảy xa");
 }
 
 // ─── Test cases bổ sung ───────────────────────────────────────────────────────

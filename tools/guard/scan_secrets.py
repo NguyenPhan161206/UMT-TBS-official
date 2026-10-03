@@ -19,21 +19,42 @@ import subprocess
 import sys
 from pathlib import Path
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 # Lưu ý: placeholder trong template (like "<...>") KHÔNG tính là secret.
 SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     (
         "thingsboard-access-token",
         re.compile(
             r"(?:access[_-]?token|device[_-]?token|COREIOT\w*TOKEN)\s*"
-            r"[=:]\s*[\"'][A-Za-z0-9_]{16,}[\"']",
+            r"[=:]\s*[\"']([A-Za-z0-9_]{16,})[\"']",
             re.IGNORECASE,
         ),
     ),
     (
         "generic-key-value",
         re.compile(
-            r"\b(token|password|passwd|secret|api[_-]?key|access[_-]?key)\s*"
-            r"[=:]\s*[\"'][A-Za-z0-9_\-]{8,}[\"']",
+            r"(?:\b|(?<=_))(?:wifi[_-]?)?(token|password|passwd|secret|api[_-]?key|access[_-]?key)\s*"
+            r"[=:]\s*[\"']([A-Za-z0-9_\-!@#$%^&*]{8,})[\"']",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "doc-pass-phrase",
+        re.compile(
+            r"\b(?:pass|password)\s+[\"']([A-Za-z0-9_\-!@#$%^&*]{8,32})[\"']",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "doc-wifi-slash-pair",
+        re.compile(
+            r"(?:wifi|hotspot|ssid|credential|keys\.json)[^\n\r]{0,100}?\b([a-zA-Z0-9_\-]{2,20}\s*/\s*[a-zA-Z0-9_\-!@#$%^&*]{8,30})\b",
             re.IGNORECASE,
         ),
     ),
@@ -42,13 +63,22 @@ SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("private-key-block", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
 ]
 
+KNOWN_PATH_PREFIXES = (
+    "firmware/", "components/", "tools/", "src/", "include/", "docs/",
+    "lib/", "test/", "build/", "report/", "cloud/", "app/", ".github/",
+)
+
 # Giá trị placeholder chấp nhận được (template/example) — KHÔNG báo.
-PLACEHOLDER_RE = re.compile(r"^<[A-Z0-9_]+>$|^your[_-]?(token|key|password)$|^xxx+$|^example$", re.IGNORECASE)
+PLACEHOLDER_RE = re.compile(
+    r"^<[A-Za-z0-9_]+>$|^your[_-]?(token|key|password|wifi_password)$|^xxx+$|^example$",
+    re.IGNORECASE,
+)
 
 
 def git_tracked_files() -> list[str]:
     out = subprocess.run(
-        ["git", "ls-files"], check=False, capture_output=True, text=True
+        ["git", "ls-files"], check=False, capture_output=True, text=True,
+        encoding="utf-8", errors="replace"
     )
     if out.returncode != 0:
         return []
@@ -57,9 +87,10 @@ def git_tracked_files() -> list[str]:
 
 def git_staged_diff() -> str:
     out = subprocess.run(
-        ["git", "diff", "--cached", "--no-color"], check=False, capture_output=True, text=True
+        ["git", "diff", "--cached", "--no-color"], check=False, capture_output=True, text=True,
+        encoding="utf-8", errors="replace"
     )
-    return out.stdout
+    return out.stdout or ""
 
 
 def scan_lines(path: str, lines: list[str], hits: list[dict]) -> None:
@@ -69,9 +100,30 @@ def scan_lines(path: str, lines: list[str], hits: list[dict]) -> None:
             if not m:
                 continue
             val = m.group(0)
+            captured = m.group(1) if m.groups() and m.group(1) else val
+            captured_clean = captured.strip("\"' \t")
             # Bỏ qua placeholder
-            if rx is not None and PLACEHOLDER_RE.search(val):
+            if PLACEHOLDER_RE.search(captured_clean) or (
+                captured_clean.startswith("<") and captured_clean.endswith(">")
+            ):
                 continue
+            # Bỏ qua nếu là đường dẫn mã nguồn / thư mục dự án
+            if any(captured_clean.lower().startswith(p) for p in KNOWN_PATH_PREFIXES):
+                continue
+            if any(captured_clean.lower().endswith(ext) for ext in (".py", ".h", ".c", ".cpp", ".md", ".json", ".yml", ".txt")):
+                continue
+            if name == "doc-wifi-slash-pair":
+                parts = captured_clean.split("/")
+                if len(parts) == 2:
+                    left, right = parts[0].strip(), parts[1].strip()
+                    # Bỏ qua GitHub actions / repo tags
+                    if "@v" in right or left.lower() in ("softprops", "actions"):
+                        continue
+                    has_digits = any(c.isdigit() for c in right)
+                    has_alpha = any(c.isalpha() for c in right)
+                    has_special = any(c in "!@#$%^&*" for c in right)
+                    if not ((has_alpha and has_digits) or has_special):
+                        continue
             hits.append({"file": path, "line": i, "pattern": name, "match": val})
 
 

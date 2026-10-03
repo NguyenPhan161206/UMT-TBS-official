@@ -275,16 +275,37 @@ FilterResult DistanceFilter::process(float rawDistanceCm)
 
     addToHistory(rawDistanceCm);
 
-    // FAST-TRACK: Asymmetric Crossing Vehicle Heuristic (T2.3)
-    // Chiều VÀO (Khoảng cách giảm đột ngột): Cần 2 mẫu sát nhau để chống nhiễu
-    // Chiều RA (Khoảng cách tăng đột ngột): Cần 1 mẫu duy nhất để ngắt cảnh báo siêu tốc
+    // FAST-TRACK "nhanh vào – chậm ra" (T2.3 / T3.5)
+    // Chiều VÀO (khoảng cách giảm đột ngột): 2 mẫu liên tiếp sát nhau là báo ngay (ưu tiên báo sớm).
+    // Chiều RA (khoảng cách tăng đột ngột): cần FILTER_RELEASE_CONFIRM_SAMPLES mẫu xa liên tiếp mới nhả.
+    //   Bản 21/9 nhả chỉ với 1 mẫu nên đầu ra nhảy theo từng echo ảo xa (tường/trần/phản xạ kép)
+    //   trong khi vật vẫn ở gần; báo "xa" sai nguy hiểm hơn việc nhả cảnh báo trễ ~0,4 s.
     if (_hasStable && _historyCount >= 1)
     {
         float currRaw = _rawHistory[_historyCount - 1];
         float diffFromStableAbs = fabsf(currRaw - _stableDistanceCm);
         
-        bool isJumpOut = (currRaw > _stableDistanceCm) && 
-                         (diffFromStableAbs >= FILTER_MIN_JUMP_THRESHOLD_CM);
+        // RA: FILTER_RELEASE_CONFIRM_SAMPLES mẫu MỚI NHẤT đều xa hơn kết quả hiện tại >= ngưỡng nhảy
+        // thì mới nhả; giá trị nhả = mẫu GẦN NHẤT trong số đó (thận trọng, không theo echo ảo rất xa).
+        bool isJumpOut = false;
+        float releaseCm = currRaw;
+        if (_historyCount >= (size_t)FILTER_RELEASE_CONFIRM_SAMPLES)
+        {
+            isJumpOut = true;
+            for (size_t k = 0; k < (size_t)FILTER_RELEASE_CONFIRM_SAMPLES; ++k)
+            {
+                float v = _rawHistory[_historyCount - 1 - k];
+                if (!((v > _stableDistanceCm) && ((v - _stableDistanceCm) >= FILTER_MIN_JUMP_THRESHOLD_CM)))
+                {
+                    isJumpOut = false;
+                    break;
+                }
+                if (v < releaseCm)
+                {
+                    releaseCm = v;
+                }
+            }
+        }
                          
         bool isJumpIn = false;
         float prevRaw = 0.0f;
@@ -301,7 +322,7 @@ FilterResult DistanceFilter::process(float rawDistanceCm)
         
         if (isJumpIn || isJumpOut)
         {
-            _stableDistanceCm = isJumpIn ? ((currRaw + prevRaw) / 2.0f) : currRaw;
+            _stableDistanceCm = isJumpIn ? ((currRaw + prevRaw) / 2.0f) : releaseCm;
             clearJumpCandidate();
             
             // Xóa mảng lịch sử cũ, chỉ giữ lại mẫu hiện tại để tránh giằng co
@@ -312,7 +333,7 @@ FilterResult DistanceFilter::process(float rawDistanceCm)
             }
             else
             {
-                float fastTrackMembers[1] = {currRaw};
+                float fastTrackMembers[1] = {releaseCm};
                 replaceHistoryWith(fastTrackMembers, 1);
             }
             

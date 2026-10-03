@@ -17,7 +17,7 @@ struct FilterResult
     bool hasOutput; // đã có kết quả ổn định để dùng chưa
     float outputCm;
 
-    const char *status; // "WARMUP" | "NO_CLUSTER" | "INIT" | "OK" | "HOLD_JUMP" | "ACCEPT_JUMP"
+    const char *status; // "WARMUP" | "NO_CLUSTER" | "INIT" | "OK" | "HOLD_JUMP" | "ACCEPT_JUMP" | "FAST_TRACK_CROSSING"
 };
 
 // Bộ lọc median/cluster cho MỘT cảm biến. Mỗi cảm biến trong mảng cần

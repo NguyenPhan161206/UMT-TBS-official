@@ -104,6 +104,12 @@ typedef enum {
 #define FILTER_JUMP_CONFIRM_COUNT 2
 #define FILTER_BASE_JUMP_TOLERANCE_CM 12.0f
 #define FILTER_JUMP_TOLERANCE_RATIO 0.10f
+/* "Nhanh vào – chậm ra": chiều RA (khoảng cách tăng đột ngột) chỉ nhả khi ngần này mẫu MỚI NHẤT
+ * liên tiếp đều xa hơn kết quả hiện tại >= FILTER_MIN_JUMP_THRESHOLD_CM; giá trị nhả = mẫu GẦN
+ * NHẤT trong số đó. 1 mẫu (bản 21/9) làm đầu ra nhảy theo từng echo ảo xa (tường/trần/phản xạ
+ * kép) trong khi vật vẫn ở gần; 5 mẫu = 0,5 s ở MEASURE_INTERVAL_MS. Nhả trễ chỉ làm cảnh báo tắt
+ * muộn, còn báo "xa" sai khi vật đang gần mới nguy hiểm. */
+#define FILTER_RELEASE_CONFIRM_SAMPLES 5
 /* Bộ lọc fallback: nếu sensor-node chưa áp dụng SENSOR_FAULT_CONSECUTIVE_MISS,
  * đây vẫn là lưới cuối reset bộ lọc cluster. Giá trị lớn hơn để tránh reset
  * nhầm khi chỉ miss vài xung lẻ tẻ do nhiễu âm học. */
@@ -145,6 +151,10 @@ static const sensor_pin_cfg_t SENSOR_PINS[] = {
 
 /* Chặn lệch số cảm biến vật lý so với 6 slot (R4). */
 TBS_STATIC_ASSERT(SENSOR_COUNT == 6, "SENSOR_COUNT must equal 6 sensor slots");
+
+/* Nhả cảnh báo cần >= 2 mẫu (1 mẫu = quay lại lỗi echo ảo) và phải nằm gọn trong lịch sử bộ lọc. */
+TBS_STATIC_ASSERT(FILTER_RELEASE_CONFIRM_SAMPLES >= 2 && FILTER_RELEASE_CONFIRM_SAMPLES <= FILTER_HISTORY_SIZE,
+                  "FILTER_RELEASE_CONFIRM_SAMPLES must be in [2, FILTER_HISTORY_SIZE]");
 
 #ifdef __cplusplus
 }

@@ -24,6 +24,11 @@ void test_filter_fast_track_crossing(void);
 void test_filter_stable_at_danger_boundary(void);
 void test_filter_cluster_dynamic_tolerance(void);
 
+// distance_filter: nhả cảnh báo cần N mẫu xa ("nhanh vào – chậm ra")
+void test_filter_release_ignores_isolated_far_echoes(void);
+void test_filter_release_after_confirmed_far_samples(void);
+void test_filter_near_target_with_ghost_echoes_stays_near(void);
+
 // Unity stubs: cân bằng giới hạn API của các trình chạy chất lượng (GCC,
 // MinGW). Hàm bỏ trống vì các test dùng fixture cục bộ, không state chung.
 void setUp(void) {}
@@ -54,6 +59,11 @@ int main(void)
     RUN_TEST(test_filter_fast_track_crossing);
     RUN_TEST(test_filter_stable_at_danger_boundary);
     RUN_TEST(test_filter_cluster_dynamic_tolerance);
+
+    // distance_filter — nhả cảnh báo cần N mẫu xa
+    RUN_TEST(test_filter_release_ignores_isolated_far_echoes);
+    RUN_TEST(test_filter_release_after_confirmed_far_samples);
+    RUN_TEST(test_filter_near_target_with_ghost_echoes_stays_near);
 
     return UNITY_END();
 }

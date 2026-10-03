@@ -1,0 +1,53 @@
+{
+  "project_name": "sensor-release-confirm (nhanh vào - chậm ra: sửa độ chính xác bộ lọc sau commit 21/9)",
+  "total_steps": 4,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Hằng số FILTER_RELEASE_CONFIRM_SAMPLES trong thresholds.h (R3)",
+      "target_files": [
+        "firmware/shared/thresholds.h"
+      ],
+      "prerequisites": [],
+      "objective": "Thêm #define FILTER_RELEASE_CONFIRM_SAMPLES 5 cạnh các hằng FILTER_* (số mẫu MỚI NHẤT liên tiếp đều xa hơn kết quả hiện tại >= FILTER_MIN_JUMP_THRESHOLD_CM mới được nhả), kèm TBS_STATIC_ASSERT: 2 <= giá trị <= FILTER_HISTORY_SIZE. Chưa đổi hành vi bộ lọc.",
+      "definition_of_done": "pio test -e native vẫn 16/16 pass; pio run -e yolo_uno và -e yolo_uno_coreiot (sensor-node) và -e yolo_uno (waveshare-screen) đều SUCCESS; đặt thử giá trị 1 hoặc 10 thì static_assert làm build FAIL.",
+      "verification_command": "cd firmware/sensor-node && pio test -e native && pio run -e yolo_uno"
+    },
+    {
+      "step_id": 2,
+      "task_title": "Test cho nhả cảnh báo cần N mẫu xa (viết trước, phải đỏ)",
+      "target_files": [
+        "firmware/sensor-node/test/test_distance_filter.cpp",
+        "firmware/sensor-node/test/test_runner.cpp"
+      ],
+      "prerequisites": [1],
+      "objective": "Sửa test_filter_fast_track_crossing (chiều RA cần N mẫu 300cm mới nhả). Thêm: test_filter_release_ignores_isolated_far_echoes (echo ảo 190/247/497 xen kẽ, đầu ra giữ ~50cm), test_filter_release_after_confirmed_far_samples (N-1 mẫu xa chưa nhả; mẫu thứ N nhả về mẫu GẦN NHẤT), test_filter_near_target_with_ghost_echoes_stays_near (22,6cm + 20% echo ảo, chuỗi giả-ngẫu-nhiên cố định, <= 3 đầu ra xa). Đăng ký trong test_runner.cpp. Chiều VÀO (2 mẫu) không đổi.",
+      "definition_of_done": "pio test -e native chạy được (biên dịch xong) và FAIL đúng các test mới/sửa vì bộ lọc còn nhả 1 mẫu; các test cũ còn lại vẫn pass.",
+      "verification_command": "cd firmware/sensor-node && pio test -e native"
+    },
+    {
+      "step_id": 3,
+      "task_title": "distance_filter: chiều RA cần N mẫu xa, nhả về mẫu gần nhất",
+      "target_files": [
+        "firmware/sensor-node/src/distance_filter.cpp",
+        "firmware/sensor-node/include/distance_filter.h"
+      ],
+      "prerequisites": [2],
+      "objective": "Trong khối FAST-TRACK: isJumpOut chỉ true khi FILTER_RELEASE_CONFIRM_SAMPLES mẫu mới nhất đều > stable và cách stable >= FILTER_MIN_JUMP_THRESHOLD_CM; giá trị nhả = mẫu nhỏ nhất trong N mẫu đó; lịch sử thay bằng {giá trị nhả}. Chiều VÀO giữ nguyên. Cập nhật comment giải thích 'nhanh vào - chậm ra' và danh sách status ở distance_filter.h.",
+      "definition_of_done": "pio test -e native: tất cả test pass (kể cả test mới ở bước 2); bộ lọc biên dịch trên PC cho kết quả mô phỏng khớp bản đề xuất B đã đo (echo ảo lẻ tẻ 20%: <= 1% đầu ra xa).",
+      "verification_command": "cd firmware/sensor-node && pio test -e native && pio run -e yolo_uno && pio run -e yolo_uno_coreiot"
+    },
+    {
+      "step_id": 4,
+      "task_title": "Build 2 env, nạp COM7, đo lại trên thiết bị, log + CHECKLIST",
+      "target_files": [
+        "docs/logs/SENSOR_NODE_RELEASE_CONFIRM_LOG.md",
+        "docs/CHECKLIST.md"
+      ],
+      "prerequisites": [3],
+      "objective": "Build sensor-node 2 env + waveshare-screen (shared đổi), nạp sensor-node qua COM7 bằng đúng env đang chạy (yolo_uno_coreiot, KHÔNG đổi chế độ Wi-Fi), bắt log serial ~25s (chỉ đọc) và so với log trước khi sửa (48% mẫu báo xa, 88 lần nhảy >=30cm/phút). Ghi log theo AGENTS.md, cập nhật dòng T3.5 trong CHECKLIST.",
+      "definition_of_done": "Hai env sensor-node và waveshare-screen SUCCESS; nạp COM7 thành công (esptool Hash of data verified); log sau nạp có số mẫu xa và số lần nhảy/phút đo được, ghi cạnh số trước; log nêu rõ điều kiện đo không giống hệt (cảnh thật có thể đã đổi) và ESP-NOW vẫn chưa nối vì Wi-Fi.",
+      "verification_command": "cd firmware/sensor-node && pio run -e yolo_uno_coreiot -t upload --upload-port COM7"
+    }
+  ]
+}
