@@ -1,0 +1,107 @@
+{
+  "project_name": "truck-diagram-markers (T4.1a + T3.2 + T3.1)",
+  "total_steps": 8,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Component vehicle_profile: struct hồ sơ xe + hồ sơ EX8 (placeholder)",
+      "target_files": [
+        "firmware/waveshare-screen/components/vehicle_profile/include/vehicle_profile.h",
+        "firmware/waveshare-screen/components/vehicle_profile/vehicle_profile.c",
+        "firmware/waveshare-screen/components/vehicle_profile/CMakeLists.txt"
+      ],
+      "prerequisites": [],
+      "objective": "Tạo component C thuần (không phụ thuộc LVGL) chứa vehicle_profile_t (tên, length_mm, width_mm, cab_length_mm, pose 6 cảm biến {x_mm,y_mm,angle_deg} lập chỉ mục theo espnow_slot_t) + hàm vehicle_profile_active() trả hồ sơ EX8 + vehicle_profile_validate(). Số đo EX8 là PLACEHOLDER, mọi số nằm trong DUY NHẤT vehicle_profile.c.",
+      "definition_of_done": "Header export đủ 3 symbol (vehicle_profile_t, vehicle_profile_active, vehicle_profile_validate); có static_assert độ dài mảng sensors == ESPNOW_SENSOR_SLOT_COUNT; vehicle_profile_validate(vehicle_profile_active()) == true; file không include lvgl.h.",
+      "verification_command": "grep -c \"vehicle_profile_validate\" firmware/waveshare-screen/components/vehicle_profile/include/vehicle_profile.h && ! grep -n \"lvgl\" firmware/waveshare-screen/components/vehicle_profile/include/vehicle_profile.h firmware/waveshare-screen/components/vehicle_profile/vehicle_profile.c && python3 tools/guard/arch_guard.py"
+    },
+    {
+      "step_id": 2,
+      "task_title": "vehicle_layout: toán tỷ lệ mm→px và vị trí marker (C thuần)",
+      "target_files": [
+        "firmware/waveshare-screen/components/vehicle_profile/include/vehicle_layout.h",
+        "firmware/waveshare-screen/components/vehicle_profile/vehicle_layout.c",
+        "firmware/waveshare-screen/components/vehicle_profile/CMakeLists.txt"
+      ],
+      "prerequisites": [1],
+      "objective": "Thêm vehicle_layout_compute(profile, canvas_w, canvas_h, margin_px, out) tính scale (fit xe vào canvas, giữ tỷ lệ), khung thân xe px, cabin px, toạ độ px + góc từng cảm biến; và vehicle_layout_marker(layout, slot, dist_cm, &pt) tính điểm phát hiện dọc trục búp theo CÙNG tỷ lệ với thân xe. Toàn bộ số học số nguyên (scale_num/scale_den) trừ sin/cos dùng <math.h>.",
+      "definition_of_done": "Hai hàm export đúng chữ ký trong handoff; compute trả false khi canvas/margin không hợp lệ hoặc profile không validate; không có hằng số kích thước xe nào trong vehicle_layout.c.",
+      "verification_command": "grep -cE \"vehicle_layout_compute|vehicle_layout_marker\" firmware/waveshare-screen/components/vehicle_profile/include/vehicle_layout.h && ! grep -nE \"\\b(8000|2500|7600)\\b\" firmware/waveshare-screen/components/vehicle_profile/vehicle_layout.c"
+    },
+    {
+      "step_id": 3,
+      "task_title": "Host test cho vehicle_profile + vehicle_layout",
+      "target_files": [
+        "firmware/waveshare-screen/host_sim/tests/test_vehicle_layout.c",
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt"
+      ],
+      "prerequisites": [2],
+      "objective": "Thêm target vehicle_layout_tests (mini assert-runner như test_hazard_core.c) + add_test. Test: validate profile; thân xe nằm gọn trong canvas và chừa margin; tỷ lệ w/h thân xe sai lệch ≤2% so với width_mm/length_mm; đổi width_mm/length_mm profile giả thì layout đổi theo (chứng minh không gắn cứng); mỗi sensor_px nằm trong canvas; marker FRONT dist 50cm nằm PHÍA TRÊN sensor FRONT đúng 500mm*scale px (±1px), marker LEFT_FRONT nằm bên TRÁI.",
+      "definition_of_done": "ctest chạy được vehicle_layout_tests, PASS; test thật sự FAIL nếu cố ý đổi dấu hướng marker (mutation check thủ công).",
+      "verification_command": "cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim --target vehicle_layout_tests && ctest --test-dir build/host_sim -R vehicle_layout_tests --output-on-failure"
+    },
+    {
+      "step_id": 4,
+      "task_title": "Vẽ thân xe tải (cabin + thùng + bánh) từ layout",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_truck.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h",
+        "firmware/waveshare-screen/components/ui_dashboard/CMakeLists.txt",
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt"
+      ],
+      "prerequisites": [2],
+      "objective": "Tạo void build_truck_body(lv_obj_t *canvas, const vehicle_layout_t *L) vẽ cabin + thùng hàng + 4–6 bánh bằng lv_obj, mọi kích thước/toạ độ suy ra từ layout (không số cứng). Khai báo trong ui_dashboard_private.h; thêm vào SRCS/REQUIRES (vehicle_profile) của ui_dashboard và nguồn của umt_dash_sim. Chưa gọi từ đâu (step 5 nối).",
+      "definition_of_done": "File mới ≤ 400 dòng (R7); biên dịch trong umt_dash_sim; không còn lệnh cũ nào bị đổi hành vi (hàm chưa được gọi).",
+      "verification_command": "cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim --target umt_dash_sim && test $(wc -l < firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_truck.c) -le 400"
+    },
+    {
+      "step_id": 5,
+      "task_title": "Nối build_center_canvas với profile: bỏ xe con + k_layout cứng",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c"
+      ],
+      "prerequisites": [3, 4],
+      "objective": "Trong build_center_canvas: lấy vehicle_profile_active(), gọi vehicle_layout_compute (canvas 440x440, margin tính từ bán kính cung), gọi build_truck_body, rồi tạo 6 cung bằng s_arcs[i] với local_x/local_y/mid_angle_deg lấy từ layout. Xoá hình chữ nhật 160x260, 3 label FRONT HOOD/CABIN/REAR TRUNK và bảng k_layout[].",
+      "definition_of_done": "grep không còn '{220, 60, 270}' và 'FRONT HOOD' trong ui_dashboard_layout.c; file ≤ 400 dòng; ctest toàn bộ (gồm umt_dash_sim_render) PASS; chạy sim --scenario approach exit 0.",
+      "verification_command": "! grep -nE \"FRONT HOOD|\\{220, 60, 270\\}|k_layout\" firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 6,
+      "task_title": "T3.1: widget marker vật thể tại điểm phát hiện",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_marker.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h",
+        "firmware/waveshare-screen/components/ui_dashboard/CMakeLists.txt",
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt"
+      ],
+      "prerequisites": [4],
+      "objective": "Tạo markers_build(lv_obj_t *canvas, const vehicle_layout_t *L), marker_update(uint8_t slot, uint16_t dist_cm) và marker_hide(uint8_t slot). Marker = chấm tròn ~16px màu zone_color(hazard_classify(dist)) có viền, đặt qua vehicle_layout_marker. Chỉ hiện khi dist_cm <= SENSOR_CAUTION_CM (và không phải vùng DISCONNECTED/STALE); ngoài ra ẩn.",
+      "definition_of_done": "Ba hàm được khai báo trong private.h và biên dịch trong sim; marker_update(slot, 50) đặt marker đúng toạ độ vehicle_layout_marker; marker_update(slot, 250) và marker_hide đều ẩn marker; file ≤ 400 dòng.",
+      "verification_command": "cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim --target umt_dash_sim && grep -cE \"markers_build|marker_update|marker_hide\" firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h"
+    },
+    {
+      "step_id": 7,
+      "task_title": "T3.1: nối marker vào luồng update/clear/stale",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c"
+      ],
+      "prerequisites": [5, 6],
+      "objective": "build_center_canvas gọi markers_build sau khi tạo cung; ui_dashboard_update_sensor gọi marker_update(sensor_id, dist_cm); ui_dashboard_clear_sensor gọi marker_hide(sensor_id). Đường stale/mất link ở main.c đã đi qua ui_dashboard_clear_sensor — xác minh bằng grep, không sửa main.c. ui_dashboard.c hiện 393 dòng: chỉ thêm tối đa 2 dòng gọi hàm, không thêm logic.",
+      "definition_of_done": "Chạy sim --scenario approach: marker xuất hiện phía trước xe khi d1<=100cm và tiến sát đầu xe khi d1 giảm; --scenario normal (mọi slot >100) không có marker nào hiện; ui_dashboard.c <= 400 dòng; ctest PASS.",
+      "verification_command": "cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && grep -c \"marker_hide\\|marker_update\" firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c && test $(wc -l < firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c) -le 400"
+    },
+    {
+      "step_id": 8,
+      "task_title": "Nghiệm thu: build firmware thật + log + cập nhật CHECKLIST",
+      "target_files": [
+        "docs/logs/WAVESHARE_SCREEN_TRUCK_DIAGRAM_LOG.md",
+        "docs/CHECKLIST.md"
+      ],
+      "prerequisites": [7],
+      "objective": "Build firmware waveshare-screen thật (kiểm tra component vehicle_profile được ESP-IDF nhận, không vỡ size-gate), chạy toàn bộ guard, rồi viết log theo AGENTS.md và cập nhật CHECKLIST: T3.1, T3.2, T4.1a (chỉ phần EX8 hard-code; ghi rõ số đo là placeholder), và sửa các dòng T1.1–T1.4/T2.3 nếu đối chiếu code thấy đã làm xong.",
+      "definition_of_done": "pio run -e yolo_uno (waveshare) SUCCESS; pytest guard pass; scan_secrets sạch; log tồn tại và nêu rõ TODO 'thay số đo EX8 thật'; CHECKLIST không còn ghi T3.1/T3.2 là CHƯA.",
+      "verification_command": "cd firmware/waveshare-screen && pio run -e yolo_uno && cd ../.. && python3 tools/guard/scan_secrets.py && python3 tools/guard/arch_guard.py && python3 -m pytest tools/guard/test_guard.py -q"
+    }
+  ]
+}

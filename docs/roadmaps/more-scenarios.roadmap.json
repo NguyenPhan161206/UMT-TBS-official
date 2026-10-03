@@ -1,0 +1,54 @@
+{
+  "project_name": "more-scenarios (thêm 11 kịch bản cho giả lập / MQTT / replay)",
+  "total_steps": 4,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Test cho kịch bản mới (viết trước, phải đỏ)",
+      "target_files": [
+        "tools/guard/test_guard.py"
+      ],
+      "prerequisites": [],
+      "objective": "Đổi test_scenarios_has_4_named_timelines thành test_scenarios_named_timelines (4 tên gốc vẫn có, tên duy nhất và là định danh C hợp lệ, >= 4 mốc, 6 slot, giá trị trong [20, 500]) và thêm test_new_scenarios_semantics kiểm ngữ nghĩa 11 kịch bản: overtake_right, overtake_left, reverse_wall, reverse_pedestrian, pedestrian_front, crossing_right, narrow_lane, boxed_in, threshold_flap, fast_pass, stop_and_go. Ngưỡng 100/30 đọc từ thresholds.h, không gõ cứng.",
+      "definition_of_done": "pytest chạy được và FAIL đúng vì thiếu 11 tên kịch bản (KeyError/assert), các test khác vẫn pass.",
+      "verification_command": "PYTHONUTF8=1 python -m pytest tools/guard/test_guard.py -q"
+    },
+    {
+      "step_id": 2,
+      "task_title": "Thêm 11 kịch bản vào tools/scenarios.py (nguồn duy nhất)",
+      "target_files": [
+        "tools/scenarios.py"
+      ],
+      "prerequisites": [1],
+      "objective": "Thêm helper _row(front, rear, lf, lr, rf, rr) (mặc định CLEAR=200 cm) và 11 kịch bản theo ngữ nghĩa đã kiểm ở bước 1; mở rộng SCENARIO_NAMES (giữ 4 tên gốc đứng đầu). Không đổi 4 kịch bản gốc.",
+      "definition_of_done": "pytest tools/guard/test_guard.py pass toàn bộ; python tools/scenarios.py liệt kê 15 kịch bản; 4 kịch bản gốc không đổi (so sánh với git HEAD).",
+      "verification_command": "PYTHONUTF8=1 python -m pytest tools/guard/test_guard.py -q && python tools/scenarios.py"
+    },
+    {
+      "step_id": 3,
+      "task_title": "Sim --list, help --scenario động, cập nhật hướng dẫn",
+      "target_files": [
+        "firmware/waveshare-screen/host_sim/main.c",
+        "tools/test_mqtt_coreiot.py",
+        "docs/G1_TESTING_GUIDE.md"
+      ],
+      "prerequisites": [2],
+      "objective": "umt_dash_sim thêm cờ --list in tên + số mốc từng kịch bản rồi thoát 0 (không mở cửa sổ). test_mqtt_coreiot.py: help của --scenario liệt kê tên từ SCENARIO_NAMES thay vì chuỗi gõ cứng. G1_TESTING_GUIDE.md: bảng 15 kịch bản + cách chạy trên sim và qua --dry-run.",
+      "definition_of_done": "cmake --build build/host_sim thành công; umt_dash_sim --list in đủ 15 dòng, exit 0; test_mqtt_coreiot.py --help có đủ 15 tên; ctest 3/3 pass.",
+      "verification_command": "cmake --build build/host_sim && build/host_sim/umt_dash_sim.exe --list && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 4,
+      "task_title": "Chạy đủ 15 kịch bản trên sim, ghi log + cập nhật tài liệu liên quan",
+      "target_files": [
+        "docs/logs/TOOLS_SCENARIOS_LOG.md",
+        "docs/CHECKLIST.md",
+        "docs/ARCHITECTURE_G1_TESTING.md"
+      ],
+      "prerequisites": [3],
+      "objective": "Chạy từng kịch bản trên sim (mỗi cái replay đủ N/N mốc, exit 0), chụp ảnh vài kịch bản để kiểm bằng mắt (cung/chấm đúng slot), chạy dry-run MQTT cho cả 15. Ghi log (append mục mới vào TOOLS_SCENARIOS_LOG.md), sửa chỗ nêu 4 kịch bản trong CHECKLIST.md (T1.1) và ARCHITECTURE_G1_TESTING.md.",
+      "definition_of_done": "15/15 kịch bản replay đủ mốc trên sim; dry-run 15/15 exit 0; pytest guard pass; scan_secrets OK; CI không đổi (nêu rõ trong log: CI vẫn chỉ chạy approach/slam).",
+      "verification_command": "PYTHONUTF8=1 python -m pytest tools/guard/test_guard.py -q && python tools/guard/scan_secrets.py"
+    }
+  ]
+}

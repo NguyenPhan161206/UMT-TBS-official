@@ -67,3 +67,39 @@ xvfb-run -a /tmp/host_sim/umt_dash_sim --exit-after 3 --scenario approach
 - Sim hiện feed cả 6 slot qua `ui_dashboard_update_sensor`; khi thêm biểu tượng
   vị trí vật thể (T3.1) và sơ đồ EX8 (T3.2) sẽ cần thêm snapshot trạng thái LVGL
   để assert layout — hoặc screenshot cơ bản (lv_snapshot) nếu cần CI visual.
+
+---
+
+# BỔ SUNG 2026-10-03 — `--replay` đọc file của tools/recorder, đúng nhịp, `valid=0` = không dữ liệu
+
+Roadmap: `docs/roadmaps/sim-replay-v2.roadmap.json` (4 bước). Nguyên nhân: người dùng replay `data/recordings/sample_approaching_obstacle.jsonl`
+-> sim in `skip invalid replay row` ở mọi dòng và nạp 0 dòng.
+
+## Nguyên nhân
+Hai luồng dữ liệu không nối với nhau. `umt_dash_sim --replay` chỉ đọc payload V2 `{"d1":…,"d6":…}` (`tools/record_telemetry.py`), còn `tools/recorder/`
+(commit `a2636ed`) ghi `{"elapsed_ms":…,"distances":[…],"valid":[…]}`. Hướng dẫn `DATASET_RECORDING_GUIDE.md` hứa "bơm UDP cổng 9090 vào sim"
+nhưng sim không có bộ nhận UDP nào.
+
+## Thay đổi
+- `firmware/waveshare-screen/host_sim/main.c`: parse cả hai định dạng; `valid=0` -> `ui_dashboard_clear_sensor` (cung xám, "-- cm", ẩn chấm), in `d<N>=--`;
+  nhịp phát mặc định theo `elapsed_ms`, `--interval` ép nhịp cố định (tương thích cũ), `--speed <x>`; chờ bằng vòng `lv_timer_handler` (cửa sổ không treo);
+  không đặt `--exit-after` thì phát tới hết file rồi giữ khung cuối 1 s; **không nạp được dòng nào -> exit 4**; bộ đệm dòng 512 -> 2048 byte; `--help` cập nhật.
+- `host_sim/tests/fixtures/replay_v2.jsonl`, `replay_recorder.jsonl` + 3 test ctest mới (`umt_dash_sim_replay_v2`, `..._replay_recorder`,
+  `..._replay_recorder_invalid_slots`) trong `host_sim/CMakeLists.txt`.
+- `.github/workflows/ci.yml`: chạy 2 fixture replay trên xvfb (exit 4 nếu không đọc được dòng nào).
+- `docs/DATASET_RECORDING_GUIDE.md`, `docs/G1_TESTING_GUIDE.md`: thay đoạn UDP chưa tồn tại bằng lệnh `--replay` trực tiếp, mô tả hai định dạng/`--speed`/`valid=0`.
+
+## Kết quả kiểm thử
+- Viết test trước: ban đầu 2 test recorder đỏ (`skip invalid`), test định dạng cũ xanh; sau khi sửa **ctest 6/6 pass**.
+- Replay toàn bộ `data/recordings/*.jsonl` (`--speed 1000`): `khong_day` 500/500, `sample_approaching_obstacle` 30/30, `sample_multi_sensor_active` 30/30,
+  `test_live` 3/3, `test_seconds` 30/30, `test_serial` 51/51 dòng, 0 dòng bị bỏ qua; `test_mqtt.jsonl` (rỗng) -> exit 4 như thiết kế.
+- Nhịp: `sample_approaching_obstacle` (elapsed cuối ~5,8 s) mất 7,05 s ở 1x (gồm 1 s giữ khung), 2,5 s ở 4x, 1,6 s với `--interval 20`.
+- File rác -> exit 4; file không tồn tại -> exit 2. 15/15 kịch bản vẫn replay đủ N/N mốc, exit 0.
+- Ảnh chụp: `khong_day` (chỉ S3 có dữ liệu) hiện cung xám + "-- cm"; `sample_multi_sensor_active` hiện S1 30 cm và S6 27 cm màu đỏ kèm chấm.
+- Biên dịch `-Wall -Wextra` sạch cho `main.c`; `scan_secrets`, `arch_guard` OK, `pytest tools/guard/test_guard.py` 30 passed (Windows cần `PYTHONUTF8=1`).
+
+## Chưa làm / lưu ý
+- **Chưa có bộ nhận UDP cổng 9090** trong sim: `data_replayer.py --target udp` vẫn chưa dùng được với sim (hướng dẫn đã ghi rõ). Nếu cần luồng thời gian thực thì làm riêng.
+- Khung "OVERALL", "BUZZER", "CROSSING RISK" trên sim không cập nhật (sim chưa gọi bước đánh giá cảnh báo tổng hợp).
+- `khong_day.jsonl` kéo dài ~19 phút theo thời gian ghi (500 dòng): dùng `--speed` lớn khi xem.
+- CI Linux (xvfb) chưa chạy thử cục bộ (máy dev không có WSL).

@@ -1,0 +1,5 @@
+{"timestamp_ms": 1790000000000, "elapsed_ms": 0, "distances": [350.0, 320.0, 250.0, 280.0, 300.0, 400.0], "valid": [1, 1, 1, 1, 1, 1], "nearest_cm": 250.0, "has_nearest": true, "tag": "fixture", "source": "mock"}
+{"timestamp_ms": 1790000000100, "elapsed_ms": 100, "distances": [350.0, 320.0, 120.0, 280.0, 300.0, 400.0], "valid": [1, 1, 1, 1, 1, 1], "nearest_cm": 120.0, "has_nearest": true, "tag": "fixture", "source": "mock"}
+{"timestamp_ms": 1790000000200, "elapsed_ms": 200, "distances": [350.0, 320.0, 0.0, 280.0, 300.0, 400.0], "valid": [1, 1, 0, 1, 1, 1], "nearest_cm": 280.0, "has_nearest": true, "tag": "fixture", "source": "mock"}
+{"timestamp_ms": 1790000000300, "elapsed_ms": 300, "distances": [350.0, 320.0, 0.0, 280.0, 300.0, 400.0], "valid": [1, 1, 0, 1, 1, 1], "nearest_cm": 280.0, "has_nearest": true, "tag": "fixture", "source": "mock"}
+{"timestamp_ms": 1790000000400, "elapsed_ms": 400, "distances": [350.0, 320.0, 60.0, 280.0, 300.0, 400.0], "valid": [1, 1, 1, 1, 1, 1], "nearest_cm": 60.0, "has_nearest": true, "tag": "fixture", "source": "mock"}

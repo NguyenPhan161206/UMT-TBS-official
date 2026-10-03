@@ -1,0 +1,57 @@
+{
+  "project_name": "truck-diagram-review-fixes (dọn 3 điểm sau review truck-diagram-markers)",
+  "total_steps": 4,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "ui_dashboard: callback Mute thay cho gọi thẳng espnow_receiver",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/include/ui_dashboard.h",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h"
+      ],
+      "prerequisites": [],
+      "objective": "Thêm vào API công khai: typedef void (*ui_dashboard_mute_cb_t)(bool muted); void ui_dashboard_set_mute_cb(ui_dashboard_mute_cb_t cb);. mute_btn_cb đảo s_alarm_muted, cập nhật nút, gọi callback (nếu có) với trạng thái mới rồi evaluate_hazard(). Xoá khai báo tay espnow_receiver_send_cmd và #include esp_err.h khỏi ui_dashboard_private.h; ui_dashboard.c không còn nhắc espnow_receiver*/espnow_cmd_msg_t. Dependency inversion: UI chỉ báo ý định, tầng main lo đường truyền.",
+      "definition_of_done": "grep -rn espnow_receiver trong components/ui_dashboard = 0 dòng; ui_dashboard.c <= 400 dòng; arch_guard exit 0; umt_dash_sim biên dịch được khi host_sim/main.c còn stub cũ hay không (stub cũ thừa nhưng không gây lỗi).",
+      "verification_command": "! grep -rn espnow_receiver firmware/waveshare-screen/components/ui_dashboard && test $(wc -l < firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c) -le 400 && python tools/guard/arch_guard.py"
+    },
+    {
+      "step_id": 2,
+      "task_title": "Nối callback ở main.c, xoá stub và code chết trong host_sim",
+      "target_files": [
+        "firmware/waveshare-screen/src/main.c",
+        "firmware/waveshare-screen/host_sim/main.c",
+        "firmware/waveshare-screen/host_sim/stub/espnow_receiver.h"
+      ],
+      "prerequisites": [1],
+      "objective": "main.c: thêm on_ui_mute_changed(bool muted) dựng espnow_cmd_msg_t {ESPNOW_CMD_MUTE_BUZZER, muted?1:0}, gọi espnow_receiver_send_cmd và log kết quả như cũ; đăng ký bằng ui_dashboard_set_mute_cb() ngay sau ui_dashboard_init(). host_sim/main.c: gỡ include esp_err.h/espnow_protocol.h và định nghĩa stub espnow_receiver_send_cmd (trả về đúng như HEAD). Xoá host_sim/stub/espnow_receiver.h (không còn ai include).",
+      "definition_of_done": "pio run -e yolo_uno SUCCESS; sim build + ctest 3/3 pass; git diff của host_sim/main.c rỗng so với HEAD; harness tạm (không commit) gửi LV_EVENT_CLICKED vào nút Mute hai lần thì callback nhận lần lượt muted=true rồi muted=false.",
+      "verification_command": "cd firmware/waveshare-screen && pio run -e yolo_uno && cd ../.. && git diff --quiet HEAD -- firmware/waveshare-screen/host_sim/main.c && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 3,
+      "task_title": "CI chạy vehicle_layout_tests; CMake host_sim bọc SDL2 Windows trong WIN32",
+      "target_files": [
+        ".github/workflows/ci.yml",
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt"
+      ],
+      "prerequisites": [],
+      "objective": "ci.yml: sau hazard_core_tests chạy thêm /tmp/host_sim/vehicle_layout_tests (đổi tên step cho đúng). CMakeLists: bỏ dòng ${SDL2_ROOT}/include khỏi danh sách include vô điều kiện (chuyển vào nhánh WIN32); chỉ link SDL2::SDL2main khi WIN32, nhánh Linux giữ đúng như HEAD (lvgl SDL2::SDL2).",
+      "definition_of_done": "ci.yml chứa vehicle_layout_tests đúng 1 lần; CMakeLists không còn ${SDL2_ROOT} ngoài if(WIN32); reconfigure sạch + build + ctest 3/3 pass trên Windows. Nhánh Linux chưa chạy được cục bộ (không có WSL) — ghi rõ.",
+      "verification_command": "grep -c vehicle_layout_tests .github/workflows/ci.yml && cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 4,
+      "task_title": "Sửa log, CHECKLIST và ledger cho đúng sự thật",
+      "target_files": [
+        "docs/logs/WAVESHARE_SCREEN_TRUCK_DIAGRAM_LOG.md",
+        "docs/CHECKLIST.md",
+        "docs/roadmaps/truck-diagram-markers.state.md"
+      ],
+      "prerequisites": [2, 3],
+      "objective": "Log: bỏ/ sửa các câu sai (lượng giác integer, không gắn cứng tuyệt đối, placeholder xấp xỉ thực), số dòng/số test đo lại, mô tả đúng cách xử lý B1 (callback), liệt kê đủ file đã sửa, thêm kết quả pio run, sửa hướng dẫn chạy sim đúng đường dẫn build thật. CHECKLIST: T3.1 -> 🟡 với bằng chứng đúng, T3.2 bỏ câu '0 toạ độ gắn cứng', số check T1.3 đúng, bảng Tổng hợp nhanh + ngày cập nhật + 2 mục narrative cũ khớp với bảng. Ledger: Deviations ghi việc đã sửa sau review.",
+      "definition_of_done": "Script đếm lại trạng thái từ các dòng bảng khớp với bảng 'Tổng hợp nhanh'; grep không còn các cụm 'bảng lượng giác', 'tuyệt đối không gắn cứng', 'xấp xỉ tỉ lệ thực', 'forward-declare' trong log; số dòng/số check trong log khớp wc -l và output test thực tế.",
+      "verification_command": "python tools/guard/scan_secrets.py && ! grep -nE \"bảng lượng giác|tuyệt đối không gắn cứng|xấp xỉ tỉ lệ thực\" docs/logs/WAVESHARE_SCREEN_TRUCK_DIAGRAM_LOG.md"
+    }
+  ]
+}

@@ -9,6 +9,7 @@
 #pragma once
 
 #include "ui_dashboard_theme.h"
+#include "vehicle_layout.h"
 
 /* ----------------------------- widget handles ----------------------------- */
 extern lv_obj_t *s_screen;
@@ -63,6 +64,10 @@ extern bool s_forced_crossing_warning;
 /* ------------------- cross-file functions (ui_dashboard_layout) ----------- */
 void arc_set_zone(sensor_arc_t *a, sensor_zone_t zone);
 void arc_set_nodata(sensor_arc_t *a);
+void build_truck_body(lv_obj_t *canvas, const vehicle_layout_t *L);
+void markers_build(lv_obj_t *canvas, const vehicle_layout_t *L);
+void marker_update(uint8_t slot, uint16_t dist_cm);
+void marker_hide(uint8_t slot);
 void build_header(lv_obj_t *parent);
 lv_obj_t *build_left_sidebar(lv_obj_t *parent);
 lv_obj_t *build_center_canvas(lv_obj_t *parent);

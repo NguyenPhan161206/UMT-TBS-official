@@ -1,0 +1,54 @@
+{
+  "project_name": "sim-replay-v2 (umt_dash_sim --replay đọc file của tools/recorder, đúng nhịp, valid=0 -> không dữ liệu)",
+  "total_steps": 4,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Fixture 2 định dạng + test ctest cho replay (viết trước, phải đỏ)",
+      "target_files": [
+        "firmware/waveshare-screen/host_sim/tests/fixtures/replay_v2.jsonl",
+        "firmware/waveshare-screen/host_sim/tests/fixtures/replay_recorder.jsonl",
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt"
+      ],
+      "prerequisites": [],
+      "objective": "replay_v2.jsonl: 3 dòng dạng d1..d6 (payload telemetry V2). replay_recorder.jsonl: 5 dòng dạng recorder {timestamp_ms, elapsed_ms, distances[6], valid[6]} trong đó có dòng valid=0 kèm khoảng cách 0.0. CMake thêm 3 test: umt_dash_sim_replay_v2 (PASS 'fed 3 row(s)'), umt_dash_sim_replay_recorder (PASS 'fed 5 row(s)'), umt_dash_sim_replay_recorder_invalid_slots (PASS 'd3=--' tức slot valid=0 không bị đưa số 0 vào); cả ba FAIL nếu có 'skip invalid'. Trên Linux đặt SDL_VIDEODRIVER=dummy như test render.",
+      "definition_of_done": "ctest chạy được và FAIL đúng 2 test recorder (sim hiện bỏ qua mọi dòng dạng recorder), test replay_v2 PASS.",
+      "verification_command": "cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 2,
+      "task_title": "Sim: --replay đọc cả 2 định dạng, tôn trọng valid, đúng nhịp thật",
+      "target_files": [
+        "firmware/waveshare-screen/host_sim/main.c"
+      ],
+      "prerequisites": [1],
+      "objective": "Parse dòng: có khóa distances thì đọc distances[6] + valid[6] (+ elapsed_ms), ngược lại d1..d6 như cũ. valid=0 -> ui_dashboard_clear_sensor (cung xám, ẩn chấm) và in 'd<N>=--'; valid=1 -> như cũ. Nhịp: mặc định theo chênh lệch elapsed_ms giữa các dòng, --interval <ms> ép nhịp cố định (giữ tương thích), --speed <x> chia thời gian chờ. Chờ bằng vòng lặp vẫn gọi lv_timer_handler (cửa sổ không treo). Replay không đặt --exit-after thì chạy tới hết file, giữ khung cuối 1 s. 0 dòng hợp lệ -> exit 4. Cập nhật usage/--help.",
+      "definition_of_done": "ctest 3 test replay mới + 3 test cũ đều PASS; replay file thật data/recordings/sample_approaching_obstacle.jsonl nạp 30/30 dòng; file có valid=0 (khong_day.jsonl) không báo DANGER cho slot chưa cắm; file rác -> exit 4; scenario chạy y như cũ (15/15 N/N mốc).",
+      "verification_command": "cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && build/host_sim/umt_dash_sim.exe --replay data/recordings/sample_approaching_obstacle.jsonl --speed 4"
+    },
+    {
+      "step_id": 3,
+      "task_title": "Sửa hướng dẫn replay (bỏ UDP chưa có) và để CI chạy fixture replay",
+      "target_files": [
+        "docs/DATASET_RECORDING_GUIDE.md",
+        "docs/G1_TESTING_GUIDE.md",
+        ".github/workflows/ci.yml"
+      ],
+      "prerequisites": [2],
+      "objective": "DATASET_RECORDING_GUIDE: thay đoạn 'bơm UDP 9090 vào sim' (sim không có bộ nhận UDP) bằng lệnh umt_dash_sim --replay trực tiếp, nêu rõ 2 định dạng, --speed, valid=0 -> cung xám. G1_TESTING_GUIDE mục 3.5: cùng nội dung. ci.yml: thêm 2 dòng xvfb-run chạy replay_v2 và replay_recorder (exit code 4 nếu không nạp được dòng nào).",
+      "definition_of_done": "grep không còn câu 'UDP Socket vào bộ giả lập' trong DATASET_RECORDING_GUIDE; ci.yml YAML hợp lệ và chứa 2 lệnh replay; các lệnh trong tài liệu chạy được (đã thử).",
+      "verification_command": "python -c \"import yaml;yaml.safe_load(open('.github/workflows/ci.yml',encoding='utf8'))\" && grep -c \"replay_recorder\" .github/workflows/ci.yml"
+    },
+    {
+      "step_id": 4,
+      "task_title": "Chạy toàn bộ data/recordings trên sim, chụp ảnh, ghi log",
+      "target_files": [
+        "docs/logs/HOST_SIM_LOG.md"
+      ],
+      "prerequisites": [3],
+      "objective": "Replay từng file trong data/recordings (nhanh, --speed cao): ghi số dòng nạp / dòng bỏ qua / exit code; chụp ảnh khung có slot valid=0 (cung xám) và khung bình thường; thử file rác (exit 4) và --interval cũ. Append mục mới vào HOST_SIM_LOG.md (AGENTS.md).",
+      "definition_of_done": "Mọi file recorder có dòng đều nạp đủ số dòng (trừ file rỗng test_mqtt.jsonl -> exit 4); log ghi số liệu thật và nêu rõ phần chưa làm (UDP, banner OVERALL/BUZZER không cập nhật).",
+      "verification_command": "ctest --test-dir build/host_sim --output-on-failure && python tools/guard/scan_secrets.py"
+    }
+  ]
+}

@@ -23,6 +23,11 @@ set(UI_DASH_INC "${CMAKE_CURRENT_SOURCE_DIR}/../components/ui_dashboard/include"
 set(UI_DASH_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../components/ui_dashboard")
 set(SENSOR_MODEL_INC "${CMAKE_CURRENT_SOURCE_DIR}/../components/sensor_model/include")
 set(SENSOR_MODEL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../components/sensor_model/sensor_model.c")
+set(VEHICLE_PROFILE_INC "${CMAKE_CURRENT_SOURCE_DIR}/../components/vehicle_profile/include")
+set(VEHICLE_PROFILE_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/../components/vehicle_profile/vehicle_profile.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../components/vehicle_profile/vehicle_layout.c"
+)
 
 # ---------------------------------------------------------------------------- #
 # hazard_core_tests (T1.3) — C thuần, không phụ thuộc môi trường
@@ -36,6 +41,22 @@ target_include_directories(hazard_core_tests PRIVATE
     "${SHARED_INC}"
 )
 target_compile_features(hazard_core_tests PRIVATE c_std_11)
+
+# ---------------------------------------------------------------------------- #
+# vehicle_layout_tests (T3.2/T3.1) — C thuần, không phụ thuộc môi trường
+# ---------------------------------------------------------------------------- #
+add_executable(vehicle_layout_tests
+    ${VEHICLE_PROFILE_SRCS}
+    "tests/test_vehicle_layout.c"
+)
+target_include_directories(vehicle_layout_tests PRIVATE
+    "${VEHICLE_PROFILE_INC}"
+    "${SHARED_INC}"
+)
+target_compile_features(vehicle_layout_tests PRIVATE c_std_11)
+if(NOT WIN32)
+    target_link_libraries(vehicle_layout_tests PRIVATE m)
+endif()
 
 # ---------------------------------------------------------------------------- #
 # umt_dash_sim (T1.2) — LVGL v9.1.0 + SDL2, compile file UI thật
@@ -82,6 +103,7 @@ if(WIN32)
     string(REPLACE "/tmp/tardir/SDL2-2.30.10/build-mingw/install-x86_64-w64-mingw32" "${SDL2_ROOT}" _sdl2_cfg "${_sdl2_cfg}")
     file(WRITE "${SDL2_ROOT}/lib/cmake/SDL2/sdl2-config.cmake" "${_sdl2_cfg}")
     list(PREPEND CMAKE_PREFIX_PATH "${SDL2_ROOT}")
+    target_include_directories(lvgl PRIVATE "${SDL2_ROOT}/include")
 endif()
 
 find_package(SDL2 REQUIRED)
@@ -93,6 +115,9 @@ add_executable(umt_dash_sim
     "${UI_DASH_SRC_DIR}/ui_dashboard.c"
     "${UI_DASH_SRC_DIR}/ui_dashboard_layout.c"
     "${UI_DASH_SRC_DIR}/ui_dashboard_system.c"
+    "${UI_DASH_SRC_DIR}/ui_dashboard_truck.c"
+    "${UI_DASH_SRC_DIR}/ui_dashboard_marker.c"
+    ${VEHICLE_PROFILE_SRCS}
     "${SCENARIOS_GEN_H}"   # chỉ để CMake sinh trước khi build
 )
 target_include_directories(umt_dash_sim PRIVATE
@@ -103,13 +128,22 @@ target_include_directories(umt_dash_sim PRIVATE
     "${UI_DASH_SRC_DIR}"
     "${SENSOR_MODEL_INC}"
     "${HAZARD_CORE_INC}"
+    "${VEHICLE_PROFILE_INC}"
     "${SHARED_INC}"
 )
-target_link_libraries(umt_dash_sim PRIVATE lvgl SDL2::SDL2)
+if(WIN32)
+    # MinGW + SDL2 prebuilt: cần SDL2main (WinMain) đứng TRƯỚC SDL2 và thư mục include riêng.
+    target_include_directories(umt_dash_sim PRIVATE "${SDL2_ROOT}/include")
+    target_link_libraries(umt_dash_sim PRIVATE lvgl SDL2::SDL2main SDL2::SDL2)
+else()
+    # Linux/CI: giữ nguyên cách link đã chạy ổn từ trước (không SDL2main, không SDL2_ROOT).
+    target_link_libraries(umt_dash_sim PRIVATE lvgl SDL2::SDL2)
+endif()
 target_compile_features(umt_dash_sim PRIVATE c_std_11)
 if(NOT WIN32)
     target_link_libraries(umt_dash_sim PRIVATE m)
 else()
+    target_link_options(umt_dash_sim PRIVATE -mconsole)
     add_custom_command(TARGET umt_dash_sim POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${sdl2_prebuilt_SOURCE_DIR}/x86_64-w64-mingw32/bin/SDL2.dll"
@@ -122,11 +156,32 @@ endif()
 # ---------------------------------------------------------------------------- #
 enable_testing()
 add_test(NAME hazard_core_tests COMMAND hazard_core_tests)
+add_test(NAME vehicle_layout_tests COMMAND vehicle_layout_tests)
 
 # headless render test: SDL dummy driver hoạt động không cần X (xvfb không bắt
 # buộc ở local; CI có thể dùng xvfb-run để đúng DoD). DoD yêu cầu exit 0 sau
 # --exit-after 3 --scenario approach.
 add_test(NAME umt_dash_sim_render COMMAND umt_dash_sim
     --scenario approach --exit-after 2 --interval 200)
-set_tests_properties(umt_dash_sim_render PROPERTIES
-    ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+# replay (T1.4 -> T1.2): hai định dạng — payload V2 (d1..d6) và file của tools/recorder (distances[] + valid[]).
+# 'skip invalid' trên stderr nghĩa là sim không hiểu dòng đó -> test phải FAIL.
+set(REPLAY_FIXTURES "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
+add_test(NAME umt_dash_sim_replay_v2 COMMAND umt_dash_sim
+    --replay "${REPLAY_FIXTURES}/replay_v2.jsonl" --interval 50)
+add_test(NAME umt_dash_sim_replay_recorder COMMAND umt_dash_sim
+    --replay "${REPLAY_FIXTURES}/replay_recorder.jsonl")
+# valid=0 phải thành "không dữ liệu" (in d3=--), không được đưa số 0 cm vào UI.
+add_test(NAME umt_dash_sim_replay_recorder_invalid_slots COMMAND umt_dash_sim
+    --replay "${REPLAY_FIXTURES}/replay_recorder.jsonl")
+set_tests_properties(umt_dash_sim_replay_v2 PROPERTIES
+    PASS_REGULAR_EXPRESSION "fed 3 row\\(s\\)" FAIL_REGULAR_EXPRESSION "skip invalid")
+set_tests_properties(umt_dash_sim_replay_recorder PROPERTIES
+    PASS_REGULAR_EXPRESSION "fed 5 row\\(s\\)" FAIL_REGULAR_EXPRESSION "skip invalid")
+set_tests_properties(umt_dash_sim_replay_recorder_invalid_slots PROPERTIES
+    PASS_REGULAR_EXPRESSION "d3=--" FAIL_REGULAR_EXPRESSION "skip invalid")
+
+if(NOT WIN32)
+    set_tests_properties(umt_dash_sim_render umt_dash_sim_replay_v2 umt_dash_sim_replay_recorder
+        umt_dash_sim_replay_recorder_invalid_slots PROPERTIES
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+endif()

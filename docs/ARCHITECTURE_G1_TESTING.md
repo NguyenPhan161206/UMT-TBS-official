@@ -70,8 +70,8 @@ Mutex-guarded, chỉ thao tác qua API; xoá `sensor_model_classify` khỏi `.c`
 Thuần LVGL widget, áp kết quả hazard_core, không còn quyết định logic.
 
 ### Khuôn mẫu chung `tools/scenarios.py`
-Một spec `t → distances[6] (cm)`; các tên `approach/crossing/slam/normal` định nghĩa
-**một lần**, 3 nơi tiêu thụ:
+Một spec `t → distances[6] (cm)`; các tên kịch bản (ban đầu `approach/crossing/slam/normal`,
+nay 15 tên — xem `tools/scenarios.py`) định nghĩa **một lần**, 3 nơi tiêu thụ:
 - T1.1: `test_mqtt_coreiot.py --scenario X` duyệt chuỗi theo `--interval`
 - T1.4: `record_telemetry.py` (subscribe → JSONL) + `replay_telemetry.py`
   (JSONL → publish đúng nhịp, `--dry-run` validate schema)

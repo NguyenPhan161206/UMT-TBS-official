@@ -189,13 +189,122 @@ def load_scenarios_module():
     return mod
 
 
-def test_scenarios_has_4_named_timelines():
+def _thresholds_cm() -> tuple[float, float]:
+    """(CAUTION, DANGER) đọc từ firmware/shared/thresholds.h — nguồn duy nhất (R3)."""
+    txt = (ROOT / "firmware" / "shared" / "thresholds.h").read_text(encoding="utf-8")
+    caution = float(re.search(r"#define\s+SENSOR_CAUTION_CM\s+(\d+)", txt).group(1))
+    danger = float(re.search(r"#define\s+SENSOR_DANGER_CM\s+(\d+)", txt).group(1))
+    return caution, danger
+
+
+def test_scenarios_named_timelines():
     s = load_scenarios_module()
-    assert set(s.SCENARIO_NAMES) == {"approach", "crossing", "slam", "normal"}
-    for name in s.SCENARIO_NAMES:
+    names = list(s.SCENARIO_NAMES)
+    assert {"approach", "crossing", "slam", "normal"} <= set(names)  # 4 tên gốc luôn còn
+    assert len(names) == len(set(names))                             # tên duy nhất
+    assert set(names) == set(s.all_scenarios)                        # tên và dữ liệu không lệch nhau
+    for name in names:
+        # host_sim sinh k_sim_<name> nên tên phải là định danh C hợp lệ.
+        assert re.fullmatch(r"[a-z][a-z0-9_]*", name), name
         rows = list(s.iter_scenario(name))
-        assert len(rows) >= 4, name          # ≥ 4 mốc thời gian
-        assert all(len(r) == 6 for r in rows), name  # đủ 6 slot
+        assert len(rows) >= 4, name                                  # ≥ 4 mốc thời gian
+        assert all(len(r) == 6 for r in rows), name                  # đủ 6 slot
+        assert all(20.0 <= v <= 500.0 for r in rows for v in r), name  # trong dải đo hợp lệ
+
+
+NEW_SCENARIOS = (
+    "overtake_right", "overtake_left", "reverse_wall", "reverse_pedestrian",
+    "pedestrian_front", "crossing_right", "narrow_lane", "boxed_in",
+    "threshold_flap", "fast_pass", "stop_and_go",
+)
+
+
+def test_new_scenarios_semantics():
+    s = load_scenarios_module()
+    caution, danger = _thresholds_cm()
+    rows = {name: list(s.iter_scenario(name)) for name in NEW_SCENARIOS}  # KeyError nếu thiếu tên
+    F, R, LF, LR, RF, RR = range(6)  # thứ tự slot d1..d6 trên dây
+
+    def col(name, i):
+        return [r[i] for r in rows[name]]
+
+    def argmin(xs):
+        return xs.index(min(xs))
+
+    def all_clear(name, slots):
+        return all(r[i] > caution for r in rows[name] for i in slots)
+
+    def longest_run(xs, pred):
+        best = cur = 0
+        for v in xs:
+            cur = cur + 1 if pred(v) else 0
+            best = max(best, cur)
+        return best
+
+    def crossings(xs, thr):
+        return sum(1 for a, b in zip(xs, xs[1:]) if (a > thr) != (b > thr))
+
+    # overtake_right: xe vượt bên PHẢI từ sau ra trước: RIGHT_REAR gần nhất trước RIGHT_FRONT.
+    rr, rf = col("overtake_right", RR), col("overtake_right", RF)
+    assert min(rr) <= caution and min(rf) <= caution and argmin(rr) < argmin(rf)
+    assert all_clear("overtake_right", (F, R, LF, LR))
+
+    # overtake_left: đối xứng bên TRÁI.
+    lr, lf = col("overtake_left", LR), col("overtake_left", LF)
+    assert min(lr) <= caution and min(lf) <= caution and argmin(lr) < argmin(lf)
+    assert all_clear("overtake_left", (F, R, RF, RR))
+
+    # reverse_wall: lùi vào tường: REAR chỉ giảm, từ thoáng xuống DANGER; slot khác thoáng.
+    rear = col("reverse_wall", R)
+    assert rear[0] > caution and rear[-1] <= danger
+    assert all(a >= b for a, b in zip(rear, rear[1:]))
+    assert all_clear("reverse_wall", (F, LF, LR, RF, RR))
+
+    # reverse_pedestrian: người đi bộ sau xe: vào CAUTION (không tới DANGER) rồi đi ra.
+    rear = col("reverse_pedestrian", R)
+    assert danger < min(rear) <= caution and rear[0] > caution and rear[-1] > caution
+    assert all_clear("reverse_pedestrian", (F, LF, LR, RF, RR))
+
+    # pedestrian_front: tiến vào trước xe rồi lách sang trái: FRONT gần nhất trước LEFT_FRONT.
+    f, lf = col("pedestrian_front", F), col("pedestrian_front", LF)
+    assert min(f) <= caution and min(lf) <= caution and argmin(f) < argmin(lf)
+    assert all_clear("pedestrian_front", (R, LR, RF, RR))
+
+    # crossing_right: cắt ngang trước xe từ phải sang trái: RF -> FRONT -> LF.
+    rf, f, lf = col("crossing_right", RF), col("crossing_right", F), col("crossing_right", LF)
+    assert max(min(rf), min(f), min(lf)) <= caution
+    assert argmin(rf) < argmin(f) < argmin(lf)
+    assert all_clear("crossing_right", (R, LR, RR))
+
+    # narrow_lane: kẹp giữa hai bên: 4 slot bên luôn trong (DANGER, CAUTION]; trước/sau thoáng.
+    assert all(danger < r[i] <= caution for r in rows["narrow_lane"] for i in (LF, LR, RF, RR))
+    assert all_clear("narrow_lane", (F, R))
+
+    # boxed_in: bị vây 6 phía: đầu thoáng hết, cuối DANGER hết, mỗi slot chỉ giảm.
+    box = rows["boxed_in"]
+    assert all(v > caution for v in box[0]) and all(v <= danger for v in box[-1])
+    for i in range(6):
+        c = col("boxed_in", i)
+        assert all(a >= b for a, b in zip(c, c[1:])), i
+
+    # threshold_flap: dao động sát ngưỡng CAUTION (FRONT) và DANGER (LEFT_FRONT) để thử chống nhấp nháy.
+    assert crossings(col("threshold_flap", F), caution) >= 4
+    assert crossings(col("threshold_flap", LF), danger) >= 4
+    assert all_clear("threshold_flap", (R, LR, RF, RR))
+
+    # fast_pass: xe máy vọt qua: LEFT_FRONT từ thoáng xuống < 50 và trở lại thoáng trong <= 2 mốc mỗi chiều.
+    lf = col("fast_pass", LF)
+    k = argmin(lf)
+    assert lf[k] < 50 and k >= 2 and k + 2 < len(lf)
+    assert lf[k - 2] > caution and lf[k + 2] > caution
+    assert all_clear("fast_pass", (F, R, LR, RF, RR))
+
+    # stop_and_go: vật đứng yên ở CAUTION >= 5 mốc, rời đi, rồi vật thứ hai đứng ở DANGER >= 3 mốc.
+    f = col("stop_and_go", F)
+    assert longest_run(f, lambda v: danger < v <= caution) >= 5
+    assert longest_run(f, lambda v: v <= danger) >= 3
+    assert f[0] > caution and f[-1] > caution
+    assert all_clear("stop_and_go", (R, LF, LR, RF, RR))
 
 
 def test_scenarios_semantics():

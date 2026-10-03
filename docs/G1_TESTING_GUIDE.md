@@ -117,20 +117,48 @@ SDL_VIDEODRIVER=dummy /tmp/host_sim/umt_dash_sim --scenario slam --exit-after 3
 ```
 
 ### 3.4 Các kịch bản có sẵn (nguồn: tools/scenarios.py)
-| Scenario  | Ý nghĩa                          |
-|-----------|----------------------------------|
-| `approach`| vật tiến gần phía FRONT (160→20cm) |
-| `crossing`| xe cắt ngang phía trước           |
-| `slam`    | dừng gấp (110→20cm trong ≤3 mốc)  |
-| `normal`  | không có cảnh báo (>100cm)        |
+Xem nhanh danh sách + số mốc: `umt_dash_sim --list` hoặc `python3 tools/scenarios.py`.
+Thứ tự slot `d1..d6` = FRONT, REAR, LEFT_FRONT, LEFT_REAR, RIGHT_FRONT, RIGHT_REAR; "thoáng" = 200 cm.
+
+| Scenario | Ý nghĩa | Slot chính |
+|---|---|---|
+| `approach` | vật tiến gần phía FRONT (160→20cm) | FRONT |
+| `crossing` | xe cắt ngang phía trước | LEFT_FRONT |
+| `slam` | dừng gấp (110→20cm trong ≤3 mốc) | FRONT |
+| `normal` | không có cảnh báo (>100cm) | — |
+| `overtake_right` | xe vượt bên phải từ sau ra trước (~50cm bên hông) | RIGHT_REAR → RIGHT_FRONT |
+| `overtake_left` | xe vượt bên trái từ sau ra trước | LEFT_REAR → LEFT_FRONT |
+| `reverse_wall` | lùi vào tường: 300→22cm rồi đứng yên (DANGER) | REAR |
+| `reverse_pedestrian` | người đi bộ sau xe, vào CAUTION (min 45cm) rồi đi ra | REAR |
+| `pedestrian_front` | người đi bộ tiến vào trước xe rồi lách sang trái | FRONT → LEFT_FRONT |
+| `crossing_right` | xe đạp cắt ngang trước xe từ phải sang trái | RIGHT_FRONT → FRONT → LEFT_FRONT |
+| `narrow_lane` | chạy giữa hai hàng xe: 4 slot bên 50–95cm kéo dài | 4 slot bên |
+| `boxed_in` | bị vây 6 phía, mọi slot xuống DANGER | cả 6 |
+| `threshold_flap` | dao động sát ngưỡng 100cm (FRONT) và 30cm (LEFT_FRONT) — thử chống nhấp nháy | FRONT, LEFT_FRONT |
+| `fast_pass` | xe máy vọt qua bên trái-trước chỉ vài mốc | LEFT_FRONT |
+| `stop_and_go` | vật đứng ở ~80cm 6 mốc rồi rời; vật thứ hai đứng ở ~25cm 4 mốc | FRONT |
+
+Thêm kịch bản mới: sửa **một nơi** `tools/scenarios.py` (thêm tên vào `SCENARIO_NAMES` + dữ liệu), rồi viết kiểm
+ngữ nghĩa trong `tools/guard/test_guard.py`. Sim, MQTT và replay tự nhận (host_sim sinh lại header khi build).
 
 ### 3.5 Chạy lại dữ liệu đã ghi thật (JSONL)
 ```bash
 /tmp/host_sim/umt_dash_sim --replay /tmp/tb.jsonl --exit-after 5
 ```
 
-Cờ hữu ích: `--scenario <name>`, `--replay <file.jsonl>`, `--exit-after <giây>`,
-`--interval <ms>` (tốc độ feed mốc), `--help`.
+`--replay` đọc **hai định dạng**: payload V2 (`{"d1":…,"d6":…}`) và file của `tools/recorder`
+(`{"elapsed_ms":…,"distances":[…],"valid":[…]}`, thư mục `data/recordings/`). Với định dạng recorder, mặc định phát đúng nhịp
+`elapsed_ms`, và slot `valid=0` hiện cung xám "-- cm". Không đọc được dòng nào → thoát mã 4.
+
+```bash
+/tmp/host_sim/umt_dash_sim --replay data/recordings/sample_approaching_obstacle.jsonl
+/tmp/host_sim/umt_dash_sim --replay data/recordings/sample_multi_sensor_active.jsonl --speed 2
+```
+
+Cờ hữu ích: `--scenario <name>`, `--replay <file.jsonl>`, `--list`, `--exit-after <giây>`,
+`--interval <ms>` (ép nhịp cố định), `--speed <x>` (chỉ cho replay: nhanh gấp x lần), `--help`.
+Với `--scenario`, sim thoát khi hết `--exit-after`, nên đặt `--exit-after` ≥ (số mốc × `--interval`) để xem đủ kịch bản;
+với `--replay` không đặt `--exit-after` thì phát tới hết file.
 
 ---
 
@@ -142,7 +170,7 @@ Token đọc từ `config/keys.json` / env `COREIOT_TOKEN` / `--token` — **kh�
 # Một lần với khoảng cách cố định:
 python3 tools/test_mqtt_coreiot.py --distance 15.5
 
-# Lặp theo kịch bản (approach/crossing/slam/normal):
+# Lặp theo kịch bản (danh sách ở mục 3.4):
 python3 tools/test_mqtt_coreiot.py --scenario approach --loop --interval 2
 
 # Chỉ xem payload, không gửi (không cần token):

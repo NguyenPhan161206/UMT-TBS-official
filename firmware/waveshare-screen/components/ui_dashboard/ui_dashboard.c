@@ -6,10 +6,8 @@
  * Widget-builder code nằm ở ui_dashboard_layout.c (R7: tách file <= 400 dòng).
  */
 
+#include "ui_dashboard.h"
 #include "ui_dashboard_private.h"
-#include "espnow_receiver.h"
-
-
 #include "coreiot_client.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -58,6 +56,14 @@ bool s_forced_crossing_warning = false;
 static uint16_t s_last_displayed_dist[SENSOR_MODEL_COUNT];
 static sensor_zone_t s_last_displayed_zone[SENSOR_MODEL_COUNT];
 
+/* Callback Mute do tầng main đăng ký: UI chỉ báo ý định, không biết đường truyền. */
+static ui_dashboard_mute_cb_t s_mute_cb = NULL;
+
+void ui_dashboard_set_mute_cb(ui_dashboard_mute_cb_t cb)
+{
+    s_mute_cb = cb;
+}
+
 /* Reflects s_alarm_muted on the button itself - otherwise "Mute Alarm" always
  * reads the same regardless of state and there is no way to tell from the
  * dashboard whether the alarm is currently silenced or live.
@@ -78,12 +84,10 @@ void mute_btn_cb(lv_event_t *e)
     s_alarm_muted = !s_alarm_muted;
     update_mute_button_visual();
 
-    // Gửi lệnh MUTE qua ESP-NOW
-    espnow_cmd_msg_t cmd;
-    cmd.cmd_type = ESPNOW_CMD_MUTE_BUZZER;
-    cmd.payload = s_alarm_muted ? 1 : 0;
-    esp_err_t err = espnow_receiver_send_cmd(&cmd);
-    ESP_LOGI("UI", "Send MUTE cmd=%d, err=0x%x", cmd.payload, err);
+    // Báo ra ngoài: tầng main gửi lệnh MUTE về sensor-node (xem on_ui_mute_changed).
+    if (s_mute_cb != NULL) {
+        s_mute_cb(s_alarm_muted);
+    }
 
     // Chỉ cập nhật banner/status, KHÔNG thay màu arc của sensor
     evaluate_hazard();
@@ -273,6 +277,7 @@ void ui_dashboard_update_sensor(uint8_t sensor_id, uint16_t dist_cm)
     if (s_arcs[sensor_id].arc) {
         arc_set_zone(&s_arcs[sensor_id], zone);
     }
+    marker_update(sensor_id, dist_cm);
 }
 
 void ui_dashboard_clear_sensor(uint8_t sensor_id)
@@ -293,6 +298,7 @@ void ui_dashboard_clear_sensor(uint8_t sensor_id)
     if (s_arcs[sensor_id].arc) {
         arc_set_nodata(&s_arcs[sensor_id]);
     }
+    marker_hide(sensor_id);
 }
 
 void ui_dashboard_set_wifi_status(bool is_connected, const char *ip)

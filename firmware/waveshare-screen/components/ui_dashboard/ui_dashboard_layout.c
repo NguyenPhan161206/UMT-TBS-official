@@ -192,55 +192,32 @@ lv_obj_t *build_center_canvas(lv_obj_t *parent)
     lv_obj_set_style_pad_all(canvas, 0, 0);
     lv_obj_remove_flag(canvas, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *car = lv_obj_create(canvas);
-    lv_obj_set_size(car, 160, 260);
-    lv_obj_align(car, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(car, lv_color_hex(COLOR_PANEL), 0);
-    lv_obj_set_style_bg_opa(car, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_color(car, lv_color_hex(COLOR_ACCENT), 0);
-    lv_obj_set_style_border_width(car, 2, 0);
-    lv_obj_set_style_radius(car, 12, 0);
-    lv_obj_remove_flag(car, LV_OBJ_FLAG_SCROLLABLE);
+    static vehicle_layout_t s_layout;
+    const vehicle_profile_t *p = vehicle_profile_active();
+    bool layout_ok = vehicle_layout_compute(p, 440, 440, 50, &s_layout);
 
-    lv_obj_t *hood = lv_label_create(car);
-    lv_label_set_text(hood, "FRONT HOOD");
-    lv_obj_set_style_text_color(hood, lv_color_hex(COLOR_TEXT), 0);
-    lv_obj_align(hood, LV_ALIGN_TOP_MID, 0, 8);
-
-    lv_obj_t *cabin = lv_label_create(car);
-    lv_label_set_text(cabin, "CABIN");
-    lv_obj_set_style_text_color(cabin, lv_color_hex(COLOR_TEXT), 0);
-    lv_obj_align(cabin, LV_ALIGN_CENTER, 0, 0);
-
-    lv_obj_t *trunk = lv_label_create(car);
-    lv_label_set_text(trunk, "REAR TRUNK");
-    lv_obj_set_style_text_color(trunk, lv_color_hex(COLOR_TEXT), 0);
-    lv_obj_align(trunk, LV_ALIGN_BOTTOM_MID, 0, -8);
-
-    /* Sensor beam arcs laid out like the standard truck "No-Zone" diagram:
-     * one sensor centered front, one centered rear, two per side (front-half
-     * and rear-half of that side). Angle convention: LVGL 0deg=right(3 o'clock),
-     * 90=down, 180=left, 270=up. Car body spans local (140,90)-(300,350).
-     */
-    static const struct {
-        int16_t x, y, angle;
-    } k_layout[SENSOR_MODEL_COUNT] = {
-        [ESPNOW_SLOT_FRONT]       = {220, 60, 270},
-        [ESPNOW_SLOT_REAR]        = {220, 380, 90},
-        [ESPNOW_SLOT_LEFT_FRONT]  = {90, 150, 180},
-        [ESPNOW_SLOT_LEFT_REAR]   = {90, 290, 180},
-        [ESPNOW_SLOT_RIGHT_FRONT] = {350, 150, 0},
-        [ESPNOW_SLOT_RIGHT_REAR]  = {350, 290, 0},
-    };
+    if (layout_ok) {
+        build_truck_body(canvas, &s_layout);
+    } else {
+        LV_LOG_ERROR("Failed to compute vehicle layout for EX8 profile");
+    }
 
     for (int i = 0; i < SENSOR_MODEL_COUNT; i++) {
-        s_arcs[i].local_x = k_layout[i].x;
-        s_arcs[i].local_y = k_layout[i].y;
-        s_arcs[i].mid_angle_deg = k_layout[i].angle;
-        s_arcs[i].arc = make_arc(canvas, k_layout[i].x, k_layout[i].y, k_layout[i].angle);
+        int16_t x = layout_ok ? s_layout.sensor_px[i].x : 220;
+        int16_t y = layout_ok ? s_layout.sensor_px[i].y : 220;
+        int16_t angle = layout_ok ? s_layout.sensor_angle_deg[i] : 0;
+
+        s_arcs[i].local_x = x;
+        s_arcs[i].local_y = y;
+        s_arcs[i].mid_angle_deg = angle;
+        s_arcs[i].arc = make_arc(canvas, x, y, angle);
         s_arcs[i].blink_running = false;
         s_arcs[i].has_zone = false;
         s_arcs[i].current_zone = (sensor_zone_t)-1;
+    }
+
+    if (layout_ok) {
+        markers_build(canvas, &s_layout);
     }
 
     return canvas;

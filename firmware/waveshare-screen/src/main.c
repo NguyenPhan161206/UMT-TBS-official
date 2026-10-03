@@ -109,6 +109,18 @@ static void on_mqtt_status(bool is_connected)
     esp_lv_adapter_unlock();
 }
 
+/* Nút Mute trên UI → gửi lệnh về sensor-node qua ESP-NOW. main là nơi duy nhất nối
+ * ui_dashboard với espnow_receiver (arch_guard B1: UI không phụ thuộc driver).
+ * Chạy trên LVGL task (trong event của nút) — cùng ngữ cảnh như khi UI gọi trực tiếp trước đây. */
+static void on_ui_mute_changed(bool muted)
+{
+    espnow_cmd_msg_t cmd;
+    cmd.cmd_type = ESPNOW_CMD_MUTE_BUZZER;
+    cmd.payload = muted ? 1 : 0;
+    esp_err_t err = espnow_receiver_send_cmd(&cmd);
+    ESP_LOGI(TAG, "Send MUTE cmd=%d, err=0x%x", cmd.payload, err);
+}
+
 /* =========================================================
  * ESP-NOW PATH (đường chính, độ trễ thấp)
  * Sensor-node gửi espnow_sensor_msg_t (firmware/shared) mỗi 100ms.
@@ -275,6 +287,7 @@ void app_main(void)
     ESP_LOGI(TAG, "Initializing Collision-Avoidance Dashboard");
     if (esp_lv_adapter_lock(-1) == ESP_OK) {
         ui_dashboard_init();
+        ui_dashboard_set_mute_cb(on_ui_mute_changed);
         ui_dashboard_set_relay_state(false, "N/A (MQTT path)");
         ui_dashboard_set_espnow_status(false);
 

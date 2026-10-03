@@ -75,13 +75,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libsdl2-dev xvfb
 
-      - name: Host tests hazard_core + umt_dash_sim (T1.3/T1.2)
+      - name: Host tests hazard_core + vehicle_layout + umt_dash_sim (T1.3/T3.2/T1.2)
         run: |
           cmake -S firmware/waveshare-screen/host_sim -B /tmp/host_sim
           cmake --build /tmp/host_sim
           /tmp/host_sim/hazard_core_tests
+          /tmp/host_sim/vehicle_layout_tests
           xvfb-run -a /tmp/host_sim/umt_dash_sim --exit-after 3 --scenario approach
           xvfb-run -a /tmp/host_sim/umt_dash_sim --exit-after 2 --scenario slam
+          xvfb-run -a /tmp/host_sim/umt_dash_sim --replay firmware/waveshare-screen/host_sim/tests/fixtures/replay_v2.jsonl --interval 50
+          xvfb-run -a /tmp/host_sim/umt_dash_sim --replay firmware/waveshare-screen/host_sim/tests/fixtures/replay_recorder.jsonl
 
       # Size-gate: sensor-node app partition ~1.3MB (arduino default) → cap 1.2MB.
       # waveshare-screen partition factory 4MB → cap 3.7MB (92.5%).

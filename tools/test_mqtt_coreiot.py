@@ -164,7 +164,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--scenario", choices=SCENARIO_NAMES, default=None,
-        help="Kịch bản khoảng cách (G1 T1.1): approach/crossing/slam/normal. "
+        help="Kịch bản khoảng cách (G1 T1.1), danh sách ở tools/scenarios.py. "
         "Duyệt timeline theo --interval; --loop lặp vô hạn",
     )
     parser.add_argument(

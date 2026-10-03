@@ -37,14 +37,14 @@ Mở file `config/keys.json` (được Gitignore bảo vệ an toàn theo quy t�
 {
   "COREIOT_BROKER": "app.coreiot.io",
   "COREIOT_PORT": 1883,
-  "SENSOR_NODE_DEVICE_TOKEN": "ofaul7kj0skif2sczfwg",
-  "WAVESHARE_SCREEN_DEVICE_TOKEN": "7dhqk8cscpt2qvgtss2z",
+  "SENSOR_NODE_DEVICE_TOKEN": "<SENSOR_NODE_DEVICE_TOKEN>",
+  "WAVESHARE_SCREEN_DEVICE_TOKEN": "<WAVESHARE_SCREEN_DEVICE_TOKEN>",
   "COREIOT_TELEMETRY_TOPIC": "v1/devices/me/telemetry",
-  "WIFI_SSID": "KHOADOAN 0259",
+  "WIFI_SSID": "<ten_wifi_cua_ban>",
   "WIFI_PASSWORD": "your_wifi_password",
   "COREIOT_USERNAME": "email_cua_ban@example.com",
   "COREIOT_PASSWORD": "mat_khau_cua_ban",
-  "COREIOT_JWT": "eyJhbGciOiJIUzUxMiJ9..."
+  "COREIOT_JWT": "<jwt_cua_ban>"
 }
 ```
 > [!TIP]
@@ -178,6 +178,15 @@ python tools/recorder/data_replayer.py --in data/recordings/real_approaching.jso
 # 2. Phát nhanh gấp đôi (2x):
 python tools/recorder/data_replayer.py --in data/recordings/real_approaching.jsonl --target console --speed 2.0
 
-# 3. Bơm luồng dữ liệu qua UDP Socket vào bộ giả lập giao diện LVGL (Port 9090):
-python tools/recorder/data_replayer.py --in data/recordings/real_approaching.jsonl --target udp
+# 3. Phát lại trực tiếp lên bộ giả lập giao diện LVGL (đúng nhịp elapsed_ms ghi trong file):
+build/host_sim/umt_dash_sim.exe --replay data/recordings/real_approaching.jsonl
 ```
+
+Giả lập `umt_dash_sim --replay` đọc **cả hai định dạng**: file của `tools/recorder` (`distances[]` + `valid[]`) và payload V2
+(`d1..d6` của `record_telemetry.py`).
+- Mặc định phát **đúng nhịp `elapsed_ms`** trong file; `--speed 2` nhanh gấp đôi; `--interval <ms>` ép nhịp cố định.
+  Không đặt `--exit-after` thì phát tới hết file rồi giữ khung cuối 1 giây.
+- Slot có `valid=0` hiện **cung xám và "-- cm"** (không dữ liệu), không bị coi là vật ở 0 cm.
+- File không có dòng nào đọc được → sim thoát mã 4 (dòng lỗi in ra kèm `skip invalid`).
+- `--target udp` của `data_replayer.py` **chưa dùng được với sim**: sim chưa có bộ nhận UDP cổng 9090. Hãy dùng lệnh ở mục 3.
+- Khung "OVERALL"/"BUZZER" trên sim không cập nhật (sim chưa tính cảnh báo tổng hợp); số đo, cung và chấm thì đúng.

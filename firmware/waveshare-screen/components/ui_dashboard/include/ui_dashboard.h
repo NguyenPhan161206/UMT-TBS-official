@@ -70,6 +70,19 @@ void ui_dashboard_set_espnow_status(bool linked);
  */
 void ui_dashboard_evaluate_hazard(void);
 
+/**
+ * @brief Callback báo "người dùng vừa bấm Mute/Unmute" ra ngoài component.
+ *        ui_dashboard KHÔNG biết đường truyền (ESP-NOW...): tầng main đăng ký
+ *        callback và tự gửi lệnh (arch_guard B1 — UI không phụ thuộc driver).
+ * @param muted Trạng thái SAU khi bấm: true = đang tắt tiếng.
+ */
+typedef void (*ui_dashboard_mute_cb_t)(bool muted);
+
+/**
+ * @brief Đăng ký callback Mute (NULL = bỏ đăng ký). Callback chạy trên LVGL task.
+ */
+void ui_dashboard_set_mute_cb(ui_dashboard_mute_cb_t cb);
+
 #ifdef __cplusplus
 }
 #endif

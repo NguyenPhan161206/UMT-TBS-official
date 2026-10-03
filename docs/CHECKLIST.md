@@ -4,19 +4,24 @@
 > Đừng vội phát triển tiếp khi những phần hiện tại còn chưa đo được và chưa biết đang chạy đúng đến đâu.
 >
 > Trạng thái bảng dưới được **audit trực tiếp trên code** (không phải ghi nhớ).
-> Cập nhật lần cuối: **2026-09-08** — HEAD `9dcf877` (main).
+> Cập nhật lần cuối: **2026-10-03** (nhánh `khoa`, HEAD `57fc19e`). Chỉ các dòng **T1.1–T1.4, T3.1, T3.2, T4.1a**
+> và phần *Tổng hợp nhanh / Nhận xét / Thứ tự ưu tiên* được đối chiếu lại ngày này; các dòng còn lại
+> giữ nguyên từ audit 2026-09-08 (HEAD `9dcf877`).
 
 ## Tổng hợp nhanh
 
 | Giai đoạn | Tổng | ✅ XONG | 🟡 MỘT PHẦN | ❌ CHƯA |
 |-----------|------|---------|--------------|---------|
 | G0 — Tiếp quản & xác minh | 4 | 1 | 2 | 1 |
-| G1 — Mở khả năng kiểm thử | 4 | 0 | 2 | 2 |
-| G2 — Sửa 4 lỗi P0 | 4 | 3 | 1 | 0 |
-| G3 — Hoàn thiện đề xuất | 5 | 1 | 1 | 3 |
-| G4 — Tính mới đề tài | 2 | 1 | 0 | 1 |
-| G5 — Xuyên suốt | 9 | 3 | 1 | 5 |
-| **Tổng** | **28** | **9** | **7** | **12** |
+| G1 — Mở khả năng kiểm thử | 4 | 4 | 0 | 0 |
+| G2 — Sửa 4 lỗi P0 | 4 | 3 | 0 | 1 |
+| G3 — Hoàn thiện đề xuất | 5 | 1 | 4 | 0 |
+| G4 — Tính mới đề tài | 2 | 1 | 1 | 0 |
+| G5 — Xuyên suốt | 9 | 2 | 1 | 6 |
+| **Tổng** | **28** | **12** | **8** | **8** |
+
+> Số liệu trên được **đếm lại từ các dòng chi tiết bên dưới** ngày 2026-10-03 (⏳ tính vào ❌; T4.1a–d gộp thành 1 mục T4.1).
+> Dòng G2 và G5 của bản cũ đã lệch so với bảng chi tiết (T2.3 là ❌, G5 chỉ có 2 ✅) nên được sửa theo bảng chi tiết.
 
 ---
 
@@ -33,10 +38,10 @@
 
 | ID | Nhiệm vụ | Trạng thái | Bằng chứng trên code hiện tại |
 |----|----------|-----------|-------------------------------|
-| T1.1 | Trình giả lập MQTT đúng schema + tham số scenario | 🟡 MỘT PHẦN | `tools/test_mqtt_coreiot.py` đã chuẩn schema V2 (`d1..d6/nearest_cm`, zone 100/30), gate R11 OK. **THIẾU `--scenario`** (approach/crossing/slam/normal) — đã ghi bước 1 roadmap nhánh tiếp theo |
-| T1.2 | Trình mô phỏng LVGL + backend SDL trên PC (**đòn bẩy lớn nhất**) | ❌ CHƯA | Chưa có `host_sim/`; UI chỉ test được trên board — ghi bước 4 roadmap nhánh tiếp theo |
-| T1.3 | Unit test DistanceFilter + sensor_model_classify | 🟡 MỘT PHẦN | **DistanceFilter**: có `test_distance_filter.cpp` + `test_thresholds.cpp` (10/10 native). **sensor_model_classify**: chưa có test bên waveshare — thêm bước 2 roadmap |
-| T1.4 | Ghi & phát lại dữ liệu thật | ❌ CHƯA | Chưa có `record_telemetry.py`/`replay_telemetry.py` — ghi bước 3 roadmap nhánh tiếp theo |
+| T1.1 | Trình giả lập MQTT đúng schema + tham số scenario | ✅ XONG | `tools/test_mqtt_coreiot.py` chuẩn schema V2 + `--scenario` (15 kịch bản: 4 gốc approach/crossing/slam/normal + 11 tình huống quanh xe, xem `tools/scenarios.py`) |
+| T1.2 | Trình mô phỏng LVGL + backend SDL trên PC (**đòn bẩy lớn nhất**) | ✅ XONG | `firmware/waveshare-screen/host_sim` chạy LVGL v9 + SDL2 (desktop lẫn headless CI) |
+| T1.3 | Unit test DistanceFilter + sensor_model_classify | ✅ XONG | `test_distance_filter.cpp` + `test_thresholds.cpp` + `hazard_core_tests` (host_sim, 30 check) |
+| T1.4 | Ghi & phát lại dữ liệu thật | ✅ XONG | `tools/record_telemetry.py` và `tools/replay_telemetry.py` chuẩn schema V2 |
 
 ## Giai đoạn 2 — Sửa 4 lỗi P0 (16/09–20/10, song song G1)
 
@@ -51,17 +56,17 @@
 
 | ID | Nhiệm vụ | Trạng thái | Bằng chứng trên code hiện tại |
 |----|----------|-----------|-------------------------------|
-| T3.1 | Biểu tượng phương tiện/vật thể tại vị trí phát hiện | ❌ CHƯA | UI chỉ có text/số per-sensor (`ui_dashboard.c:213 " DANG"`), chưa có icon theo toạ độ |
-| T3.2 | Vẽ sơ đồ xe tải EX8 theo hồ sơ (không gắn cứng toạ độ) | ❌ CHƯA | Chưa có sơ đồ EX8; chưa có cấu trúc vehicle profile |
+| T3.1 | Biểu tượng phương tiện/vật thể tại vị trí phát hiện | 🟡 MỘT PHẦN | `ui_dashboard_marker.c`: 6 chấm tròn đặt trên trục búp cảm biến ở đúng khoảng cách đo (cùng tỷ lệ với thân xe), màu theo zone, chỉ hiện khi ≤ `SENSOR_CAUTION_CM`, ẩn khi `ui_dashboard_clear_sensor`. Quan sát được trên sim (approach/normal/crossing). **Chưa phải icon phương tiện/vật thể**, và chỉ là chỉ báo tầm (vật thật có thể lệch trong góc quét 75°) — cần quyết định có làm icon/silhouette không |
+| T3.2 | Vẽ sơ đồ xe tải EX8 theo hồ sơ (không gắn cứng toạ độ) | 🟡 MỘT PHẦN | `vehicle_profile` + `vehicle_layout_compute()` + `build_truck_body()`: kích thước thân xe/cabin và vị trí + góc 6 cảm biến lấy từ hồ sơ, quy đổi mm→px theo tỷ lệ (host test 40 check, đã thử phá cố ý để chắc test bắt được). Còn hằng thẩm mỹ trong UI: canvas 440×440 + lề 50 ở `build_center_canvas`, vị trí trục bánh 70%/80%, cabin 90% bề ngang. **Số đo EX8 là placeholder tuỳ ý**, chờ số đo thật (cả chiều dài cơ sở/vị trí trục) |
 | T3.3 | Cảnh báo âm thanh trong cabin | 🟡 MỘT PHẦN | Buzzer đã hoạt động (T2.1). **Xung đột GPIO47/48 đã giải quyết**: `BUZZER_PIN=11` (progress cũ ghi 48 — hiện code không còn). Còn thiếu: mạch khuếch đại 5V (transistor) + chụp tài liệu lắp đặt |
 | T3.4 | Thống nhất các ngưỡng cảnh báo (**R3**) | ✅ XONG | Buzzer giờ dùng chung `SENSOR_CAUTION_CM=100`/`SENSOR_DANGER_CM=30` từ `firmware/shared/thresholds.h`; đã **xoá** `BUZZER_WARNING_DISTANCE_CM`/`BUZZER_DANGER_DISTANCE_CM`/`BUZZER_DANGER_PERIOD_MS`; grep firmware = 0; check_rulechain OK {100,30} |
-| T3.5 | Cân chỉnh độ trễ bộ lọc cho vật chuyển động | ❌ CHƯA | Vẫn đang cho bài toán "đo mực nước" (5 mẫu + 3 confirm jump ≈ 0.5–0.8s). **Cần T1.4** để đo dữ liệu thật trước khi đổi |
+| T3.5 | Cân chỉnh độ trễ bộ lọc cho vật chuyển động | 🟡 MỘT PHẦN | Từ 21/9 `distance_filter.cpp` có fast-track; 03/10 sửa thành **"nhanh vào – chậm ra"**: VÀO cần 2 mẫu sát nhau (≈ 0,1–0,2 s), RA cần `FILTER_RELEASE_CONFIRM_SAMPLES`=5 mẫu xa liên tiếp (≈ 0,5 s, nhả về mẫu gần nhất) — bản 21/9 nhả chỉ với 1 mẫu nên đầu ra nhảy theo echo ảo (log thật: 48% mẫu báo "xa" khi vật ở 22,6 cm). Có test native 19/19 và mô phỏng; **chưa cân chỉnh bằng dữ liệu thật** (cần mẫu thô — T1.4/T5.9) và chưa đo lại trên thiết bị với đúng cảnh cũ |
 
 ## Giai đoạn 4 — Làm rõ tính mới của đề tài (11/11–12/01/2027)
 
 | ID | Nhiệm vụ | Trạng thái | Bằng chứng trên code hiện tại |
 |----|----------|-----------|-------------------------------|
-| T4.1a | Cấu trúc hồ sơ xe + nhập cứng hồ sơ EX8 | ❌ CHƯA | Chưa có struct vehicle profile |
+| T4.1a | Cấu trúc hồ sơ xe + nhập cứng hồ sơ EX8 | 🟡 MỘT PHẦN | Đã tạo component `vehicle_profile` (`vehicle_sensor_pose_t`, `vehicle_profile_t`, `vehicle_profile_active()`, `vehicle_profile_validate()`) với EX8 placeholder |
 | T4.1b | 2 hồ sơ nữa + màn chọn + lưu NVS | ❌ CHƯA | Chưa có màn Setup hồ sơ (sidebar chỉ có tab Collision/System) |
 | T4.1c | Chỉnh tay từng cảm biến ghi đè profile | ❌ CHƯA | Chưa có |
 | T4.1d | Người dùng tự tạo hồ sơ mới | ❌ CHƯA | Chưa có (để dành giai đoạn sau) |
@@ -93,15 +98,15 @@
 ## Nhận xét chính từ audit
 
 1. **G2 P0 đã gần xong**: 3/4 lỗi P0 có fix trong code (buzzer, banner, mất kết nối). Duy nhất **T2.3 (crossing hazard) vẫn còn dead-path** — đây là P0 còn sót duy nhất.
-2. **G1 vẫn là lỗ hổng ưu tiên số 1**: T1.1 thiếu scenario, T1.2 (LVGL SDL sim) và T1.4 (record/replay) chưa làm → toàn bộ T3.5, T5.7, T5.9 đang bị chặn. Không nên làm G3/G4 trước khi có T1.2 + T1.4.
+2. **G1 đã mở khả năng kiểm thử** *(cập nhật 2026-10-03)*: đã có `--scenario`, host_sim LVGL + SDL, record/replay. T3.5, T5.7, T5.9 hết bị chặn về công cụ nhưng vẫn cần **dữ liệu thật** để đo. (Audit 2026-09-08 ghi G1 là lỗ hổng số 1 vì khi đó chưa có các công cụ này.)
 3. **T3.4 đã xong sớm hơn dự kiến** nhờ sửa buzzer (commit `9dcf877`): ngưỡng còi nay đồng bộ 100/30 với zone chung — đúng yêu cầu "thống nhất ngưỡng", không phải chỉnh giao diện.
 4. **T0.4 phần cứng còn nợ**: chưa có ảnh chụp hiện trạng đấu dây trong repo; theo plan đây là việc "làm đầu tiên, không để lại sau".
 5. **Báo cáo chưa có số đo**: report/ mới có thiết kế + lập luận khả thi; muốn nói trước hội đồng phải đổ dữ liệu T5.x vào `docs/PROGRESS.md`.
 
 ## Thứ tự ưu tiên đề xuất cho phiên sau
 
-1. **G1 trước** — T1.1 (scenario), T1.4 (record/replay sớm vì cần board), T1.2 (LVGL SDL sim), T1.3 (classify test) → theo `docs/roadmaps/next-branch.roadmap.json` (15 bước, 4 giai đoạn).
+1. **G1 trước** — T1.1 (scenario), T1.4 (record/replay sớm vì cần board), T1.2 (LVGL SDL sim), T1.3 (classify test) → theo `docs/roadmaps/next-branch.roadmap.json` (15 bước, 4 giai đoạn). **Đã xong** *(cập nhật 2026-10-03)*.
 2. **T2.3** (P0 sót) khi đang làm G2.
 3. Nghiệm thu T0.4: chụp ảnh hiện trạng + ghi log bằng chứng **trước khi tháo bất cứ thứ gì**.
-4. Sau khi có T1.2 → làm T3.1 (icon), T3.2 (EX8) trên simulator.
+4. Sau khi có T1.2 → làm T3.1 (icon), T3.2 (EX8) trên simulator. **Bản đầu đã có** *(2026-10-03)*: xe tải vẽ từ hồ sơ + marker chấm tròn; còn thiếu số đo EX8 thật và quyết định về icon.
 5. Sau khi có T1.4 → T3.5 (cân lọc), T5.9 (báo nhầm), rồi T5.5–T5.8 (đo + soak) → số liệu vào PROGRESS.
