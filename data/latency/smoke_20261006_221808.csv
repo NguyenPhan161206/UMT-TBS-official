@@ -1,0 +1,898 @@
+t_ns,source,kind,seq,fields,raw
+79270400,screen,RX,829,{},I (347850) LAT: RX seq=829
+174088800,sensor,TX,830,"{""age_min_ms"": 96, ""age_max_ms"": 96}",LAT TX seq=830 age_min_ms=96 age_max_ms=96
+179327900,screen,RX,830,{},I (347950) LAT: RX seq=830
+193330300,sensor,RTT,830,"{""us"": 4776}",LAT RTT seq=830 us=4776
+274001800,sensor,TX,831,"{""age_min_ms"": 88, ""age_max_ms"": 88}",LAT TX seq=831 age_min_ms=88 age_max_ms=88
+278351700,screen,RX,831,{},I (348050) LAT: RX seq=831
+294248500,sensor,RTT,831,"{""us"": 4666}",LAT RTT seq=831 us=4666
+375158500,sensor,TX,832,"{""age_min_ms"": 98, ""age_max_ms"": 98}",LAT TX seq=832 age_min_ms=98 age_max_ms=98
+378986600,screen,RX,832,{},I (348150) LAT: RX seq=832
+394113700,sensor,RTT,832,"{""us"": 3842}",LAT RTT seq=832 us=3842
+475082200,sensor,TX,833,"{""age_min_ms"": 57, ""age_max_ms"": 57}",LAT TX seq=833 age_min_ms=57 age_max_ms=57
+480060900,screen,RX,833,{},I (348250) LAT: RX seq=833
+495167200,sensor,RTT,833,"{""us"": 4351}",LAT RTT seq=833 us=4351
+576013200,sensor,TX,834,"{""age_min_ms"": 49, ""age_max_ms"": 49}",LAT TX seq=834 age_min_ms=49 age_max_ms=49
+582362000,screen,RX,834,{},I (348350) LAT: RX seq=834
+595180200,sensor,RTT,834,"{""us"": 5884}",LAT RTT seq=834 us=5884
+676165800,sensor,TX,835,"{""age_min_ms"": 0, ""age_max_ms"": 0}",LAT TX seq=835 age_min_ms=0 age_max_ms=0
+680380600,screen,RX,835,{},I (348450) LAT: RX seq=835
+696108300,sensor,RTT,835,"{""us"": 4474}",LAT RTT seq=835 us=4474
+777249300,sensor,TX,836,"{""age_min_ms"": 101, ""age_max_ms"": 101}",LAT TX seq=836 age_min_ms=101 age_max_ms=101
+782173400,screen,RX,836,{},I (348550) LAT: RX seq=836
+796148000,sensor,RTT,836,"{""us"": 5171}",LAT RTT seq=836 us=5171
+876930100,sensor,TX,837,"{""age_min_ms"": 99, ""age_max_ms"": 99}",LAT TX seq=837 age_min_ms=99 age_max_ms=99
+890223800,screen,RX,837,{},I (348660) LAT: RX seq=837
+896128900,sensor,RTT,837,"{""us"": 13983}",LAT RTT seq=837 us=13983
+976929600,sensor,TX,838,"{""age_min_ms"": 99, ""age_max_ms"": 99}",LAT TX seq=838 age_min_ms=99 age_max_ms=99
+982275800,screen,RX,838,{},I (348750) LAT: RX seq=838
+996116100,sensor,RTT,838,"{""us"": 4428}",LAT RTT seq=838 us=4428
+1082477500,screen,RX,839,{},I (348850) LAT: RX seq=839
+1097123000,sensor,RTT,839,"{""us"": 8461}",LAT RTT seq=839 us=8461
+1178094900,sensor,TX,840,"{""age_min_ms"": 0, ""age_max_ms"": 0}",LAT TX seq=840 age_min_ms=0 age_max_ms=0
+1184459700,screen,RX,840,{},I (348950) LAT: RX seq=840
+1198109500,sensor,RTT,840,"{""us"": 6715}",LAT RTT seq=840 us=6715
+1279021500,sensor,TX,841,"{""age_min_ms"": 2, ""age_max_ms"": 2}",LAT TX seq=841 age_min_ms=2 age_max_ms=2
+1283773300,screen,RX,841,{},I (349050) LAT: RX seq=841
+1299125500,sensor,RTT,841,"{""us"": 4564}",LAT RTT seq=841 us=4564
+1380084000,sensor,TX,842,"{""age_min_ms"": 103, ""age_max_ms"": 103}",LAT TX seq=842 age_min_ms=103 age_max_ms=103
+1384021300,screen,RX,842,{},I (349150) LAT: RX seq=842
+1399134600,sensor,RTT,842,"{""us"": 4406}",LAT RTT seq=842 us=4406
+1480047000,sensor,TX,843,"{""age_min_ms"": 60, ""age_max_ms"": 60}",LAT TX seq=843 age_min_ms=60 age_max_ms=60
+1484895900,screen,RX,843,{},I (349250) LAT: RX seq=843
+1499052800,sensor,RTT,843,"{""us"": 5043}",LAT RTT seq=843 us=5043
+1580018700,sensor,TX,844,"{""age_min_ms"": 2, ""age_max_ms"": 2}",LAT TX seq=844 age_min_ms=2 age_max_ms=2
+1584885400,screen,RX,844,{},I (349350) LAT: RX seq=844
+1600101500,sensor,RTT,844,"{""us"": 4727}",LAT RTT seq=844 us=4727
+1680975500,sensor,TX,845,"{""age_min_ms"": 3, ""age_max_ms"": 3}",LAT TX seq=845 age_min_ms=3 age_max_ms=3
+1685146300,screen,RX,845,{},I (349450) LAT: RX seq=845
+1700081300,sensor,RTT,845,"{""us"": 3345}",LAT RTT seq=845 us=3345
+1781250100,sensor,TX,846,"{""age_min_ms"": 4, ""age_max_ms"": 4}",LAT TX seq=846 age_min_ms=4 age_max_ms=4
+1786997900,screen,RX,846,{},I (349560) LAT: RX seq=846
+1800107700,sensor,RTT,846,"{""us"": 5389}",LAT RTT seq=846 us=5389
+1880963100,sensor,TX,847,"{""age_min_ms"": 4, ""age_max_ms"": 4}",LAT TX seq=847 age_min_ms=4 age_max_ms=4
+1885223700,screen,RX,847,{},I (349650) LAT: RX seq=847
+1900091800,sensor,RTT,847,"{""us"": 4475}",LAT RTT seq=847 us=4475
+1980921800,sensor,TX,848,"{""age_min_ms"": 3, ""age_max_ms"": 3}",LAT TX seq=848 age_min_ms=3 age_max_ms=3
+1986239400,screen,RX,848,{},I (349760) LAT: RX seq=848
+2000134600,sensor,RTT,848,"{""us"": 7182}",LAT RTT seq=848 us=7182
+2081116300,sensor,TX,849,"{""age_min_ms"": 4, ""age_max_ms"": 4}",LAT TX seq=849 age_min_ms=4 age_max_ms=4
+2086001500,screen,RX,849,{},I (349860) LAT: RX seq=849
+2101123800,sensor,RTT,849,"{""us"": 4418}",LAT RTT seq=849 us=4418
+2182121400,sensor,TX,850,"{""age_min_ms"": 4, ""age_max_ms"": 4}","DIST: [0.0, 0.0, 0.0, 0.0, 368.1, 0.LAT TX seq=850 age_min_ms=4 age_max_ms=4"
+2188975800,screen,RX,850,{},I (349960) LAT: RX seq=850
+2202151100,sensor,RTT,850,"{""us"": 7307}",LAT RTT seq=850 us=7307
+2283171900,sensor,TX,851,"{""age_min_ms"": 5, ""age_max_ms"": 5}",LAT TX seq=851 age_min_ms=5 age_max_ms=5
+2289008500,screen,RX,851,{},I (350060) LAT: RX seq=851
+2303154700,sensor,RTT,851,"{""us"": 5382}",LAT RTT seq=851 us=5382
+2383968600,sensor,TX,852,"{""age_min_ms"": 106, ""age_max_ms"": 106}",LAT TX seq=852 age_min_ms=106 age_max_ms=106
+2389606700,screen,RX,852,{},I (350160) LAT: RX seq=852
+2403183000,sensor,RTT,852,"{""us"": 5931}",LAT RTT seq=852 us=5931
+2483935400,sensor,TX,853,"{""age_min_ms"": 65, ""age_max_ms"": 65}",LAT TX seq=853 age_min_ms=65 age_max_ms=65
+2493908500,screen,RX,853,{},I (350260) LAT: RX seq=853
+2503088300,sensor,RTT,853,"{""us"": 10324}",LAT RTT seq=853 us=10324
+2583959500,sensor,TX,854,"{""age_min_ms"": 6, ""age_max_ms"": 6}",LAT TX seq=854 age_min_ms=6 age_max_ms=6
+2590493400,screen,RX,854,{},I (350360) LAT: RX seq=854
+2604089300,sensor,RTT,854,"{""us"": 6899}",LAT RTT seq=854 us=6899
+2684906100,sensor,TX,855,"{""age_min_ms"": 107, ""age_max_ms"": 107}",LAT TX seq=855 age_min_ms=107 age_max_ms=107
+2690606100,screen,RX,855,{},I (350460) LAT: RX seq=855
+2704255000,sensor,RTT,855,"{""us"": 5657}",LAT RTT seq=855 us=5657
+2784911800,sensor,TX,856,"{""age_min_ms"": 7, ""age_max_ms"": 7}",LAT TX seq=856 age_min_ms=7 age_max_ms=7
+2789892700,screen,RX,856,{},I (350560) LAT: RX seq=856
+2805092100,sensor,RTT,856,"{""us"": 5401}",LAT RTT seq=856 us=5401
+2885991200,sensor,TX,857,"{""age_min_ms"": 8, ""age_max_ms"": 8}",LAT TX seq=857 age_min_ms=8 age_max_ms=8
+2890058600,screen,RX,857,{},I (350660) LAT: RX seq=857
+2905121000,sensor,RTT,857,"{""us"": 3553}",LAT RTT seq=857 us=3553
+2985934100,sensor,TX,858,"{""age_min_ms"": 8, ""age_max_ms"": 8}",LAT TX seq=858 age_min_ms=8 age_max_ms=8
+2990569900,screen,RX,858,{},I (350760) LAT: RX seq=858
+3005101200,sensor,RTT,858,"{""us"": 4608}",LAT RTT seq=858 us=4608
+3085995300,sensor,TX,859,"{""age_min_ms"": 0, ""age_max_ms"": 0}",LAT TX seq=859 age_min_ms=0 age_max_ms=0
+3089990300,screen,RX,859,{},I (350860) LAT: RX seq=859
+3106145600,sensor,RTT,859,"{""us"": 4202}",LAT RTT seq=859 us=4202
+3187024600,sensor,TX,860,"{""age_min_ms"": 1, ""age_max_ms"": 1}",LAT TX seq=860 age_min_ms=1 age_max_ms=1
+3191050300,screen,RX,860,{},I (350960) LAT: RX seq=860
+3207147600,sensor,RTT,860,"{""us"": 9861}",LAT RTT seq=860 us=9861
+3288043400,sensor,TX,861,"{""age_min_ms"": 10, ""age_max_ms"": 10}",LAT TX seq=861 age_min_ms=10 age_max_ms=10
+3292745700,screen,RX,861,{},I (351060) LAT: RX seq=861
+3308145100,sensor,RTT,861,"{""us"": 9594}",LAT RTT seq=861 us=9594
+3388943100,sensor,TX,862,"{""age_min_ms"": 111, ""age_max_ms"": 111}",LAT TX seq=862 age_min_ms=111 age_max_ms=111
+3393252700,screen,RX,862,{},I (351160) LAT: RX seq=862
+3408061700,sensor,RTT,862,"{""us"": 3848}",LAT RTT seq=862 us=3848
+3488975000,sensor,TX,863,"{""age_min_ms"": 67, ""age_max_ms"": 67}","DIST: [0.0, 0.0, 0.0, 0.0, 368.4, LAT TX seq=863 age_min_ms=67 age_max_ms=67"
+3495926000,screen,RX,863,{},I (351270) LAT: RX seq=863
+3509116000,sensor,RTT,863,"{""us"": 6927}",LAT RTT seq=863 us=6927
+3589918400,sensor,TX,864,"{""age_min_ms"": 4, ""age_max_ms"": 4}",LAT TX seq=864 age_min_ms=4 age_max_ms=4
+3594810900,screen,RX,864,{},I (351360) LAT: RX seq=864
+3609163700,sensor,RTT,864,"{""us"": 6429}",LAT RTT seq=864 us=6429
+3689962200,sensor,TX,865,"{""age_min_ms"": 12, ""age_max_ms"": 12}",LAT TX seq=865 age_min_ms=12 age_max_ms=12
+3694764800,screen,RX,865,{},I (351460) LAT: RX seq=865
+3709079000,sensor,RTT,865,"{""us"": 4274}",LAT RTT seq=865 us=4274
+3789950400,sensor,TX,866,"{""age_min_ms"": 4, ""age_max_ms"": 4}",LAT TX seq=866 age_min_ms=4 age_max_ms=4
+3794817500,screen,RX,866,{},I (351560) LAT: RX seq=866
+3809126500,sensor,RTT,866,"{""us"": 7946}",LAT RTT seq=866 us=7946
+3890028100,sensor,TX,867,"{""age_min_ms"": 12, ""age_max_ms"": 12}",LAT TX seq=867 age_min_ms=12 age_max_ms=12
+3894604400,screen,RX,867,{},I (351660) LAT: RX seq=867
+3909093000,sensor,RTT,867,"{""us"": 4556}",LAT RTT seq=867 us=4556
+3990246900,sensor,TX,868,"{""age_min_ms"": 13, ""age_max_ms"": 13}",LAT TX seq=868 age_min_ms=13 age_max_ms=13
+3994934000,screen,RX,868,{},I (351760) LAT: RX seq=868
+4009070300,sensor,RTT,868,"{""us"": 4591}",LAT RTT seq=868 us=4591
+4090058000,sensor,TX,869,"{""age_min_ms"": 13, ""age_max_ms"": 13}",LAT TX seq=869 age_min_ms=13 age_max_ms=13
+4094712200,screen,RX,869,{},I (351860) LAT: RX seq=869
+4110167100,sensor,RTT,869,"{""us"": 5097}",LAT RTT seq=869 us=5097
+4191024700,sensor,TX,870,"{""age_min_ms"": 14, ""age_max_ms"": 14}",LAT TX seq=870 age_min_ms=14 age_max_ms=14
+4194926400,screen,RX,870,{},I (351960) LAT: RX seq=870
+4210110300,sensor,RTT,870,"{""us"": 3865}",LAT RTT seq=870 us=3865
+4291149800,sensor,TX,871,"{""age_min_ms"": 13, ""age_max_ms"": 13}","DIST: [0.0, 0.0, 0.0, 0LAT TX seq=871 age_min_ms=13 age_max_ms=13"
+4295830900,screen,RX,871,{},I (352060) LAT: RX seq=871
+4311209700,sensor,RTT,871,"{""us"": 4206}",LAT RTT seq=871 us=4206
+4391992500,sensor,TX,872,"{""age_min_ms"": 114, ""age_max_ms"": 114}",LAT TX seq=872 age_min_ms=114 age_max_ms=114
+4396512300,screen,RX,872,{},I (352170) LAT: RX seq=872
+4411128800,sensor,RTT,872,"{""us"": 4417}",LAT RTT seq=872 us=4417
+4492170600,sensor,TX,873,"{""age_min_ms"": 72, ""age_max_ms"": 72}",LAT TX seq=873 age_min_ms=72 age_max_ms=72
+4496275400,screen,RX,873,{},I (352270) LAT: RX seq=873
+4511114400,sensor,RTT,873,"{""us"": 4254}",LAT RTT seq=873 us=4254
+4592348000,sensor,TX,874,"{""age_min_ms"": 15, ""age_max_ms"": 15}",LAT TX seq=874 age_min_ms=15 age_max_ms=15
+4598187300,screen,RX,874,{},I (352370) LAT: RX seq=874
+4611128100,sensor,RTT,874,"{""us"": 5618}",LAT RTT seq=874 us=5618
+4692122200,sensor,TX,875,"{""age_min_ms"": 15, ""age_max_ms"": 15}",LAT TX seq=875 age_min_ms=15 age_max_ms=15
+4697389400,screen,RX,875,{},I (352470) LAT: RX seq=875
+4711104600,sensor,RTT,875,"{""us"": 4612}",LAT RTT seq=875 us=4612
+4791909200,sensor,TX,876,"{""age_min_ms"": 14, ""age_max_ms"": 14}",LAT TX seq=876 age_min_ms=14 age_max_ms=14
+4796613200,screen,RX,876,{},I (352570) LAT: RX seq=876
+4811127100,sensor,RTT,876,"{""us"": 5884}",LAT RTT seq=876 us=5884
+4892166600,sensor,TX,877,"{""age_min_ms"": 14, ""age_max_ms"": 14}",LAT TX seq=877 age_min_ms=14 age_max_ms=14
+4896330700,screen,RX,877,{},I (352670) LAT: RX seq=877
+4911149900,sensor,RTT,877,"{""us"": 4705}",LAT RTT seq=877 us=4705
+4991911500,sensor,TX,878,"{""age_min_ms"": 15, ""age_max_ms"": 15}",LAT TX seq=878 age_min_ms=15 age_max_ms=15
+4996143200,screen,RX,878,{},I (352770) LAT: RX seq=878
+5011192100,sensor,RTT,878,"{""us"": 13583}",LAT RTT seq=878 us=13583
+5092039700,sensor,TX,879,"{""age_min_ms"": 15, ""age_max_ms"": 15}",LAT TX seq=879 age_min_ms=15 age_max_ms=15
+5105358000,screen,RX,879,{},I (352880) LAT: RX seq=879
+5112123500,sensor,RTT,879,"{""us"": 19552}",LAT RTT seq=879 us=19552
+5193242100,sensor,TX,880,"{""age_min_ms"": 16, ""age_max_ms"": 16}",LAT TX seq=880 age_min_ms=16 age_max_ms=16
+5197711200,screen,RX,880,{},I (352970) LAT: RX seq=880
+5212109600,sensor,RTT,880,"{""us"": 8200}",LAT RTT seq=880 us=8200
+5297749400,screen,RX,881,{},I (353070) LAT: RX seq=881
+5312103500,sensor,RTT,881,"{""us"": 4278}",LAT RTT seq=881 us=4278
+5392986000,sensor,TX,882,"{""age_min_ms"": 116, ""age_max_ms"": 116}",LAT TX seq=882 age_min_ms=116 age_max_ms=116
+5397826700,screen,RX,882,{},I (353170) LAT: RX seq=882
+5412136300,sensor,RTT,882,"{""us"": 4100}",LAT RTT seq=882 us=4100
+5492908500,sensor,TX,883,"{""age_min_ms"": 74, ""age_max_ms"": 74}",LAT TX seq=883 age_min_ms=74 age_max_ms=74
+5499716200,screen,RX,883,{},I (353270) LAT: RX seq=883
+5512134900,sensor,RTT,883,"{""us"": 7384}",LAT RTT seq=883 us=7384
+5592918100,sensor,TX,884,"{""age_min_ms"": 15, ""age_max_ms"": 15}",LAT TX seq=884 age_min_ms=15 age_max_ms=15
+5597502600,screen,RX,884,{},I (353370) LAT: RX seq=884
+5612101300,sensor,RTT,884,"{""us"": 6159}",LAT RTT seq=884 us=6159
+5692912100,sensor,TX,885,"{""age_min_ms"": 15, ""age_max_ms"": 15}",LAT TX seq=885 age_min_ms=15 age_max_ms=15
+5697556000,screen,RX,885,{},I (353470) LAT: RX seq=885
+5712100300,sensor,RTT,885,"{""us"": 4377}",LAT RTT seq=885 us=4377
+5793097300,sensor,TX,886,"{""age_min_ms"": 7, ""age_max_ms"": 7}",LAT TX seq=886 age_min_ms=7 age_max_ms=7
+5797098500,screen,RX,886,{},I (353570) LAT: RX seq=886
+5812120200,sensor,RTT,886,"{""us"": 3820}",LAT RTT seq=886 us=3820
+5892984600,sensor,TX,887,"{""age_min_ms"": 16, ""age_max_ms"": 16}",LAT TX seq=887 age_min_ms=16 age_max_ms=16
+5898934300,screen,RX,887,{},I (353670) LAT: RX seq=887
+5912136100,sensor,RTT,887,"{""us"": 5386}",LAT RTT seq=887 us=5386
+5992906000,sensor,TX,888,"{""age_min_ms"": 16, ""age_max_ms"": 16}",LAT TX seq=888 age_min_ms=16 age_max_ms=16
+5998518000,screen,RX,888,{},I (353770) LAT: RX seq=888
+6012140900,sensor,RTT,888,"{""us"": 7850}",LAT RTT seq=888 us=7850
+6092962200,sensor,TX,889,"{""age_min_ms"": 16, ""age_max_ms"": 16}",LAT TX seq=889 age_min_ms=16 age_max_ms=16
+6107211600,screen,RX,889,{},I (353880) LAT: RX seq=889
+6113107000,sensor,RTT,889,"{""us"": 13728}",LAT RTT seq=889 us=13728
+6194015400,sensor,TX,890,"{""age_min_ms"": 16, ""age_max_ms"": 16}",LAT TX seq=890 age_min_ms=16 age_max_ms=16
+6197983900,screen,RX,890,{},I (353970) LAT: RX seq=890
+6214078700,sensor,RTT,890,"{""us"": 6617}",LAT RTT seq=890 us=6617
+6294979800,sensor,TX,891,"{""age_min_ms"": 17, ""age_max_ms"": 17}",LAT TX seq=891 age_min_ms=17 age_max_ms=17
+6299904600,screen,RX,891,{},I (354070) LAT: RX seq=891
+6314104000,sensor,RTT,891,"{""us"": 4070}",LAT RTT seq=891 us=4070
+6395208500,sensor,TX,892,"{""age_min_ms"": 117, ""age_max_ms"": 117}",LAT TX seq=892 age_min_ms=117 age_max_ms=117
+6400065600,screen,RX,892,{},I (354170) LAT: RX seq=892
+6415128400,sensor,RTT,892,"{""us"": 4184}",LAT RTT seq=892 us=4184
+6495995900,sensor,TX,893,"{""age_min_ms"": 78, ""age_max_ms"": 78}",LAT TX seq=893 age_min_ms=78 age_max_ms=78
+6502745600,screen,RX,893,{},I (354270) LAT: RX seq=893
+6516111100,sensor,RTT,893,"{""us"": 13543}",LAT RTT seq=893 us=13543
+6597206100,sensor,TX,894,"{""age_min_ms"": 20, ""age_max_ms"": 20}",LAT TX seq=894 age_min_ms=20 age_max_ms=20
+6601996800,screen,RX,894,{},I (354370) LAT: RX seq=894
+6616124500,sensor,RTT,894,"{""us"": 5046}",LAT RTT seq=894 us=5046
+6704606200,screen,RX,895,{},I (354470) LAT: RX seq=895
+6716104600,sensor,RTT,895,"{""us"": 17205}",LAT RTT seq=895 us=17205
+6797031200,sensor,TX,896,"{""age_min_ms"": 11, ""age_max_ms"": 11}",LAT TX seq=896 age_min_ms=11 age_max_ms=11
+6804227700,screen,RX,896,{},I (354570) LAT: RX seq=896
+6836134200,sensor,RTT,896,"{""us"": 23208}",LAT RTT seq=896 us=23208
+6897567600,sensor,TX,897,"{""age_min_ms"": 20, ""age_max_ms"": 20}",LAT TX seq=897 age_min_ms=20 age_max_ms=20
+6901296300,screen,RX,897,{},I (354670) LAT: RX seq=897
+6916125100,sensor,RTT,897,"{""us"": 4374}",LAT RTT seq=897 us=4374
+6997008400,sensor,TX,898,"{""age_min_ms"": 11, ""age_max_ms"": 11}",LAT TX seq=898 age_min_ms=11 age_max_ms=11
+7003294800,screen,RX,898,{},I (354770) LAT: RX seq=898
+7016142500,sensor,RTT,898,"{""us"": 7756}",LAT RTT seq=898 us=7756
+7096976000,sensor,TX,899,"{""age_min_ms"": 20, ""age_max_ms"": 20}",LAT TX seq=899 age_min_ms=20 age_max_ms=20
+7102766400,screen,RX,899,{},I (354870) LAT: RX seq=899
+7117140700,sensor,RTT,899,"{""us"": 6039}",LAT RTT seq=899 us=6039
+7198016400,sensor,TX,900,"{""age_min_ms"": 12, ""age_max_ms"": 12}",LAT TX seq=900 age_min_ms=12 age_max_ms=12
+7206645200,screen,RX,900,{},I (354980) LAT: RX seq=900
+7218155900,sensor,RTT,900,"{""us"": 11405}",LAT RTT seq=900 us=11405
+7299010200,sensor,TX,901,"{""age_min_ms"": 13, ""age_max_ms"": 13}",LAT TX seq=901 age_min_ms=13 age_max_ms=13
+7306969800,screen,RX,901,{},I (355080) LAT: RX seq=901
+7319139400,sensor,RTT,901,"{""us"": 9905}",LAT RTT seq=901 us=9905
+7400075200,sensor,TX,902,"{""age_min_ms"": 114, ""age_max_ms"": 114}",LAT TX seq=902 age_min_ms=114 age_max_ms=114
+7408703400,screen,RX,902,{},I (355180) LAT: RX seq=902
+7419135900,sensor,RTT,902,"{""us"": 8721}",LAT RTT seq=902 us=8721
+7500070700,sensor,TX,903,"{""age_min_ms"": 82, ""age_max_ms"": 82}",LAT TX seq=903 age_min_ms=82 age_max_ms=82
+7511272000,screen,RX,903,{},I (355280) LAT: RX seq=903
+7519176700,sensor,RTT,903,"{""us"": 10355}",LAT RTT seq=903 us=10355
+7600006400,sensor,TX,904,"{""age_min_ms"": 23, ""age_max_ms"": 23}",LAT TX seq=904 age_min_ms=23 age_max_ms=23
+7610569600,screen,RX,904,{},I (355380) LAT: RX seq=904
+7619215200,sensor,RTT,904,"{""us"": 13642}",LAT RTT seq=904 us=13642
+7700181700,sensor,TX,905,"{""age_min_ms"": 23, ""age_max_ms"": 23}","DIST: [0.0, 0.0, 0.0, 0.0, 341.LAT TX seq=905 age_min_ms=23 age_max_ms=23"
+7705064800,screen,RX,905,{},I (355470) LAT: RX seq=905
+7719149800,sensor,RTT,905,"{""us"": 5505}",LAT RTT seq=905 us=5505
+7800120200,sensor,TX,906,"{""age_min_ms"": 22, ""age_max_ms"": 22}","DIST: [0.0, 0.0, 0.0, 0.0, 341.3, 0.0]LAT TX seq=906 age_min_ms=22 age_max_ms=22"
+7807122000,screen,RX,906,{},I (355580) LAT: RX seq=906
+7819135500,sensor,RTT,906,"{""us"": 7479}",LAT RTT seq=906 us=7479
+7899974000,sensor,TX,907,"{""age_min_ms"": 22, ""age_max_ms"": 22}",LAT TX seq=907 age_min_ms=22 age_max_ms=22
+7907938000,screen,RX,907,{},I (355680) LAT: RX seq=907
+7919143100,sensor,RTT,907,"{""us"": 8129}",LAT RTT seq=907 us=8129
+8000100700,sensor,TX,908,"{""age_min_ms"": 22, ""age_max_ms"": 22}",LAT TX seq=908 age_min_ms=22 age_max_ms=22
+8008318500,screen,RX,908,{},I (355780) LAT: RX seq=908
+8019115000,sensor,RTT,908,"{""us"": 8060}",LAT RTT seq=908 us=8060
+8100009700,sensor,TX,909,"{""age_min_ms"": 22, ""age_max_ms"": 22}",LAT TX seq=909 age_min_ms=22 age_max_ms=22
+8104799700,screen,RX,909,{},I (355870) LAT: RX seq=909
+8120044500,sensor,RTT,909,"{""us"": 5368}",LAT RTT seq=909 us=5368
+8201033000,sensor,TX,910,"{""age_min_ms"": 23, ""age_max_ms"": 23}",LAT TX seq=910 age_min_ms=23 age_max_ms=23
+8206207400,screen,RX,910,{},I (355980) LAT: RX seq=910
+8221039300,sensor,RTT,910,"{""us"": 7283}",LAT RTT seq=910 us=7283
+8302319900,sensor,TX,911,"{""age_min_ms"": 16, ""age_max_ms"": 16}",LAT TX seq=911 age_min_ms=16 age_max_ms=16
+8308615800,screen,RX,911,{},I (356080) LAT: RX seq=911
+8322151600,sensor,RTT,911,"{""us"": 7694}",LAT RTT seq=911 us=7694
+8402915900,sensor,TX,912,"{""age_min_ms"": 117, ""age_max_ms"": 117}",LAT TX seq=912 age_min_ms=117 age_max_ms=117
+8412382500,screen,RX,912,{},I (356180) LAT: RX seq=912
+8494836200,sensor,RTT,912,"{""us"": 10311}",LAT RTT seq=912 us=10311
+8503035500,sensor,TX,913,"{""age_min_ms"": 76, ""age_max_ms"": 76}",LAT TX seq=913 age_min_ms=76 age_max_ms=76
+8507126600,screen,RX,913,{},I (356280) LAT: RX seq=913
+8523134700,sensor,RTT,913,"{""us"": 5097}",LAT RTT seq=913 us=5097
+8607988700,screen,RX,914,{},I (356380) LAT: RX seq=914
+8623215000,sensor,RTT,914,"{""us"": 8704}",LAT RTT seq=914 us=8704
+8704046900,sensor,TX,915,"{""age_min_ms"": 26, ""age_max_ms"": 26}",LAT TX seq=915 age_min_ms=26 age_max_ms=26
+8708758200,screen,RX,915,{},I (356480) LAT: RX seq=915
+8723114400,sensor,RTT,915,"{""us"": 4615}",LAT RTT seq=915 us=4615
+8803982900,sensor,TX,916,"{""age_min_ms"": 18, ""age_max_ms"": 18}","DIST: [0.0, 0.0, 0.0, 0.0, 366.3, 0.0]LAT TX seq=916 age_min_ms=18 age_max_ms=18"
+8808803900,screen,RX,916,{},I (356580) LAT: RX seq=916
+8823172900,sensor,RTT,916,"{""us"": 4288}",LAT RTT seq=916 us=4288
+8903922000,sensor,TX,917,"{""age_min_ms"": 27, ""age_max_ms"": 27}",LAT TX seq=917 age_min_ms=27 age_max_ms=27
+8909246600,screen,RX,917,{},I (356680) LAT: RX seq=917
+8923135100,sensor,RTT,917,"{""us"": 7863}",LAT RTT seq=917 us=7863
+9004052800,sensor,TX,918,"{""age_min_ms"": 27, ""age_max_ms"": 27}",LAT TX seq=918 age_min_ms=27 age_max_ms=27
+9008658600,screen,RX,918,{},I (356780) LAT: RX seq=918
+9023083100,sensor,RTT,918,"{""us"": 4005}",LAT RTT seq=918 us=4005
+9103980000,sensor,TX,919,"{""age_min_ms"": 26, ""age_max_ms"": 26}",LAT TX seq=919 age_min_ms=26 age_max_ms=26
+9108458400,screen,RX,919,{},I (356880) LAT: RX seq=919
+9124099200,sensor,RTT,919,"{""us"": 3927}",LAT RTT seq=919 us=3927
+9205028700,sensor,TX,920,"{""age_min_ms"": 27, ""age_max_ms"": 27}",LAT TX seq=920 age_min_ms=27 age_max_ms=27
+9214016900,screen,RX,920,{},I (356980) LAT: RX seq=920
+9225056100,sensor,RTT,920,"{""us"": 8158}",LAT RTT seq=920 us=8158
+9306062900,sensor,TX,921,"{""age_min_ms"": 45, ""age_max_ms"": 45}",LAT TX seq=921 age_min_ms=45 age_max_ms=45
+9310739900,screen,RX,921,{},I (357080) LAT: RX seq=921
+9326127800,sensor,RTT,921,"{""us"": 4773}",LAT RTT seq=921 us=4773
+9407094500,sensor,TX,922,"{""age_min_ms"": 146, ""age_max_ms"": 146}",LAT TX seq=922 age_min_ms=146 age_max_ms=146
+9410981500,screen,RX,922,{},I (357180) LAT: RX seq=922
+9426167200,sensor,RTT,922,"{""us"": 3610}",LAT RTT seq=922 us=3610
+9507080400,sensor,TX,923,"{""age_min_ms"": 88, ""age_max_ms"": 88}",LAT TX seq=923 age_min_ms=88 age_max_ms=88
+9511598200,screen,RX,923,{},I (357280) LAT: RX seq=923
+9526195900,sensor,RTT,923,"{""us"": 5932}",LAT RTT seq=923 us=5932
+9607075300,sensor,TX,924,"{""age_min_ms"": 46, ""age_max_ms"": 46}",LAT TX seq=924 age_min_ms=46 age_max_ms=46
+9611366800,screen,RX,924,{},I (357380) LAT: RX seq=924
+9626172200,sensor,RTT,924,"{""us"": 4430}",LAT RTT seq=924 us=4430
+9707012900,sensor,TX,925,"{""age_min_ms"": 29, ""age_max_ms"": 29}",LAT TX seq=925 age_min_ms=29 age_max_ms=29
+9716431700,screen,RX,925,{},I (357490) LAT: RX seq=925
+9726172800,sensor,RTT,925,"{""us"": 11429}",LAT RTT seq=925 us=11429
+9807051300,sensor,TX,926,"{""age_min_ms"": 29, ""age_max_ms"": 29}",LAT TX seq=926 age_min_ms=29 age_max_ms=29
+9811071000,screen,RX,926,{},I (357580) LAT: RX seq=926
+9826139300,sensor,RTT,926,"{""us"": 6245}",LAT RTT seq=926 us=6245
+9907007500,sensor,TX,927,"{""age_min_ms"": 29, ""age_max_ms"": 29}",LAT TX seq=927 age_min_ms=29 age_max_ms=29
+9913666200,screen,RX,927,{},I (357680) LAT: RX seq=927
+9926144200,sensor,RTT,927,"{""us"": 9905}",LAT RTT seq=927 us=9905
+10007189500,sensor,TX,928,"{""age_min_ms"": 29, ""age_max_ms"": 29}","DIST: [0.0, 0.0, 0.0, 0.LAT TX seq=928 age_min_ms=29 age_max_ms=29"
+10010980500,screen,RX,928,{},I (357780) LAT: RX seq=928
+10026096100,sensor,RTT,928,"{""us"": 4546}",LAT RTT seq=928 us=4546
+10107037200,sensor,TX,929,"{""age_min_ms"": 46, ""age_max_ms"": 46}",LAT TX seq=929 age_min_ms=46 age_max_ms=46
+10111205600,screen,RX,929,{},I (357880) LAT: RX seq=929
+10127146700,sensor,RTT,929,"{""us"": 4434}",LAT RTT seq=929 us=4434
+10208025100,sensor,TX,930,"{""age_min_ms"": 47, ""age_max_ms"": 47}",LAT TX seq=930 age_min_ms=47 age_max_ms=47
+10212705300,screen,RX,930,{},I (357980) LAT: RX seq=930
+10228161700,sensor,RTT,930,"{""us"": 4451}",LAT RTT seq=930 us=4451
+10309073500,sensor,TX,931,"{""age_min_ms"": 32, ""age_max_ms"": 32}",LAT TX seq=931 age_min_ms=32 age_max_ms=32
+10318385400,screen,RX,931,{},I (358090) LAT: RX seq=931
+10328143400,sensor,RTT,931,"{""us"": 8455}",LAT RTT seq=931 us=8455
+10409054700,sensor,TX,932,"{""age_min_ms"": 7, ""age_max_ms"": 7}",LAT TX seq=932 age_min_ms=7 age_max_ms=7
+10418642200,screen,RX,932,{},I (358190) LAT: RX seq=932
+10428143400,sensor,RTT,932,"{""us"": 11499}",LAT RTT seq=932 us=11499
+10509113700,sensor,TX,933,"{""age_min_ms"": 7, ""age_max_ms"": 7}",LAT TX seq=933 age_min_ms=7 age_max_ms=7
+10517515500,screen,RX,933,{},I (358290) LAT: RX seq=933
+10528159100,sensor,RTT,933,"{""us"": 16863}",LAT RTT seq=933 us=16863
+10617444800,screen,RX,934,{},I (358390) LAT: RX seq=934
+10628248100,sensor,RTT,934,"{""us"": 8702}",LAT RTT seq=934 us=8702
+10709042900,sensor,TX,935,"{""age_min_ms"": 32, ""age_max_ms"": 32}",LAT TX seq=935 age_min_ms=32 age_max_ms=32
+10714265900,screen,RX,935,{},I (358480) LAT: RX seq=935
+10728154600,sensor,RTT,935,"{""us"": 5505}",LAT RTT seq=935 us=5505
+10809087900,sensor,TX,936,"{""age_min_ms"": 32, ""age_max_ms"": 32}",LAT TX seq=936 age_min_ms=32 age_max_ms=32
+10813925200,screen,RX,936,{},I (358580) LAT: RX seq=936
+10828126600,sensor,RTT,936,"{""us"": 6364}",LAT RTT seq=936 us=6364
+10909009500,sensor,TX,937,"{""age_min_ms"": 32, ""age_max_ms"": 32}",LAT TX seq=937 age_min_ms=32 age_max_ms=32
+10913122300,screen,RX,937,{},I (358680) LAT: RX seq=937
+10928163600,sensor,RTT,937,"{""us"": 4110}",LAT RTT seq=937 us=4110
+11009109500,sensor,TX,938,"{""age_min_ms"": 32, ""age_max_ms"": 32}",LAT TX seq=938 age_min_ms=32 age_max_ms=32
+11014696000,screen,RX,938,{},I (358780) LAT: RX seq=938
+11028240800,sensor,RTT,938,"{""us"": 12009}",LAT RTT seq=938 us=12009
+11109060500,sensor,TX,939,"{""age_min_ms"": 32, ""age_max_ms"": 32}",LAT TX seq=939 age_min_ms=32 age_max_ms=32
+11113050400,screen,RX,939,{},I (358880) LAT: RX seq=939
+11128097800,sensor,RTT,939,"{""us"": 6178}",LAT RTT seq=939 us=6178
+11209178800,sensor,TX,940,"{""age_min_ms"": 32, ""age_max_ms"": 32}","DIST: [0.0, 0.0, 0.0, 0.0, 340.3,LAT TX seq=940 age_min_ms=32 age_max_ms=32"
+11213776600,screen,RX,940,{},I (358980) LAT: RX seq=940
+11228095300,sensor,RTT,940,"{""us"": 5541}",LAT RTT seq=940 us=5541
+11309057800,sensor,TX,941,"{""age_min_ms"": 32, ""age_max_ms"": 32}",LAT TX seq=941 age_min_ms=32 age_max_ms=32
+11316157700,screen,RX,941,{},I (359090) LAT: RX seq=941
+11328187100,sensor,RTT,941,"{""us"": 8458}",LAT RTT seq=941 us=8458
+11417048900,screen,RX,942,{},I (359190) LAT: RX seq=942
+11428170800,sensor,RTT,942,"{""us"": 11833}",LAT RTT seq=942 us=11833
+11509019900,sensor,TX,943,"{""age_min_ms"": 91, ""age_max_ms"": 91}",LAT TX seq=943 age_min_ms=91 age_max_ms=91
+11513768000,screen,RX,943,{},I (359280) LAT: RX seq=943
+11529158700,sensor,RTT,943,"{""us"": 3971}",LAT RTT seq=943 us=3971
+11610115400,sensor,TX,944,"{""age_min_ms"": 33, ""age_max_ms"": 33}",LAT TX seq=944 age_min_ms=33 age_max_ms=33
+11619376700,screen,RX,944,{},I (359390) LAT: RX seq=944
+11629166900,sensor,RTT,944,"{""us"": 8920}",LAT RTT seq=944 us=8920
+11710041100,sensor,TX,945,"{""age_min_ms"": 33, ""age_max_ms"": 33}",LAT TX seq=945 age_min_ms=33 age_max_ms=33
+11716348200,screen,RX,945,{},I (359490) LAT: RX seq=945
+11729169500,sensor,RTT,945,"{""us"": 8938}",LAT RTT seq=945 us=8938
+11810057500,sensor,TX,946,"{""age_min_ms"": 33, ""age_max_ms"": 33}",LAT TX seq=946 age_min_ms=33 age_max_ms=33
+11813955400,screen,RX,946,{},I (359580) LAT: RX seq=946
+11829174000,sensor,RTT,946,"{""us"": 6084}",LAT RTT seq=946 us=6084
+11910081200,sensor,TX,947,"{""age_min_ms"": 32, ""age_max_ms"": 32}",LAT TX seq=947 age_min_ms=32 age_max_ms=32
+11915590700,screen,RX,947,{},I (359690) LAT: RX seq=947
+11929204900,sensor,RTT,947,"{""us"": 5938}",LAT RTT seq=947 us=5938
+12010047200,sensor,TX,948,"{""age_min_ms"": 33, ""age_max_ms"": 33}",LAT TX seq=948 age_min_ms=33 age_max_ms=33
+12018080900,screen,RX,948,{},I (359790) LAT: RX seq=948
+12029126100,sensor,RTT,948,"{""us"": 7107}",LAT RTT seq=948 us=7107
+12110034300,sensor,TX,949,"{""age_min_ms"": 50, ""age_max_ms"": 50}",LAT TX seq=949 age_min_ms=50 age_max_ms=50
+12122962200,screen,RX,949,{},I (359890) LAT: RX seq=949
+12130188200,sensor,RTT,949,"{""us"": 13376}",LAT RTT seq=949 us=13376
+12211066200,sensor,TX,950,"{""age_min_ms"": 51, ""age_max_ms"": 51}",LAT TX seq=950 age_min_ms=51 age_max_ms=51
+12225819700,screen,RX,950,{},I (360000) LAT: RX seq=950
+12231147300,sensor,RTT,950,"{""us"": 17064}",LAT RTT seq=950 us=17064
+12312115100,sensor,TX,951,"{""age_min_ms"": 52, ""age_max_ms"": 52}",LAT TX seq=951 age_min_ms=52 age_max_ms=52
+12317561100,screen,RX,951,{},I (360090) LAT: RX seq=951
+12331196100,sensor,RTT,951,"{""us"": 5615}",LAT RTT seq=951 us=5615
+12412108700,sensor,TX,952,"{""age_min_ms"": 11, ""age_max_ms"": 11}","DIST: [0.0, 0.0, 0.0, 0.0, 57.2LAT TX seq=952 age_min_ms=11 age_max_ms=11"
+12417962300,screen,RX,952,{},I (360190) LAT: RX seq=952
+12431170300,sensor,RTT,952,"{""us"": 5012}",LAT RTT seq=952 us=5012
+12511987400,sensor,TX,953,"{""age_min_ms"": 11, ""age_max_ms"": 11}",LAT TX seq=953 age_min_ms=11 age_max_ms=11
+12518290100,screen,RX,953,{},I (360290) LAT: RX seq=953
+12531145900,sensor,RTT,953,"{""us"": 7575}",LAT RTT seq=953 us=7575
+12612298800,sensor,TX,954,"{""age_min_ms"": 52, ""age_max_ms"": 52}",LAT TX seq=954 age_min_ms=52 age_max_ms=52
+12618373100,screen,RX,954,{},I (360390) LAT: RX seq=954
+12631131800,sensor,RTT,954,"{""us"": 5962}",LAT RTT seq=954 us=5962
+12712113100,sensor,TX,955,"{""age_min_ms"": 52, ""age_max_ms"": 52}","DIST: [0.0, 0.0, 0LAT TX seq=955 age_min_ms=52 age_max_ms=52"
+12717893500,screen,RX,955,{},I (360490) LAT: RX seq=955
+12731174800,sensor,RTT,955,"{""us"": 6440}",LAT RTT seq=955 us=6440
+12811997400,sensor,TX,956,"{""age_min_ms"": 52, ""age_max_ms"": 52}",LAT TX seq=956 age_min_ms=52 age_max_ms=52
+12817423300,screen,RX,956,{},I (360590) LAT: RX seq=956
+12831137800,sensor,RTT,956,"{""us"": 7978}",LAT RTT seq=956 us=7978
+12912166500,sensor,TX,957,"{""age_min_ms"": 34, ""age_max_ms"": 34}",LAT TX seq=957 age_min_ms=34 age_max_ms=34
+12920066000,screen,RX,957,{},I (360690) LAT: RX seq=957
+12931155500,sensor,RTT,957,"{""us"": 7211}",LAT RTT seq=957 us=7211
+13012019800,sensor,TX,958,"{""age_min_ms"": 34, ""age_max_ms"": 34}",LAT TX seq=958 age_min_ms=34 age_max_ms=34
+13016915600,screen,RX,958,{},I (360790) LAT: RX seq=958
+13031081300,sensor,RTT,958,"{""us"": 7244}",LAT RTT seq=958 us=7244
+13112084800,sensor,TX,959,"{""age_min_ms"": 34, ""age_max_ms"": 34}",LAT TX seq=959 age_min_ms=34 age_max_ms=34
+13116907200,screen,RX,959,{},I (360890) LAT: RX seq=959
+13132129100,sensor,RTT,959,"{""us"": 8042}",LAT RTT seq=959 us=8042
+13212995600,sensor,TX,960,"{""age_min_ms"": 35, ""age_max_ms"": 35}",LAT TX seq=960 age_min_ms=35 age_max_ms=35
+13219430800,screen,RX,960,{},I (360990) LAT: RX seq=960
+13233172300,sensor,RTT,960,"{""us"": 13817}",LAT RTT seq=960 us=13817
+13314070500,sensor,TX,961,"{""age_min_ms"": 36, ""age_max_ms"": 36}",LAT TX seq=961 age_min_ms=36 age_max_ms=36
+13319417200,screen,RX,961,{},I (361090) LAT: RX seq=961
+13334136100,sensor,RTT,961,"{""us"": 8097}",LAT RTT seq=961 us=8097
+13415091100,sensor,TX,962,"{""age_min_ms"": 137, ""age_max_ms"": 137}",LAT TX seq=962 age_min_ms=137 age_max_ms=137
+13422015700,screen,RX,962,{},I (361190) LAT: RX seq=962
+13434136000,sensor,RTT,962,"{""us"": 7848}",LAT RTT seq=962 us=7848
+13515225800,sensor,TX,963,"{""age_min_ms"": 96, ""age_max_ms"": 96}",LAT TX seq=963 age_min_ms=96 age_max_ms=96
+13519030400,screen,RX,963,{},I (361290) LAT: RX seq=963
+13534126100,sensor,RTT,963,"{""us"": 3736}",LAT RTT seq=963 us=3736
+13615025300,sensor,TX,964,"{""age_min_ms"": 37, ""age_max_ms"": 37}",LAT TX seq=964 age_min_ms=37 age_max_ms=37
+13621739000,screen,RX,964,{},I (361390) LAT: RX seq=964
+13634179100,sensor,RTT,964,"{""us"": 6434}",LAT RTT seq=964 us=6434
+13715291600,sensor,TX,965,"{""age_min_ms"": 37, ""age_max_ms"": 37}",LAT TX seq=965 age_min_ms=37 age_max_ms=37
+13721071800,screen,RX,965,{},I (361490) LAT: RX seq=965
+13734121700,sensor,RTT,965,"{""us"": 6648}",LAT RTT seq=965 us=6648
+13814989000,sensor,TX,966,"{""age_min_ms"": 37, ""age_max_ms"": 37}",LAT TX seq=966 age_min_ms=37 age_max_ms=37
+13820813300,screen,RX,966,{},I (361590) LAT: RX seq=966
+13834161100,sensor,RTT,966,"{""us"": 5600}",LAT RTT seq=966 us=5600
+13914985400,sensor,TX,967,"{""age_min_ms"": 37, ""age_max_ms"": 37}",LAT TX seq=967 age_min_ms=37 age_max_ms=37
+13919092400,screen,RX,967,{},I (361690) LAT: RX seq=967
+13934132200,sensor,RTT,967,"{""us"": 6270}",LAT RTT seq=967 us=6270
+14015096100,sensor,TX,968,"{""age_min_ms"": 37, ""age_max_ms"": 37}",LAT TX seq=968 age_min_ms=37 age_max_ms=37
+14019160300,screen,RX,968,{},I (361790) LAT: RX seq=968
+14034169900,sensor,RTT,968,"{""us"": 4696}",LAT RTT seq=968 us=4696
+14115032000,sensor,TX,969,"{""age_min_ms"": 37, ""age_max_ms"": 37}",LAT TX seq=969 age_min_ms=37 age_max_ms=37
+14119680800,screen,RX,969,{},I (361890) LAT: RX seq=969
+14135097100,sensor,RTT,969,"{""us"": 6267}",LAT RTT seq=969 us=6267
+14215983500,sensor,TX,970,"{""age_min_ms"": 38, ""age_max_ms"": 38}",LAT TX seq=970 age_min_ms=38 age_max_ms=38
+14220870300,screen,RX,970,{},I (361990) LAT: RX seq=970
+14236105600,sensor,RTT,970,"{""us"": 5193}",LAT RTT seq=970 us=5193
+14317030400,sensor,TX,971,"{""age_min_ms"": 39, ""age_max_ms"": 39}",LAT TX seq=971 age_min_ms=39 age_max_ms=39
+14321142100,screen,RX,971,{},I (362090) LAT: RX seq=971
+14337204500,sensor,RTT,971,"{""us"": 3723}",LAT RTT seq=971 us=3723
+14418069600,sensor,TX,972,"{""age_min_ms"": 140, ""age_max_ms"": 140}",LAT TX seq=972 age_min_ms=140 age_max_ms=140
+14422907400,screen,RX,972,{},I (362190) LAT: RX seq=972
+14437182600,sensor,RTT,972,"{""us"": 6123}",LAT RTT seq=972 us=6123
+14518050000,sensor,TX,973,"{""age_min_ms"": 99, ""age_max_ms"": 99}",LAT TX seq=973 age_min_ms=99 age_max_ms=99
+14522914000,screen,RX,973,{},I (362290) LAT: RX seq=973
+14538143100,sensor,RTT,973,"{""us"": 5729}",LAT RTT seq=973 us=5729
+14619017600,sensor,TX,974,"{""age_min_ms"": 41, ""age_max_ms"": 41}",LAT TX seq=974 age_min_ms=41 age_max_ms=41
+14623444700,screen,RX,974,{},I (362390) LAT: RX seq=974
+14638155200,sensor,RTT,974,"{""us"": 5145}",LAT RTT seq=974 us=5145
+14719072600,sensor,TX,975,"{""age_min_ms"": 41, ""age_max_ms"": 41}",LAT TX seq=975 age_min_ms=41 age_max_ms=41
+14730914600,screen,RX,975,{},I (362500) LAT: RX seq=975
+14738154400,sensor,RTT,975,"{""us"": 17081}",LAT RTT seq=975 us=17081
+14819000700,sensor,TX,976,"{""age_min_ms"": 41, ""age_max_ms"": 41}",LAT TX seq=976 age_min_ms=41 age_max_ms=41
+14825387000,screen,RX,976,{},I (362590) LAT: RX seq=976
+14839131100,sensor,RTT,976,"{""us"": 6217}",LAT RTT seq=976 us=6217
+14920216700,sensor,TX,977,"{""age_min_ms"": 42, ""age_max_ms"": 42}",LAT TX seq=977 age_min_ms=42 age_max_ms=42
+14924813600,screen,RX,977,{},I (362690) LAT: RX seq=977
+14939176300,sensor,RTT,977,"{""us"": 5337}",LAT RTT seq=977 us=5337
+15020028300,sensor,TX,978,"{""age_min_ms"": 34, ""age_max_ms"": 34}",LAT TX seq=978 age_min_ms=34 age_max_ms=34
+15030817500,screen,RX,978,{},I (362800) LAT: RX seq=978
+15039166500,sensor,RTT,978,"{""us"": 13008}",LAT RTT seq=978 us=13008
+15120163200,sensor,TX,979,"{""age_min_ms"": 42, ""age_max_ms"": 42}",LAT TX seq=979 age_min_ms=42 age_max_ms=42
+15125285700,screen,RX,979,{},I (362890) LAT: RX seq=979
+15139158900,sensor,RTT,979,"{""us"": 8205}",LAT RTT seq=979 us=8205
+15219981800,sensor,TX,980,"{""age_min_ms"": 42, ""age_max_ms"": 42}",LAT TX seq=980 age_min_ms=42 age_max_ms=42
+15224255900,screen,RX,980,{},I (362990) LAT: RX seq=980
+15240143200,sensor,RTT,980,"{""us"": 3397}",LAT RTT seq=980 us=3397
+15321083200,sensor,TX,981,"{""age_min_ms"": 44, ""age_max_ms"": 44}",LAT TX seq=981 age_min_ms=44 age_max_ms=44
+15325035800,screen,RX,981,{},I (363090) LAT: RX seq=981
+15340207800,sensor,RTT,981,"{""us"": 8473}",LAT RTT seq=981 us=8473
+15421108600,sensor,TX,982,"{""age_min_ms"": 2, ""age_max_ms"": 2}",LAT TX seq=982 age_min_ms=2 age_max_ms=2
+15425816100,screen,RX,982,{},I (363190) LAT: RX seq=982
+15441152200,sensor,RTT,982,"{""us"": 5586}",LAT RTT seq=982 us=5586
+15522240200,sensor,TX,983,"{""age_min_ms"": 103, ""age_max_ms"": 103}",LAT TX seq=983 age_min_ms=103 age_max_ms=103
+15526209500,screen,RX,983,{},I (363300) LAT: RX seq=983
+15541174500,sensor,RTT,983,"{""us"": 7445}",LAT RTT seq=983 us=7445
+15622160300,sensor,TX,984,"{""age_min_ms"": 44, ""age_max_ms"": 44}",LAT TX seq=984 age_min_ms=44 age_max_ms=44
+15628385700,screen,RX,984,{},I (363400) LAT: RX seq=984
+15641207100,sensor,RTT,984,"{""us"": 10074}",LAT RTT seq=984 us=10074
+15722145300,sensor,TX,985,"{""age_min_ms"": 44, ""age_max_ms"": 44}",LAT TX seq=985 age_min_ms=44 age_max_ms=44
+15727225100,screen,RX,985,{},I (363500) LAT: RX seq=985
+15741160700,sensor,RTT,985,"{""us"": 6278}",LAT RTT seq=985 us=6278
+15822015000,sensor,TX,986,"{""age_min_ms"": 36, ""age_max_ms"": 36}",LAT TX seq=986 age_min_ms=36 age_max_ms=36
+15827017800,screen,RX,986,{},I (363600) LAT: RX seq=986
+15841176500,sensor,RTT,986,"{""us"": 5047}",LAT RTT seq=986 us=5047
+15921989200,sensor,TX,987,"{""age_min_ms"": 36, ""age_max_ms"": 36}",LAT TX seq=987 age_min_ms=36 age_max_ms=36
+15927435700,screen,RX,987,{},I (363700) LAT: RX seq=987
+15941149100,sensor,RTT,987,"{""us"": 8653}",LAT RTT seq=987 us=8653
+16022052200,sensor,TX,988,"{""age_min_ms"": 36, ""age_max_ms"": 36}",LAT TX seq=988 age_min_ms=36 age_max_ms=36
+16029897900,screen,RX,988,{},I (363800) LAT: RX seq=988
+16041178300,sensor,RTT,988,"{""us"": 8403}",LAT RTT seq=988 us=8403
+16122007000,sensor,TX,989,"{""age_min_ms"": 36, ""age_max_ms"": 36}",LAT TX seq=989 age_min_ms=36 age_max_ms=36
+16129030400,screen,RX,989,{},I (363900) LAT: RX seq=989
+16142141400,sensor,RTT,989,"{""us"": 8877}",LAT RTT seq=989 us=8877
+16222998200,sensor,TX,990,"{""age_min_ms"": 37, ""age_max_ms"": 37}",LAT TX seq=990 age_min_ms=37 age_max_ms=37
+16227271700,screen,RX,990,{},I (364000) LAT: RX seq=990
+16242401600,sensor,RTT,990,"{""us"": 5898}",LAT RTT seq=990 us=5898
+16323009900,sensor,TX,991,"{""age_min_ms"": 45, ""age_max_ms"": 45}",LAT TX seq=991 age_min_ms=45 age_max_ms=45
+16331604000,screen,RX,991,{},I (364100) LAT: RX seq=991
+16342169600,sensor,RTT,991,"{""us"": 11146}",LAT RTT seq=991 us=11146
+16423051200,sensor,TX,992,"{""age_min_ms"": 145, ""age_max_ms"": 145}",LAT TX seq=992 age_min_ms=145 age_max_ms=145
+16427797100,screen,RX,992,{},I (364200) LAT: RX seq=992
+16442177700,sensor,RTT,992,"{""us"": 6430}",LAT RTT seq=992 us=6430
+16523293600,sensor,TX,993,"{""age_min_ms"": 96, ""age_max_ms"": 96}",LAT TX seq=993 age_min_ms=96 age_max_ms=96
+16529106300,screen,RX,993,{},I (364300) LAT: RX seq=993
+16542149300,sensor,RTT,993,"{""us"": 11616}",LAT RTT seq=993 us=11616
+16623128500,sensor,TX,994,"{""age_min_ms"": 45, ""age_max_ms"": 45}",LAT TX seq=994 age_min_ms=45 age_max_ms=45
+16627901900,screen,RX,994,{},I (364400) LAT: RX seq=994
+16642151800,sensor,RTT,994,"{""us"": 11918}",LAT RTT seq=994 us=11918
+16723196400,sensor,TX,995,"{""age_min_ms"": 64, ""age_max_ms"": 64}",LAT TX seq=995 age_min_ms=64 age_max_ms=64
+16728212000,screen,RX,995,{},I (364500) LAT: RX seq=995
+16742175100,sensor,RTT,995,"{""us"": 4231}",LAT RTT seq=995 us=4231
+16823201900,sensor,TX,996,"{""age_min_ms"": 37, ""age_max_ms"": 37}",LAT TX seq=996 age_min_ms=37 age_max_ms=37
+16829497900,screen,RX,996,{},I (364600) LAT: RX seq=996
+16843218800,sensor,RTT,996,"{""us"": 6345}",LAT RTT seq=996 us=6345
+16924025900,sensor,TX,997,"{""age_min_ms"": 38, ""age_max_ms"": 38}",LAT TX seq=997 age_min_ms=38 age_max_ms=38
+16932644800,screen,RX,997,{},I (364700) LAT: RX seq=997
+16943163500,sensor,RTT,997,"{""us"": 8262}",LAT RTT seq=997 us=8262
+17023984400,sensor,TX,998,"{""age_min_ms"": 38, ""age_max_ms"": 38}",LAT TX seq=998 age_min_ms=38 age_max_ms=38
+17035264000,screen,RX,998,{},I (364800) LAT: RX seq=998
+17043164100,sensor,RTT,998,"{""us"": 14336}",LAT RTT seq=998 us=14336
+17123989100,sensor,TX,999,"{""age_min_ms"": 38, ""age_max_ms"": 38}",LAT TX seq=999 age_min_ms=38 age_max_ms=38
+17132491200,screen,RX,999,{},I (364900) LAT: RX seq=999
+17144190700,sensor,RTT,999,"{""us"": 8749}",LAT RTT seq=999 us=8749
+17225150300,sensor,TX,1000,"{""age_min_ms"": 47, ""age_max_ms"": 47}",LAT TX seq=1000 age_min_ms=47 age_max_ms=47
+17229984800,screen,RX,1000,{},I (365000) LAT: RX seq=1000
+17245158900,sensor,RTT,1000,"{""us"": 8251}",LAT RTT seq=1000 us=8251
+17326147800,sensor,TX,1001,"{""age_min_ms"": 40, ""age_max_ms"": 40}",LAT TX seq=1001 age_min_ms=40 age_max_ms=40
+17330485300,screen,RX,1001,{},I (365100) LAT: RX seq=1001
+17346246500,sensor,RTT,1001,"{""us"": 4526}",LAT RTT seq=1001 us=4526
+17427193800,sensor,TX,1002,"{""age_min_ms"": 0, ""age_max_ms"": 0}",LAT TX seq=1002 age_min_ms=0 age_max_ms=0
+17431322000,screen,RX,1002,{},I (365200) LAT: RX seq=1002
+17447180400,sensor,RTT,1002,"{""us"": 4418}",LAT RTT seq=1002 us=4418
+17528030700,sensor,TX,1003,"{""age_min_ms"": 1, ""age_max_ms"": 1}",LAT TX seq=1003 age_min_ms=1 age_max_ms=1
+17532707300,screen,RX,1003,{},I (365300) LAT: RX seq=1003
+17548198500,sensor,RTT,1003,"{""us"": 4873}",LAT RTT seq=1003 us=4873
+17629138800,sensor,TX,1004,"{""age_min_ms"": 59, ""age_max_ms"": 59}",LAT TX seq=1004 age_min_ms=59 age_max_ms=59
+17633142700,screen,RX,1004,{},I (365400) LAT: RX seq=1004
+17648175400,sensor,RTT,1004,"{""us"": 3825}",LAT RTT seq=1004 us=3825
+17729066500,sensor,TX,1005,"{""age_min_ms"": 43, ""age_max_ms"": 43}",LAT TX seq=1005 age_min_ms=43 age_max_ms=43
+17733069700,screen,RX,1005,{},I (365500) LAT: RX seq=1005
+17748286200,sensor,RTT,1005,"{""us"": 11941}",LAT RTT seq=1005 us=11941
+17828999200,sensor,TX,1006,"{""age_min_ms"": 51, ""age_max_ms"": 51}",LAT TX seq=1006 age_min_ms=51 age_max_ms=51
+17833098100,screen,RX,1006,{},I (365600) LAT: RX seq=1006
+17848124900,sensor,RTT,1006,"{""us"": 3874}",LAT RTT seq=1006 us=3874
+17929104100,sensor,TX,1007,"{""age_min_ms"": 51, ""age_max_ms"": 51}",LAT TX seq=1007 age_min_ms=51 age_max_ms=51
+17933972300,screen,RX,1007,{},I (365700) LAT: RX seq=1007
+17948156400,sensor,RTT,1007,"{""us"": 5441}",LAT RTT seq=1007 us=5441
+18029058600,sensor,TX,1008,"{""age_min_ms"": 52, ""age_max_ms"": 52}",LAT TX seq=1008 age_min_ms=52 age_max_ms=52
+18034250900,screen,RX,1008,{},I (365800) LAT: RX seq=1008
+18048180100,sensor,RTT,1008,"{""us"": 5372}",LAT RTT seq=1008 us=5372
+18129091600,sensor,TX,1009,"{""age_min_ms"": 51, ""age_max_ms"": 51}",LAT TX seq=1009 age_min_ms=51 age_max_ms=51
+18144925800,screen,RX,1009,{},I (365910) LAT: RX seq=1009
+18148162500,sensor,RTT,1009,"{""us"": 18979}",LAT RTT seq=1009 us=18979
+18228996500,sensor,TX,1010,"{""age_min_ms"": 51, ""age_max_ms"": 51}",LAT TX seq=1010 age_min_ms=51 age_max_ms=51
+18233746200,screen,RX,1010,{},I (366000) LAT: RX seq=1010
+18249197900,sensor,RTT,1010,"{""us"": 7472}",LAT RTT seq=1010 us=7472
+18330036500,sensor,TX,1011,"{""age_min_ms"": 70, ""age_max_ms"": 70}",LAT TX seq=1011 age_min_ms=70 age_max_ms=70
+18334192400,screen,RX,1011,{},I (366100) LAT: RX seq=1011
+18349166100,sensor,RTT,1011,"{""us"": 4390}",LAT RTT seq=1011 us=4390
+18430012900,sensor,TX,1012,"{""age_min_ms"": 11, ""age_max_ms"": 11}",LAT TX seq=1012 age_min_ms=11 age_max_ms=11
+18434160300,screen,RX,1012,{},I (366200) LAT: RX seq=1012
+18449157500,sensor,RTT,1012,"{""us"": 3906}",LAT RTT seq=1012 us=3906
+18530010400,sensor,TX,1013,"{""age_min_ms"": 3, ""age_max_ms"": 3}",LAT TX seq=1013 age_min_ms=3 age_max_ms=3
+18536407600,screen,RX,1013,{},I (366310) LAT: RX seq=1013
+18550180300,sensor,RTT,1013,"{""us"": 7547}",LAT RTT seq=1013 us=7547
+18631090100,sensor,TX,1014,"{""age_min_ms"": 45, ""age_max_ms"": 45}",LAT TX seq=1014 age_min_ms=45 age_max_ms=45
+18636648800,screen,RX,1014,{},I (366410) LAT: RX seq=1014
+18650196600,sensor,RTT,1014,"{""us"": 7643}",LAT RTT seq=1014 us=7643
+18731073600,sensor,TX,1015,"{""age_min_ms"": 45, ""age_max_ms"": 45}",LAT TX seq=1015 age_min_ms=45 age_max_ms=45
+18737144900,screen,RX,1015,{},I (366510) LAT: RX seq=1015
+18750149800,sensor,RTT,1015,"{""us"": 5126}",LAT RTT seq=1015 us=5126
+18831016000,sensor,TX,1016,"{""age_min_ms"": 45, ""age_max_ms"": 45}",LAT TX seq=1016 age_min_ms=45 age_max_ms=45
+18839715900,screen,RX,1016,{},I (366610) LAT: RX seq=1016
+18850182500,sensor,RTT,1016,"{""us"": 12095}",LAT RTT seq=1016 us=12095
+18931168000,sensor,TX,1017,"{""age_min_ms"": 53, ""age_max_ms"": 53}",LAT TX seq=1017 age_min_ms=53 age_max_ms=53
+18936020800,screen,RX,1017,{},I (366710) LAT: RX seq=1017
+18950158000,sensor,RTT,1017,"{""us"": 4591}",LAT RTT seq=1017 us=4591
+19031091900,sensor,TX,1018,"{""age_min_ms"": 53, ""age_max_ms"": 53}",LAT TX seq=1018 age_min_ms=53 age_max_ms=53
+19035982800,screen,RX,1018,{},I (366810) LAT: RX seq=1018
+19050165900,sensor,RTT,1018,"{""us"": 13388}",LAT RTT seq=1018 us=13388
+19131097700,sensor,TX,1019,"{""age_min_ms"": 53, ""age_max_ms"": 53}",LAT TX seq=1019 age_min_ms=53 age_max_ms=53
+19136333800,screen,RX,1019,{},I (366910) LAT: RX seq=1019
+19151185400,sensor,RTT,1019,"{""us"": 4813}",LAT RTT seq=1019 us=4813
+19232100800,sensor,TX,1020,"{""age_min_ms"": 54, ""age_max_ms"": 54}",LAT TX seq=1020 age_min_ms=54 age_max_ms=54
+19236469600,screen,RX,1020,{},I (367010) LAT: RX seq=1020
+19252160300,sensor,RTT,1020,"{""us"": 4231}",LAT RTT seq=1020 us=4231
+19333079700,sensor,TX,1021,"{""age_min_ms"": 55, ""age_max_ms"": 55}",LAT TX seq=1021 age_min_ms=55 age_max_ms=55
+19337987700,screen,RX,1021,{},I (367110) LAT: RX seq=1021
+19353194700,sensor,RTT,1021,"{""us"": 4060}",LAT RTT seq=1021 us=4060
+19434035000,sensor,TX,1022,"{""age_min_ms"": 15, ""age_max_ms"": 15}",LAT TX seq=1022 age_min_ms=15 age_max_ms=15
+19440479400,screen,RX,1022,{},I (367210) LAT: RX seq=1022
+19454191100,sensor,RTT,1022,"{""us"": 6619}",LAT RTT seq=1022 us=6619
+19535016300,sensor,TX,1023,"{""age_min_ms"": 16, ""age_max_ms"": 16}",LAT TX seq=1023 age_min_ms=16 age_max_ms=16
+19539915900,screen,RX,1023,{},I (367310) LAT: RX seq=1023
+19555186000,sensor,RTT,1023,"{""us"": 4190}",LAT RTT seq=1023 us=4190
+19636064800,sensor,TX,1024,"{""age_min_ms"": 58, ""age_max_ms"": 58}",LAT TX seq=1024 age_min_ms=58 age_max_ms=58
+19642111500,screen,RX,1024,{},I (367410) LAT: RX seq=1024
+19655195900,sensor,RTT,1024,"{""us"": 10923}",LAT RTT seq=1024 us=10923
+19736081900,sensor,TX,1025,"{""age_min_ms"": 58, ""age_max_ms"": 58}",LAT TX seq=1025 age_min_ms=58 age_max_ms=58
+19740236700,screen,RX,1025,{},I (367510) LAT: RX seq=1025
+19755183100,sensor,RTT,1025,"{""us"": 6627}",LAT RTT seq=1025 us=6627
+19836096200,sensor,TX,1026,"{""age_min_ms"": 58, ""age_max_ms"": 58}",LAT TX seq=1026 age_min_ms=58 age_max_ms=58
+19850604200,screen,RX,1026,{},I (367620) LAT: RX seq=1026
+19855174100,sensor,RTT,1026,"{""us"": 13843}",LAT RTT seq=1026 us=13843
+19936049700,sensor,TX,1027,"{""age_min_ms"": 58, ""age_max_ms"": 58}",LAT TX seq=1027 age_min_ms=58 age_max_ms=58
+19943008200,screen,RX,1027,{},I (367710) LAT: RX seq=1027
+19955184600,sensor,RTT,1027,"{""us"": 9647}",LAT RTT seq=1027 us=9647
+20036108000,sensor,TX,1028,"{""age_min_ms"": 58, ""age_max_ms"": 58}",LAT TX seq=1028 age_min_ms=58 age_max_ms=58
+20040128700,screen,RX,1028,{},I (367810) LAT: RX seq=1028
+20055298900,sensor,RTT,1028,"{""us"": 4769}",LAT RTT seq=1028 us=4769
+20136003800,sensor,TX,1029,"{""age_min_ms"": 58, ""age_max_ms"": 58}",LAT TX seq=1029 age_min_ms=58 age_max_ms=58
+20140968500,screen,RX,1029,{},I (367910) LAT: RX seq=1029
+20155202700,sensor,RTT,1029,"{""us"": 4700}",LAT RTT seq=1029 us=4700
+20236024200,sensor,TX,1030,"{""age_min_ms"": 58, ""age_max_ms"": 58}",LAT TX seq=1030 age_min_ms=58 age_max_ms=58
+20240404800,screen,RX,1030,{},I (368010) LAT: RX seq=1030
+20336240700,sensor,RTT,1030,"{""us"": 6210}",LAT RTT seq=1030 us=6210
+20336240700,sensor,TX,1031,"{""age_min_ms"": 58, ""age_max_ms"": 58}",LAT TX seq=1031 age_min_ms=58 age_max_ms=58
+20340199100,screen,RX,1031,{},I (368110) LAT: RX seq=1031
+20355184900,sensor,RTT,1031,"{""us"": 7730}",LAT RTT seq=1031 us=7730
+20435996600,sensor,TX,1032,"{""age_min_ms"": 17, ""age_max_ms"": 17}",LAT TX seq=1032 age_min_ms=17 age_max_ms=17
+20442303200,screen,RX,1032,{},I (368210) LAT: RX seq=1032
+20455200200,sensor,RTT,1032,"{""us"": 5295}",LAT RTT seq=1032 us=5295
+20536062400,sensor,TX,1033,"{""age_min_ms"": 18, ""age_max_ms"": 18}",LAT TX seq=1033 age_min_ms=18 age_max_ms=18
+20540329500,screen,RX,1033,{},I (368310) LAT: RX seq=1033
+20555190800,sensor,RTT,1033,"{""us"": 6085}",LAT RTT seq=1033 us=6085
+20636113700,sensor,TX,1034,"{""age_min_ms"": 50, ""age_max_ms"": 50}",LAT TX seq=1034 age_min_ms=50 age_max_ms=50
+20641267000,screen,RX,1034,{},I (368410) LAT: RX seq=1034
+20655198000,sensor,RTT,1034,"{""us"": 6017}",LAT RTT seq=1034 us=6017
+20736039300,sensor,TX,1035,"{""age_min_ms"": 59, ""age_max_ms"": 59}",LAT TX seq=1035 age_min_ms=59 age_max_ms=59
+20741648600,screen,RX,1035,{},I (368510) LAT: RX seq=1035
+20755189400,sensor,RTT,1035,"{""us"": 5478}",LAT RTT seq=1035 us=5478
+20836030900,sensor,TX,1036,"{""age_min_ms"": 59, ""age_max_ms"": 59}",LAT TX seq=1036 age_min_ms=59 age_max_ms=59
+20840936000,screen,RX,1036,{},I (368610) LAT: RX seq=1036
+20855211700,sensor,RTT,1036,"{""us"": 4296}",LAT RTT seq=1036 us=4296
+20936064800,sensor,TX,1037,"{""age_min_ms"": 50, ""age_max_ms"": 50}",LAT TX seq=1037 age_min_ms=50 age_max_ms=50
+20941026800,screen,RX,1037,{},I (368710) LAT: RX seq=1037
+20955206400,sensor,RTT,1037,"{""us"": 4450}",LAT RTT seq=1037 us=4450
+21036068800,sensor,TX,1038,"{""age_min_ms"": 59, ""age_max_ms"": 59}",LAT TX seq=1038 age_min_ms=59 age_max_ms=59
+21041281800,screen,RX,1038,{},I (368810) LAT: RX seq=1038
+21056220800,sensor,RTT,1038,"{""us"": 4993}",LAT RTT seq=1038 us=4993
+21137186900,sensor,TX,1039,"{""age_min_ms"": 59, ""age_max_ms"": 59}",LAT TX seq=1039 age_min_ms=59 age_max_ms=59
+21141831700,screen,RX,1039,{},I (368910) LAT: RX seq=1039
+21157223500,sensor,RTT,1039,"{""us"": 4775}",LAT RTT seq=1039 us=4775
+21238027600,sensor,TX,1040,"{""age_min_ms"": 78, ""age_max_ms"": 78}",LAT TX seq=1040 age_min_ms=78 age_max_ms=78
+21243041700,screen,RX,1040,{},I (369010) LAT: RX seq=1040
+21258233400,sensor,RTT,1040,"{""us"": 5868}",LAT RTT seq=1040 us=5868
+21339298400,sensor,TX,1041,"{""age_min_ms"": 79, ""age_max_ms"": 79}",LAT TX seq=1041 age_min_ms=79 age_max_ms=79
+21346429400,screen,RX,1041,{},I (369120) LAT: RX seq=1041
+21359256400,sensor,RTT,1041,"{""us"": 9359}",LAT RTT seq=1041 us=9359
+21440120000,sensor,TX,1042,"{""age_min_ms"": 39, ""age_max_ms"": 39}",LAT TX seq=1042 age_min_ms=39 age_max_ms=39
+21445773800,screen,RX,1042,{},I (369220) LAT: RX seq=1042
+21460220000,sensor,RTT,1042,"{""us"": 5652}",LAT RTT seq=1042 us=5652
+21541002100,sensor,TX,1043,"{""age_min_ms"": 40, ""age_max_ms"": 40}",LAT TX seq=1043 age_min_ms=40 age_max_ms=40
+21547286200,screen,RX,1043,{},I (369320) LAT: RX seq=1043
+21560240700,sensor,RTT,1043,"{""us"": 6879}",LAT RTT seq=1043 us=6879
+21641092100,sensor,TX,1044,"{""age_min_ms"": 81, ""age_max_ms"": 81}",LAT TX seq=1044 age_min_ms=81 age_max_ms=81
+21645245500,screen,RX,1044,{},I (369410) LAT: RX seq=1044
+21660161100,sensor,RTT,1044,"{""us"": 6265}",LAT RTT seq=1044 us=6265
+21741049300,sensor,TX,1045,"{""age_min_ms"": 63, ""age_max_ms"": 63}",LAT TX seq=1045 age_min_ms=63 age_max_ms=63
+21745164700,screen,RX,1045,{},I (369510) LAT: RX seq=1045
+21841211300,sensor,RTT,1045,"{""us"": 5912}",LAT RTT seq=1045 us=5912
+21841211300,sensor,TX,1046,"{""age_min_ms"": 63, ""age_max_ms"": 63}",LAT TX seq=1046 age_min_ms=63 age_max_ms=63
+21850187400,screen,RX,1046,{},I (369620) LAT: RX seq=1046
+21860153300,sensor,RTT,1046,"{""us"": 8766}",LAT RTT seq=1046 us=8766
+21941061000,sensor,TX,1047,"{""age_min_ms"": 63, ""age_max_ms"": 63}",LAT TX seq=1047 age_min_ms=63 age_max_ms=63
+21952055100,screen,RX,1047,{},I (369720) LAT: RX seq=1047
+21960216600,sensor,RTT,1047,"{""us"": 14183}",LAT RTT seq=1047 us=14183
+22041338200,sensor,TX,1048,"{""age_min_ms"": 63, ""age_max_ms"": 63}",LAT TX seq=1048 age_min_ms=63 age_max_ms=63
+22056022400,screen,RX,1048,{},I (369830) LAT: RX seq=1048
+22061202700,sensor,RTT,1048,"{""us"": 16986}",LAT RTT seq=1048 us=16986
+22142258400,sensor,TX,1049,"{""age_min_ms"": 64, ""age_max_ms"": 64}",LAT TX seq=1049 age_min_ms=64 age_max_ms=64
+22154697700,screen,RX,1049,{},I (369920) LAT: RX seq=1049
+22161172700,sensor,RTT,1049,"{""us"": 12816}",LAT RTT seq=1049 us=12816
+22242100800,sensor,TX,1050,"{""age_min_ms"": 64, ""age_max_ms"": 64}",LAT TX seq=1050 age_min_ms=64 age_max_ms=64
+22259443000,screen,RX,1050,{},I (370030) LAT: RX seq=1050
+22261183500,sensor,RTT,1050,"{""us"": 16794}",LAT RTT seq=1050 us=16794
+22342081100,sensor,TX,1051,"{""age_min_ms"": 56, ""age_max_ms"": 56}",LAT TX seq=1051 age_min_ms=56 age_max_ms=56
+22349524800,screen,RX,1051,{},I (370120) LAT: RX seq=1051
+22361235000,sensor,RTT,1051,"{""us"": 16421}",LAT RTT seq=1051 us=16421
+22442082000,sensor,TX,1052,"{""age_min_ms"": 23, ""age_max_ms"": 23}",LAT TX seq=1052 age_min_ms=23 age_max_ms=23
+22449184700,screen,RX,1052,{},I (370220) LAT: RX seq=1052
+22461185800,sensor,RTT,1052,"{""us"": 7943}",LAT RTT seq=1052 us=7943
+22542033200,sensor,TX,1053,"{""age_min_ms"": 15, ""age_max_ms"": 15}",LAT TX seq=1053 age_min_ms=15 age_max_ms=15
+22546996900,screen,RX,1053,{},I (370320) LAT: RX seq=1053
+22562342500,sensor,RTT,1053,"{""us"": 4868}",LAT RTT seq=1053 us=4868
+22643056700,sensor,TX,1054,"{""age_min_ms"": 65, ""age_max_ms"": 65}",LAT TX seq=1054 age_min_ms=65 age_max_ms=65
+22647100000,screen,RX,1054,{},I (370420) LAT: RX seq=1054
+22662190000,sensor,RTT,1054,"{""us"": 3626}",LAT RTT seq=1054 us=3626
+22747589800,screen,RX,1055,{},I (370520) LAT: RX seq=1055
+22762285700,sensor,TX,1055,"{""age_min_ms"": 57, ""age_max_ms"": 57}",LAT TX seq=1055 age_min_ms=57 age_max_ms=57
+22762524300,sensor,RTT,1055,"{""us"": 6140}",LAT RTT seq=1055 us=6140
+22843014900,sensor,TX,1056,"{""age_min_ms"": 57, ""age_max_ms"": 57}",LAT TX seq=1056 age_min_ms=57 age_max_ms=57
+22847165400,screen,RX,1056,{},I (370620) LAT: RX seq=1056
+22862255100,sensor,RTT,1056,"{""us"": 6550}",LAT RTT seq=1056 us=6550
+22943079900,sensor,TX,1057,"{""age_min_ms"": 64, ""age_max_ms"": 64}",LAT TX seq=1057 age_min_ms=64 age_max_ms=64
+22948818900,screen,RX,1057,{},I (370720) LAT: RX seq=1057
+22962198600,sensor,RTT,1057,"{""us"": 5768}",LAT RTT seq=1057 us=5768
+23043013100,sensor,TX,1058,"{""age_min_ms"": 57, ""age_max_ms"": 57}",LAT TX seq=1058 age_min_ms=57 age_max_ms=57
+23047931700,screen,RX,1058,{},I (370820) LAT: RX seq=1058
+23101068800,sensor,RTT,1058,"{""us"": 5501}",LAT RTT seq=1058 us=5501
+23143993300,sensor,TX,1059,"{""age_min_ms"": 84, ""age_max_ms"": 84}",LAT TX seq=1059 age_min_ms=84 age_max_ms=84
+23148583500,screen,RX,1059,{},I (370920) LAT: RX seq=1059
+23163177600,sensor,RTT,1059,"{""us"": 4445}",LAT RTT seq=1059 us=4445
+23243996500,sensor,TX,1060,"{""age_min_ms"": 84, ""age_max_ms"": 84}",LAT TX seq=1060 age_min_ms=84 age_max_ms=84
+23248535600,screen,RX,1060,{},I (371020) LAT: RX seq=1060
+23263229400,sensor,RTT,1060,"{""us"": 4106}",LAT RTT seq=1060 us=4106
+23344028600,sensor,TX,1061,"{""age_min_ms"": 67, ""age_max_ms"": 67}",LAT TX seq=1061 age_min_ms=67 age_max_ms=67
+23349228900,screen,RX,1061,{},I (371120) LAT: RX seq=1061
+23363198200,sensor,RTT,1061,"{""us"": 5310}",LAT RTT seq=1061 us=5310
+23444020000,sensor,TX,1062,"{""age_min_ms"": 25, ""age_max_ms"": 25}",LAT TX seq=1062 age_min_ms=25 age_max_ms=25
+23448968500,screen,RX,1062,{},I (371220) LAT: RX seq=1062
+23464197400,sensor,RTT,1062,"{""us"": 4056}",LAT RTT seq=1062 us=4056
+23545018000,sensor,TX,1063,"{""age_min_ms"": 26, ""age_max_ms"": 26}",LAT TX seq=1063 age_min_ms=26 age_max_ms=26
+23549212900,screen,RX,1063,{},I (371320) LAT: RX seq=1063
+23564170000,sensor,RTT,1063,"{""us"": 4039}",LAT RTT seq=1063 us=4039
+23645284900,sensor,TX,1064,"{""age_min_ms"": 67, ""age_max_ms"": 67}",LAT TX seq=1064 age_min_ms=67 age_max_ms=67
+23649160000,screen,RX,1064,{},I (371420) LAT: RX seq=1064
+23664215500,sensor,RTT,1064,"{""us"": 4032}",LAT RTT seq=1064 us=4032
+23744992700,sensor,TX,1065,"{""age_min_ms"": 59, ""age_max_ms"": 59}",LAT TX seq=1065 age_min_ms=59 age_max_ms=59
+23749117800,screen,RX,1065,{},I (371520) LAT: RX seq=1065
+23764200100,sensor,RTT,1065,"{""us"": 3665}",LAT RTT seq=1065 us=3665
+23844998800,sensor,TX,1066,"{""age_min_ms"": 67, ""age_max_ms"": 67}",LAT TX seq=1066 age_min_ms=67 age_max_ms=67
+23849190000,screen,RX,1066,{},I (371620) LAT: RX seq=1066
+23864182300,sensor,RTT,1066,"{""us"": 4243}",LAT RTT seq=1066 us=4243
+23945234300,sensor,TX,1067,"{""age_min_ms"": 67, ""age_max_ms"": 67}",LAT TX seq=1067 age_min_ms=67 age_max_ms=67
+23949930500,screen,RX,1067,{},I (371720) LAT: RX seq=1067
+23964246300,sensor,RTT,1067,"{""us"": 12260}",LAT RTT seq=1067 us=12260
+24045322500,sensor,TX,1068,"{""age_min_ms"": 59, ""age_max_ms"": 59}",LAT TX seq=1068 age_min_ms=59 age_max_ms=59
+24049979800,screen,RX,1068,{},I (371820) LAT: RX seq=1068
+24065214300,sensor,RTT,1068,"{""us"": 5538}",LAT RTT seq=1068 us=5538
+24146007000,sensor,TX,1069,"{""age_min_ms"": 69, ""age_max_ms"": 69}",LAT TX seq=1069 age_min_ms=69 age_max_ms=69
+24150299300,screen,RX,1069,{},I (371920) LAT: RX seq=1069
+24166195800,sensor,RTT,1069,"{""us"": 5336}",LAT RTT seq=1069 us=5336
+24247000900,sensor,TX,1070,"{""age_min_ms"": 70, ""age_max_ms"": 70}",LAT TX seq=1070 age_min_ms=70 age_max_ms=70
+24251938400,screen,RX,1070,{},I (372020) LAT: RX seq=1070
+24267222200,sensor,RTT,1070,"{""us"": 4100}",LAT RTT seq=1070 us=4100
+24348019300,sensor,TX,1071,"{""age_min_ms"": 62, ""age_max_ms"": 62}",LAT TX seq=1071 age_min_ms=62 age_max_ms=62
+24352479300,screen,RX,1071,{},I (372120) LAT: RX seq=1071
+24368297800,sensor,RTT,1071,"{""us"": 3544}",LAT RTT seq=1071 us=3544
+24449114000,sensor,TX,1072,"{""age_min_ms"": 31, ""age_max_ms"": 31}",LAT TX seq=1072 age_min_ms=31 age_max_ms=31
+24453239100,screen,RX,1072,{},I (372220) LAT: RX seq=1072
+24469182400,sensor,RTT,1072,"{""us"": 4528}",LAT RTT seq=1072 us=4528
+24550080600,sensor,TX,1073,"{""age_min_ms"": 30, ""age_max_ms"": 30}",LAT TX seq=1073 age_min_ms=30 age_max_ms=30
+24554665300,screen,RX,1073,{},I (372320) LAT: RX seq=1073
+24570250000,sensor,RTT,1073,"{""us"": 4924}",LAT RTT seq=1073 us=4924
+24651072700,sensor,TX,1074,"{""age_min_ms"": 65, ""age_max_ms"": 65}",LAT TX seq=1074 age_min_ms=65 age_max_ms=65
+24655123300,screen,RX,1074,{},I (372420) LAT: RX seq=1074
+24670237300,sensor,RTT,1074,"{""us"": 3373}",LAT RTT seq=1074 us=3373
+24751020400,sensor,TX,1075,"{""age_min_ms"": 74, ""age_max_ms"": 74}",LAT TX seq=1075 age_min_ms=74 age_max_ms=74
+24755121700,screen,RX,1075,{},I (372520) LAT: RX seq=1075
+24770326500,sensor,RTT,1075,"{""us"": 14430}",LAT RTT seq=1075 us=14430
+24851103400,sensor,TX,1076,"{""age_min_ms"": 74, ""age_max_ms"": 74}",LAT TX seq=1076 age_min_ms=74 age_max_ms=74
+24856285200,screen,RX,1076,{},I (372630) LAT: RX seq=1076
+24870204900,sensor,RTT,1076,"{""us"": 4316}",LAT RTT seq=1076 us=4316
+24951326200,sensor,TX,1077,"{""age_min_ms"": 74, ""age_max_ms"": 74}",LAT TX seq=1077 age_min_ms=74 age_max_ms=74
+24956335000,screen,RX,1077,{},I (372730) LAT: RX seq=1077
+24970256200,sensor,RTT,1077,"{""us"": 5479}",LAT RTT seq=1077 us=5479
+25051040600,sensor,TX,1078,"{""age_min_ms"": 74, ""age_max_ms"": 74}",LAT TX seq=1078 age_min_ms=74 age_max_ms=74
+25057927300,screen,RX,1078,{},I (372830) LAT: RX seq=1078
+25071250500,sensor,RTT,1078,"{""us"": 5923}",LAT RTT seq=1078 us=5923
+25152020300,sensor,TX,1079,"{""age_min_ms"": 75, ""age_max_ms"": 75}",LAT TX seq=1079 age_min_ms=75 age_max_ms=75
+25156971000,screen,RX,1079,{},I (372930) LAT: RX seq=1079
+25172220300,sensor,RTT,1079,"{""us"": 4311}",LAT RTT seq=1079 us=4311
+25253291100,sensor,TX,1080,"{""age_min_ms"": 76, ""age_max_ms"": 76}",LAT TX seq=1080 age_min_ms=76 age_max_ms=76
+25259566900,screen,RX,1080,{},I (373030) LAT: RX seq=1080
+25273327100,sensor,RTT,1080,"{""us"": 7221}",LAT RTT seq=1080 us=7221
+25354282400,sensor,TX,1081,"{""age_min_ms"": 77, ""age_max_ms"": 77}",LAT TX seq=1081 age_min_ms=77 age_max_ms=77
+25359275500,screen,RX,1081,{},I (373130) LAT: RX seq=1081
+25374168800,sensor,RTT,1081,"{""us"": 4282}",LAT RTT seq=1081 us=4282
+25455095900,sensor,TX,1082,"{""age_min_ms"": 36, ""age_max_ms"": 36}",LAT TX seq=1082 age_min_ms=36 age_max_ms=36
+25459367300,screen,RX,1082,{},I (373230) LAT: RX seq=1082
+25475239700,sensor,RTT,1082,"{""us"": 4290}",LAT RTT seq=1082 us=4290
+25556074200,sensor,TX,1083,"{""age_min_ms"": 37, ""age_max_ms"": 37}",LAT TX seq=1083 age_min_ms=37 age_max_ms=37
+25560156500,screen,RX,1083,{},I (373330) LAT: RX seq=1083
+25576289300,sensor,RTT,1083,"{""us"": 3858}",LAT RTT seq=1083 us=3858
+25657042900,sensor,TX,1084,"{""age_min_ms"": 80, ""age_max_ms"": 80}",LAT TX seq=1084 age_min_ms=80 age_max_ms=80
+25661678400,screen,RX,1084,{},I (373430) LAT: RX seq=1084
+25676289500,sensor,RTT,1084,"{""us"": 5836}",LAT RTT seq=1084 us=5836
+25757056900,sensor,TX,1085,"{""age_min_ms"": 80, ""age_max_ms"": 80}",LAT TX seq=1085 age_min_ms=80 age_max_ms=80
+25761429400,screen,RX,1085,{},I (373530) LAT: RX seq=1085
+25776266000,sensor,RTT,1085,"{""us"": 3456}",LAT RTT seq=1085 us=3456
+25857023900,sensor,TX,1086,"{""age_min_ms"": 80, ""age_max_ms"": 80}",LAT TX seq=1086 age_min_ms=80 age_max_ms=80
+25861259800,screen,RX,1086,{},I (373630) LAT: RX seq=1086
+25876230000,sensor,RTT,1086,"{""us"": 5754}",LAT RTT seq=1086 us=5754
+25957078200,sensor,TX,1087,"{""age_min_ms"": 80, ""age_max_ms"": 80}",LAT TX seq=1087 age_min_ms=80 age_max_ms=80
+25964125500,screen,RX,1087,{},I (373730) LAT: RX seq=1087
+25976251700,sensor,RTT,1087,"{""us"": 6284}",LAT RTT seq=1087 us=6284
+26057308600,sensor,TX,1088,"{""age_min_ms"": 80, ""age_max_ms"": 80}",LAT TX seq=1088 age_min_ms=80 age_max_ms=80
+26063943100,screen,RX,1088,{},I (373830) LAT: RX seq=1088
+26077233400,sensor,RTT,1088,"{""us"": 7154}",LAT RTT seq=1088 us=7154
+26158073900,sensor,TX,1089,"{""age_min_ms"": 81, ""age_max_ms"": 81}",LAT TX seq=1089 age_min_ms=81 age_max_ms=81
+26163229900,screen,RX,1089,{},I (373930) LAT: RX seq=1089
+26178242600,sensor,RTT,1089,"{""us"": 4147}",LAT RTT seq=1089 us=4147
+26259080400,sensor,TX,1090,"{""age_min_ms"": 82, ""age_max_ms"": 82}",LAT TX seq=1090 age_min_ms=82 age_max_ms=82
+26263593700,screen,RX,1090,{},I (374030) LAT: RX seq=1090
+26279240500,sensor,RTT,1090,"{""us"": 6745}",LAT RTT seq=1090 us=6745
+26360128900,sensor,TX,1091,"{""age_min_ms"": 83, ""age_max_ms"": 83}",LAT TX seq=1091 age_min_ms=83 age_max_ms=83
+26364928700,screen,RX,1091,{},I (374130) LAT: RX seq=1091
+26379283700,sensor,RTT,1091,"{""us"": 3987}",LAT RTT seq=1091 us=3987
+26460205400,sensor,TX,1092,"{""age_min_ms"": 42, ""age_max_ms"": 42}",LAT TX seq=1092 age_min_ms=42 age_max_ms=42
+26465717000,screen,RX,1092,{},I (374240) LAT: RX seq=1092
+26480188900,sensor,RTT,1092,"{""us"": 5266}",LAT RTT seq=1092 us=5266
+26560981000,sensor,TX,1093,"{""age_min_ms"": 43, ""age_max_ms"": 43}",LAT TX seq=1093 age_min_ms=43 age_max_ms=43
+26565540100,screen,RX,1093,{},I (374340) LAT: RX seq=1093
+26581186200,sensor,RTT,1093,"{""us"": 5292}",LAT RTT seq=1093 us=5292
+26662336300,sensor,TX,1094,"{""age_min_ms"": 84, ""age_max_ms"": 84}",LAT TX seq=1094 age_min_ms=84 age_max_ms=84
+26667756900,screen,RX,1094,{},I (374440) LAT: RX seq=1094
+26681223500,sensor,RTT,1094,"{""us"": 6542}",LAT RTT seq=1094 us=6542
+26762020500,sensor,TX,1095,"{""age_min_ms"": 85, ""age_max_ms"": 85}",LAT TX seq=1095 age_min_ms=85 age_max_ms=85
+26766325800,screen,RX,1095,{},I (374540) LAT: RX seq=1095
+26862204900,sensor,RTT,1095,"{""us"": 3306}",LAT RTT seq=1095 us=3306
+26862204900,sensor,TX,1096,"{""age_min_ms"": 85, ""age_max_ms"": 85}",LAT TX seq=1096 age_min_ms=85 age_max_ms=85
+26866107400,screen,RX,1096,{},I (374640) LAT: RX seq=1096
+26881149300,sensor,RTT,1096,"{""us"": 4077}",LAT RTT seq=1096 us=4077
+26962098000,sensor,TX,1097,"{""age_min_ms"": 85, ""age_max_ms"": 85}",LAT TX seq=1097 age_min_ms=85 age_max_ms=85
+26968350300,screen,RX,1097,{},I (374740) LAT: RX seq=1097
+26981194200,sensor,RTT,1097,"{""us"": 6377}",LAT RTT seq=1097 us=6377
+27062121700,sensor,TX,1098,"{""age_min_ms"": 84, ""age_max_ms"": 84}",LAT TX seq=1098 age_min_ms=84 age_max_ms=84
+27078483300,screen,RX,1098,{},I (374850) LAT: RX seq=1098
+27082186000,sensor,RTT,1098,"{""us"": 16437}",LAT RTT seq=1098 us=16437
+27163298200,sensor,TX,1099,"{""age_min_ms"": 86, ""age_max_ms"": 86}",LAT TX seq=1099 age_min_ms=86 age_max_ms=86
+27173166600,screen,RX,1099,{},I (374940) LAT: RX seq=1099
+27182196600,sensor,RTT,1099,"{""us"": 10125}",LAT RTT seq=1099 us=10125
+27274043900,sensor,TX,1100,"{""age_min_ms"": 86, ""age_max_ms"": 86}",LAT TX seq=1100 age_min_ms=86 age_max_ms=86
+27275566200,screen,RX,1100,{},I (375050) LAT: RX seq=1100
+27283581200,sensor,RTT,1100,"{""us"": 11682}",LAT RTT seq=1100 us=11682
+27364038900,sensor,TX,1101,"{""age_min_ms"": 87, ""age_max_ms"": 87}",LAT TX seq=1101 age_min_ms=87 age_max_ms=87
+27369995800,screen,RX,1101,{},I (375140) LAT: RX seq=1101
+27383249700,sensor,RTT,1101,"{""us"": 7222}",LAT RTT seq=1101 us=7222
+27464064500,sensor,TX,1102,"{""age_min_ms"": 37, ""age_max_ms"": 37}",LAT TX seq=1102 age_min_ms=37 age_max_ms=37
+27469110700,screen,RX,1102,{},I (375240) LAT: RX seq=1102
+27484188700,sensor,RTT,1102,"{""us"": 6268}",LAT RTT seq=1102 us=6268
+27565062300,sensor,TX,1103,"{""age_min_ms"": 38, ""age_max_ms"": 38}",LAT TX seq=1103 age_min_ms=38 age_max_ms=38
+27569507800,screen,RX,1103,{},I (375340) LAT: RX seq=1103
+27585327000,sensor,RTT,1103,"{""us"": 5424}",LAT RTT seq=1103 us=5424
+27666028800,sensor,TX,1104,"{""age_min_ms"": 89, ""age_max_ms"": 89}",LAT TX seq=1104 age_min_ms=89 age_max_ms=89
+27672014500,screen,RX,1104,{},I (375440) LAT: RX seq=1104
+27685232900,sensor,RTT,1104,"{""us"": 5940}",LAT RTT seq=1104 us=5940
+27766044200,sensor,TX,1105,"{""age_min_ms"": 80, ""age_max_ms"": 80}",LAT TX seq=1105 age_min_ms=80 age_max_ms=80
+27771069700,screen,RX,1105,{},I (375540) LAT: RX seq=1105
+27785369000,sensor,RTT,1105,"{""us"": 5455}",LAT RTT seq=1105 us=5455
+27866061100,sensor,TX,1106,"{""age_min_ms"": 88, ""age_max_ms"": 88}",LAT TX seq=1106 age_min_ms=88 age_max_ms=88
+27874935500,screen,RX,1106,{},I (375640) LAT: RX seq=1106
+27885225600,sensor,RTT,1106,"{""us"": 11035}",LAT RTT seq=1106 us=11035
+27966058800,sensor,TX,1107,"{""age_min_ms"": 89, ""age_max_ms"": 89}",LAT TX seq=1107 age_min_ms=89 age_max_ms=89
+27971085300,screen,RX,1107,{},I (375740) LAT: RX seq=1107
+27985204100,sensor,RTT,1107,"{""us"": 8230}",LAT RTT seq=1107 us=8230
+28066013800,sensor,TX,1108,"{""age_min_ms"": 89, ""age_max_ms"": 89}",LAT TX seq=1108 age_min_ms=89 age_max_ms=89
+28071005500,screen,RX,1108,{},I (375840) LAT: RX seq=1108
+28086218200,sensor,RTT,1108,"{""us"": 6938}",LAT RTT seq=1108 us=6938
+28167147300,sensor,TX,1109,"{""age_min_ms"": 89, ""age_max_ms"": 89}",LAT TX seq=1109 age_min_ms=89 age_max_ms=89
+28175913200,screen,RX,1109,{},I (375950) LAT: RX seq=1109
+28187222200,sensor,RTT,1109,"{""us"": 10261}",LAT RTT seq=1109 us=10261
+28268026500,sensor,TX,1110,"{""age_min_ms"": 91, ""age_max_ms"": 91}",LAT TX seq=1110 age_min_ms=91 age_max_ms=91
+28272997700,screen,RX,1110,{},I (376040) LAT: RX seq=1110
+28287242400,sensor,RTT,1110,"{""us"": 8158}",LAT RTT seq=1110 us=8158
+28368004200,sensor,TX,1111,"{""age_min_ms"": 91, ""age_max_ms"": 91}",LAT TX seq=1111 age_min_ms=91 age_max_ms=91
+28376481400,screen,RX,1111,{},I (376150) LAT: RX seq=1111
+28387252500,sensor,RTT,1111,"{""us"": 7640}",LAT RTT seq=1111 us=7640
+28468015300,sensor,TX,1112,"{""age_min_ms"": 49, ""age_max_ms"": 49}",LAT TX seq=1112 age_min_ms=49 age_max_ms=49
+28472635500,screen,RX,1112,{},I (376240) LAT: RX seq=1112
+28488209800,sensor,RTT,1112,"{""us"": 5243}",LAT RTT seq=1112 us=5243
+28569119900,sensor,TX,1113,"{""age_min_ms"": 50, ""age_max_ms"": 50}",LAT TX seq=1113 age_min_ms=50 age_max_ms=50
+28573992800,screen,RX,1113,{},I (376340) LAT: RX seq=1113
+28589238400,sensor,RTT,1113,"{""us"": 6487}",LAT RTT seq=1113 us=6487
+28670178200,sensor,TX,1114,"{""age_min_ms"": 92, ""age_max_ms"": 92}",LAT TX seq=1114 age_min_ms=92 age_max_ms=92
+28674279100,screen,RX,1114,{},I (376440) LAT: RX seq=1114
+28689212600,sensor,RTT,1114,"{""us"": 3699}",LAT RTT seq=1114 us=3699
+28770085900,sensor,TX,1115,"{""age_min_ms"": 92, ""age_max_ms"": 92}",LAT TX seq=1115 age_min_ms=92 age_max_ms=92
+28774136700,screen,RX,1115,{},I (376540) LAT: RX seq=1115
+28789229800,sensor,RTT,1115,"{""us"": 3772}",LAT RTT seq=1115 us=3772
+28870041100,sensor,TX,1116,"{""age_min_ms"": 92, ""age_max_ms"": 92}",LAT TX seq=1116 age_min_ms=92 age_max_ms=92
+28876775600,screen,RX,1116,{},I (376650) LAT: RX seq=1116
+28889214200,sensor,RTT,1116,"{""us"": 6402}",LAT RTT seq=1116 us=6402
+28970076800,sensor,TX,1117,"{""age_min_ms"": 92, ""age_max_ms"": 92}",LAT TX seq=1117 age_min_ms=92 age_max_ms=92
+28978236200,screen,RX,1117,{},I (376750) LAT: RX seq=1117
+28989247800,sensor,RTT,1117,"{""us"": 7362}",LAT RTT seq=1117 us=7362
+29070077900,sensor,TX,1118,"{""age_min_ms"": 92, ""age_max_ms"": 92}",LAT TX seq=1118 age_min_ms=92 age_max_ms=92
+29075382100,screen,RX,1118,{},I (376840) LAT: RX seq=1118
+29090211400,sensor,RTT,1118,"{""us"": 4721}",LAT RTT seq=1118 us=4721
+29171076300,sensor,TX,1119,"{""age_min_ms"": 93, ""age_max_ms"": 93}",LAT TX seq=1119 age_min_ms=93 age_max_ms=93
+29178468200,screen,RX,1119,{},I (376950) LAT: RX seq=1119
+29191246300,sensor,RTT,1119,"{""us"": 6712}",LAT RTT seq=1119 us=6712
+29272063000,sensor,TX,1120,"{""age_min_ms"": 94, ""age_max_ms"": 94}",LAT TX seq=1120 age_min_ms=94 age_max_ms=94
+29280351500,screen,RX,1120,{},I (377050) LAT: RX seq=1120
+29311252900,sensor,RTT,1120,"{""us"": 23578}",LAT RTT seq=1120 us=23578
+29372015900,sensor,TX,1121,"{""age_min_ms"": 94, ""age_max_ms"": 94}",LAT TX seq=1121 age_min_ms=94 age_max_ms=94
+29377636700,screen,RX,1121,{},I (377150) LAT: RX seq=1121
+29391330700,sensor,RTT,1121,"{""us"": 10680}",LAT RTT seq=1121 us=10680
+29472119400,sensor,TX,1122,"{""age_min_ms"": 53, ""age_max_ms"": 53}",LAT TX seq=1122 age_min_ms=53 age_max_ms=53
+29477525600,screen,RX,1122,{},I (377250) LAT: RX seq=1122
+29491183300,sensor,RTT,1122,"{""us"": 16884}",LAT RTT seq=1122 us=16884
+29572129500,sensor,TX,1123,"{""age_min_ms"": 45, ""age_max_ms"": 45}",LAT TX seq=1123 age_min_ms=45 age_max_ms=45
+29577153000,screen,RX,1123,{},I (377350) LAT: RX seq=1123
+29592233900,sensor,RTT,1123,"{""us"": 6326}",LAT RTT seq=1123 us=6326
+29673338700,sensor,TX,1124,"{""age_min_ms"": 95, ""age_max_ms"": 95}",LAT TX seq=1124 age_min_ms=95 age_max_ms=95
+29677407700,screen,RX,1124,{},I (377450) LAT: RX seq=1124
+29773186500,sensor,RTT,1124,"{""us"": 3915}",LAT RTT seq=1124 us=3915
+29773186500,sensor,TX,1125,"{""age_min_ms"": 8, ""age_max_ms"": 8}",LAT TX seq=1125 age_min_ms=8 age_max_ms=8
+29777098300,screen,RX,1125,{},I (377550) LAT: RX seq=1125
+29792224600,sensor,RTT,1125,"{""us"": 3630}",LAT RTT seq=1125 us=3630
+29873201500,sensor,TX,1126,"{""age_min_ms"": 108, ""age_max_ms"": 108}",LAT TX seq=1126 age_min_ms=108 age_max_ms=108
+29879194100,screen,RX,1126,{},I (377650) LAT: RX seq=1126
+29892210700,sensor,RTT,1126,"{""us"": 9903}",LAT RTT seq=1126 us=9903
+29973043400,sensor,TX,1127,"{""age_min_ms"": 96, ""age_max_ms"": 96}",LAT TX seq=1127 age_min_ms=96 age_max_ms=96
+29981665500,screen,RX,1127,{},I (377750) LAT: RX seq=1127
+30019063500,sensor,RTT,1127,"{""us"": 14743}",LAT RTT seq=1127 us=14743
+30073125000,sensor,TX,1128,"{""age_min_ms"": 95, ""age_max_ms"": 95}",LAT TX seq=1128 age_min_ms=95 age_max_ms=95
+30077338200,screen,RX,1128,{},I (377850) LAT: RX seq=1128
+30093219700,sensor,RTT,1128,"{""us"": 3276}",LAT RTT seq=1128 us=3276
+30174078000,sensor,TX,1129,"{""age_min_ms"": 96, ""age_max_ms"": 96}",LAT TX seq=1129 age_min_ms=96 age_max_ms=96
+30178131200,screen,RX,1129,{},I (377950) LAT: RX seq=1129
+30218054200,sensor,RTT,1129,"{""us"": 4178}",LAT RTT seq=1129 us=4178
+30274075900,sensor,TX,1130,"{""age_min_ms"": 97, ""age_max_ms"": 97}",LAT TX seq=1130 age_min_ms=97 age_max_ms=97
+30279011800,screen,RX,1130,{},I (378050) LAT: RX seq=1130
