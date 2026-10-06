@@ -1,5 +1,6 @@
 #pragma once
 #include <stddef.h>
+#include <stdint.h>
 
 #include "thresholds.h"
 
@@ -19,6 +20,10 @@ bool sharedStateGet(size_t sensorIndex, float &distanceCm);
 
 // Đọc trạng thái sức khỏe của cảm biến sensorIndex.
 sensor_health_t sharedStateGetHealth(size_t sensorIndex);
+
+// millis() lúc sharedStateSet() gần nhất cho cảm biến sensorIndex (0 nếu chưa có).
+// Dùng để log tuổi mẫu khi đo độ trễ (DMXT-57).
+uint32_t sharedStateGetUpdatedMs(size_t sensorIndex);
 
 // Lấy khoảng cách NHỎ NHẤT (gần nhất) trong các cảm biến hợp lệ.
 // Trả về true nếu có ít nhất một cảm biến có giá trị hợp lệ.

@@ -101,6 +101,22 @@ typedef struct __attribute__((packed)) {
 
 #define ESPNOW_CMD_MUTE_BUZZER 1
 
+/* Đo độ trễ (DMXT-57): màn hình echo lại seq của gói vừa nhận để sensor-node đo RTT
+ * trên cùng một đồng hồ (độ trễ 1 chiều ≈ RTT/2). Chỉ gửi khi build với
+ * TBS_LATENCY_PROBE=1 (env *_latency); firmware thường không phát gói này.
+ * Phân biệt theo len như espnow_cmd_msg_t. */
+typedef struct __attribute__((packed)) {
+    uint8_t  type; /* ESPNOW_ECHO_LATENCY */
+    uint16_t seq;  /* seq của espnow_sensor_msg_t vừa nhận */
+} espnow_echo_msg_t;
+
+#define ESPNOW_ECHO_LATENCY 0xE1
+
+/* 3 gói phải khác kích thước nhau, nếu không bên nhận không phân biệt được theo len. */
+TBS_STATIC_ASSERT(sizeof(espnow_echo_msg_t) != sizeof(espnow_cmd_msg_t) &&
+                  sizeof(espnow_echo_msg_t) != sizeof(espnow_sensor_msg_t),
+                  "espnow_echo_msg_t must have a unique size");
+
 #ifdef __cplusplus
 }
 #endif

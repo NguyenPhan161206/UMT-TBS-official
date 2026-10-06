@@ -45,9 +45,13 @@ pio run -e yolo_uno                              # build (ESP-NOW only)
 pio run -e yolo_uno -t upload --upload-port /dev/ttyACM0
 pio device monitor -p /dev/ttyACM0 -b 115200
 ```
-**Quan sát:** serial in `Supersonic sensor array started (6 cam bien)`; mỗi 100 ms
-in dòng `[S0..S5]` với `Pulse`, `Raw`, `Stable`. Đưa tay trước từng cảm biến:
-`Stable` phải giảm tương ứng và ổn định sau ~5 mẫu (lọc cluster-EMA).
+**Quan sát:** lúc boot in `BOOT node boot=N rr=...` rồi `Supersonic sensor array started (6 cam bien)`
+kèm bảng chân Trig/Echo → slot. Mỗi 100 ms in `DIST: [d0, …, d5]` — khoảng cách **đã lọc** theo thứ tự
+slot ESP-NOW (Front, Rear, L-Front, L-Rear, R-Front, R-Rear; 0.0 = slot không hợp lệ). Mẫu bị loại in
+`[Sx] REJECT: <lý do> | Pulse | Raw | Stable | Invalid`; mất tín hiệu liên tiếp in `[Sx] DISCONNECTED`.
+Mỗi 60 s in `SOAK node ...` (xem `docs/SOAK_TEST.md`). Đưa tay trước từng cảm biến: giá trị slot tương
+ứng trong `DIST` phải giảm và ổn định sau vài mẫu. Cần xem giá trị **raw** từng lần đọc: flash env
+`yolo_uno_accuracy` (dòng `ACC S<i> raw= out= ...`, xem `docs/ACCURACY_TEST.md`).
 
 ### 2.2 Waveshare screen
 ```bash
@@ -57,8 +61,7 @@ pio run -e yolo_uno -t upload --upload-port /dev/ttyACM1
 pio device monitor -p /dev/ttyACM1 -b 115200
 ```
 **Quan sát:** screen sáng, title "Collision-Avoidance Dashboard"; banner
-`OVERALL`. Khi 2 board cùng bật, dòng `ESP-NOW frame rssi=... dBm` xuất hiện
-(khi sensor gửi) và nhãn `ESP-NOW: LINKED`.
+`OVERALL`. Khi 2 board cùng bật, log in `ESP-NOW link UP` và nhãn `ESP-NOW: LINKED`.
 
 ### 2.3 End-to-end cảnh báo (2 board)
 Đặt vật cản ở khoảng cách **gần/thân/khối** khác nhau:

@@ -64,6 +64,16 @@ esp_err_t espnow_receiver_force_channel(void);
 uint32_t espnow_receiver_last_rx_ms(uint8_t slot);
 
 /**
+ * @brief Số gói ESP-NOW hợp lệ đã nhận kể từ boot (soak, DMXT-58).
+ */
+uint32_t espnow_receiver_rx_count(void);
+
+/**
+ * @brief Khoảng hở lớn nhất (ms) giữa 2 gói liên tiếp kể từ lần gọi trước; đọc xong thì xoá về 0.
+ */
+uint32_t espnow_receiver_take_max_gap_ms(void);
+
+/**
  * @brief Gửi lệnh điều khiển ngược lại sensor-node (VD: Mute Buzzer).
  */
 esp_err_t espnow_receiver_send_cmd(const espnow_cmd_msg_t *cmd);

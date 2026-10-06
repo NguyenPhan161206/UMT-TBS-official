@@ -20,6 +20,7 @@
 #include "espnow_client.h"
 #include "espnow_protocol.h"
 #include "shared_state.h"
+#include "soak_heartbeat.h"
 #include "task_cfg.h"
 #include "thresholds.h"
 #include "ultrasonic_sensor.h"
@@ -165,15 +166,38 @@ static void sensorTask(void *pvParameters)
              * Tránh phí 40ms timeout trên mỗi chân chưa cắm, giúp vòng lặp đo của cảm biến
              * đang hoạt động chạy đúng chuẩn 100ms siêu nhạy. */
             sensor_health_t curHealth = sharedStateGetHealth(i);
+#if TBS_ACCURACY_PROBE
+            // Env yolo_uno_accuracy: cổng đã từng có xung Echo (có cảm biến) được đọc mọi chu kỳ kể cả
+            // khi DISCONNECTED, để tỷ lệ phát hiện khi đo góc búp/tầm đo không lệch vì bỏ nhịp. Cổng
+            // trống vẫn thăm dò 1 lần/10 chu kỳ như bản thường, giữ nhịp 10 mẫu/s cho cảm biến đang đo.
+            static bool s_everEcho[SENSOR_COUNT] = {false};
+            if (!s_everEcho[i] && curHealth == SENSOR_HEALTH_DISCONNECTED && ((loopCount + i) % 10 != 0))
+#else
             if (curHealth == SENSOR_HEALTH_DISCONNECTED && ((loopCount + i) % 10 != 0))
+#endif
             {
                 continue;
             }
 
             SensorReading reading = s_sensors[i].readOnce();
+#if TBS_ACCURACY_PROBE
+            if (reading.durationUs > 0)
+            {
+                s_everEcho[i] = true;
+            }
+#endif
 
             if (reading.error != nullptr)
             {
+#if TBS_ACCURACY_PROBE
+                // DMXT-55/56: calc = khoảng cách tính từ xung (nan nếu không có Echo); rej để cuối
+                // vì lý do có dấu cách. Định dạng: docs/ACCURACY_TEST.md.
+                if (reading.durationUs > 0)
+                    Serial.printf("ACC S%u raw=nan pulse=%lu calc=%.1f rej=%s\n", (unsigned)i,
+                                  (unsigned long)reading.durationUs, reading.distanceCm, reading.error);
+                else
+                    Serial.printf("ACC S%u raw=nan pulse=0 calc=nan rej=%s\n", (unsigned)i, reading.error);
+#endif
                 s_invalidCount[i]++;
 
                 float stableCm;
@@ -214,6 +238,16 @@ static void sensorTask(void *pvParameters)
                 s_invalidCount[i] = 0;
 
                 FilterResult result = s_filters[i].process(reading.distanceCm);
+#if TBS_ACCURACY_PROBE
+                if (result.hasOutput)
+                    Serial.printf("ACC S%u raw=%.1f out=%.1f has=1 status=%s n=%d pulse=%lu\n", (unsigned)i,
+                                  reading.distanceCm, result.outputCm, result.status, result.clusterCount,
+                                  (unsigned long)reading.durationUs);
+                else
+                    Serial.printf("ACC S%u raw=%.1f out=nan has=0 status=%s n=%d pulse=%lu\n", (unsigned)i,
+                                  reading.distanceCm, result.status, result.clusterCount,
+                                  (unsigned long)reading.durationUs);
+#endif
 
                 sharedStateSet(i, result.outputCm, result.hasOutput);
 
@@ -273,7 +307,38 @@ static void networkTask(void *pvParameters)
             Serial.printf("DIST: [%.1f, %.1f, %.1f, %.1f, %.1f, %.1f]\n",
                           msg.distance_cm[0], msg.distance_cm[1], msg.distance_cm[2],
                           msg.distance_cm[3], msg.distance_cm[4], msg.distance_cm[5]);
+#if TBS_LATENCY_PROBE
+            // Tuổi mẫu lúc đóng gói: mẫu mới nhất / cũ nhất trong các cảm biến hợp lệ
+            // (-1 nếu không có cảm biến nào hợp lệ). Xem docs/LATENCY_TEST.md.
+            long ageMin = -1, ageMax = -1;
+            for (size_t i = 0; i < SENSOR_COUNT; ++i)
+            {
+                if (!msg.valid[SENSOR_ESPNOW_SLOT[i]])
+                {
+                    continue;
+                }
+                long age = (long)(now - sharedStateGetUpdatedMs(i));
+                if (ageMin < 0 || age < ageMin) ageMin = age;
+                if (age > ageMax) ageMax = age;
+            }
+            Serial.printf("LAT TX seq=%u age_min_ms=%ld age_max_ms=%ld\n",
+                          (unsigned)msg.seq, ageMin, ageMax);
+#endif
         }
+
+        SoakNodeCounters soak = {s_espNowClient.txOk(), s_espNowClient.txFail(), -1};
+#if USE_COREIOT
+        soak.mqttReconnects = (int32_t)s_coreiotClient.reconnectCount();
+#endif
+        soakHeartbeatPoll(millis(), soak);
+
+#if TBS_LATENCY_PROBE
+        EspNowRtt rtt;
+        while (s_espNowClient.pollRtt(rtt))
+        {
+            Serial.printf("LAT RTT seq=%u us=%lu\n", (unsigned)rtt.seq, (unsigned long)rtt.rttUs);
+        }
+#endif
 
         vTaskDelay(pdMS_TO_TICKS(TASK_POLL_INTERVAL_MS));
     }
@@ -310,17 +375,24 @@ static void coreiotTask(void *pvParameters)
 
             // Telemetry: khoảng cách 6 slot + giá trị gần nhất (cm).
             // JSON encode đơn giản, không dùng thư viện JSON trên Arduino.
+            // "seq": rule-chain chuyển tiếp sang màn hình để đo độ trễ đường MQTT (DMXT-57).
+            static uint32_t s_mqttSeq = 0;
+            ++s_mqttSeq;
             char payload[256];
             float nearestCm = 0.0f;
             bool hasNearest = sharedStateGetNearest(nearestCm);
             int len = snprintf(
                 payload, sizeof(payload),
-                "{\"d1\":%.1f,\"d2\":%.1f,\"d3\":%.1f,\"d4\":%.1f,\"d5\":%.1f,\"d6\":%.1f,\"nearest_cm\":%.1f,\"has_nearest\":%s}",
+                "{\"d1\":%.1f,\"d2\":%.1f,\"d3\":%.1f,\"d4\":%.1f,\"d5\":%.1f,\"d6\":%.1f,\"nearest_cm\":%.1f,\"has_nearest\":%s,\"seq\":%lu}",
                 sharedStateGetValue(0), sharedStateGetValue(1), sharedStateGetValue(2),
                 sharedStateGetValue(3), sharedStateGetValue(4), sharedStateGetValue(5),
-                nearestCm, hasNearest ? "true" : "false");
+                nearestCm, hasNearest ? "true" : "false", (unsigned long)s_mqttSeq);
             (void)len;
 
+#if TBS_LATENCY_PROBE
+            // In TRƯỚC publish: mốc PC của dòng này là thời điểm bắt đầu gửi.
+            Serial.printf("LAT MQTT_TX seq=%lu\n", (unsigned long)s_mqttSeq);
+#endif
             if (!s_coreiotClient.publishTelemetry(payload))
             {
                 // Bỏ qua: loop() sẽ tự duy trì kết nối.
@@ -340,6 +412,7 @@ void setup()
 {
     Serial.begin(115200);
     delay(SERIAL_SETUP_DELAY_MS);
+    soakHeartbeatBoot();
 
     sharedStateInit();
 
@@ -386,6 +459,8 @@ void setup()
         &s_coreiotTaskHandle,
         0);
 #endif
+
+    soakHeartbeatSetTasks(s_sensorTaskHandle, s_networkTaskHandle, s_buzzerTaskHandle);
 }
 
 void loop()

@@ -1,6 +1,7 @@
 idf_component_register(
     SRCS
         "main.c"
+        "soak_heartbeat.c"
         "bsp/waveshare_rgb_lcd_port.c"
     INCLUDE_DIRS
         "."

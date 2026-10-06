@@ -1,5 +1,6 @@
 #include "shared_state.h"
 
+#include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
@@ -11,6 +12,7 @@ SemaphoreHandle_t s_mutex = nullptr;
 float s_distanceCm[SENSOR_COUNT] = {0};
 bool s_isMuted = false;
 bool s_valid[SENSOR_COUNT] = {false};
+uint32_t s_updatedMs[SENSOR_COUNT] = {0};
 /* Trạng thái sức khỏe từng cảm biến; khởi tạo DISCONNECTED để tránh
  * cảnh báo ma trước khi cảm biến báo cáo lần đầu tiên. */
 sensor_health_t s_health[SENSOR_COUNT];
@@ -39,6 +41,7 @@ void sharedStateSet(size_t sensorIndex, float distanceCm, bool valid)
     {
         s_distanceCm[sensorIndex] = distanceCm;
         s_valid[sensorIndex] = valid;
+        s_updatedMs[sensorIndex] = millis();
         xSemaphoreGive(s_mutex);
     }
 }
@@ -85,6 +88,21 @@ bool sharedStateGet(size_t sensorIndex, float &distanceCm)
         xSemaphoreGive(s_mutex);
     }
     return valid;
+}
+
+uint32_t sharedStateGetUpdatedMs(size_t sensorIndex)
+{
+    if (sensorIndex >= SENSOR_COUNT)
+    {
+        return 0;
+    }
+    uint32_t t = 0;
+    if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE)
+    {
+        t = s_updatedMs[sensorIndex];
+        xSemaphoreGive(s_mutex);
+    }
+    return t;
 }
 
 bool sharedStateGetNearest(float &nearestCm)

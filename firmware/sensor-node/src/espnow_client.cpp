@@ -6,6 +6,39 @@
 #include <esp_now.h>
 #include <string.h>
 
+#if TBS_LATENCY_PROBE
+#include <esp_timer.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+
+/* Đo độ trễ (DMXT-57): mốc esp_timer lúc gửi theo seq (vòng 64 > số gói có thể đang bay),
+ * callback nhận echo tính RTT rồi đẩy vào queue để networkTask in ra (không in Serial trong
+ * WiFi task). */
+static const size_t LAT_SLOTS = 64;
+static int64_t s_sendUs[LAT_SLOTS];
+static uint16_t s_sendSeq[LAT_SLOTS];
+static QueueHandle_t s_rttQueue = nullptr;
+
+static void handleEcho(const uint8_t *data)
+{
+    const int64_t nowUs = esp_timer_get_time();
+    espnow_echo_msg_t echo;
+    memcpy(&echo, data, sizeof(echo));
+    if (echo.type != ESPNOW_ECHO_LATENCY)
+    {
+        return;
+    }
+    const size_t slot = echo.seq % LAT_SLOTS;
+    if (s_sendSeq[slot] != echo.seq || s_sendUs[slot] == 0)
+    {
+        return; // echo quá muộn (slot đã bị gói mới ghi đè) -> bỏ, script tính là mất
+    }
+    EspNowRtt r = {echo.seq, (uint32_t)(nowUs - s_sendUs[slot])};
+    s_sendUs[slot] = 0; // chống đếm trùng nếu echo lặp
+    xQueueSend(s_rttQueue, &r, 0);
+}
+#endif
+
 
 static void onDataRecv(const uint8_t *macAddr, const uint8_t *data, int len)
 {
@@ -21,11 +54,20 @@ static void onDataRecv(const uint8_t *macAddr, const uint8_t *data, int len)
         }
     }
 }
+/* Đếm cho dòng SOAK (DMXT-58). Gửi broadcast không có ACK nên "ok" = MAC đã phát gói đi. */
+static volatile uint32_t s_txOk = 0;
+static volatile uint32_t s_txFail = 0;
+
 static void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
     (void)mac_addr;
-    if (status != ESP_NOW_SEND_SUCCESS)
+    if (status == ESP_NOW_SEND_SUCCESS)
     {
+        s_txOk = s_txOk + 1;
+    }
+    else
+    {
+        s_txFail = s_txFail + 1;
         Serial.println("[ESPNOW] Send FAILED");
     }
 }
@@ -86,6 +128,11 @@ void EspNowClient::begin()
         return;
     }
 
+#if TBS_LATENCY_PROBE
+    s_rttQueue = xQueueCreate(32, sizeof(EspNowRtt));
+    Serial.println("[ESPNOW] LATENCY PROBE build: do RTT qua echo (khong dung cho ban phat hanh)");
+#endif
+
     esp_now_register_send_cb(onDataSent);
     esp_now_register_recv_cb(onDataRecv);
 
@@ -106,6 +153,35 @@ void EspNowClient::begin()
 bool EspNowClient::sendReading(const espnow_sensor_msg_t &msg)
 {
     syncPeerChannelToHome();
+#if TBS_LATENCY_PROBE
+    const size_t slot = msg.seq % LAT_SLOTS;
+    s_sendSeq[slot] = msg.seq;
+    s_sendUs[slot] = esp_timer_get_time();
+#endif
     esp_err_t result = esp_now_send(ESPNOW_PEER_MAC, (const uint8_t *)&msg, sizeof(msg));
+    if (result != ESP_OK)
+    {
+        s_txFail = s_txFail + 1; // không vào hàng đợi -> onDataSent sẽ không được gọi
+    }
     return result == ESP_OK;
+}
+
+uint32_t EspNowClient::txOk() const
+{
+    return s_txOk;
+}
+
+uint32_t EspNowClient::txFail() const
+{
+    return s_txFail;
+}
+
+bool EspNowClient::pollRtt(EspNowRtt &out)
+{
+#if TBS_LATENCY_PROBE
+    return s_rttQueue != nullptr && xQueueReceive(s_rttQueue, &out, 0) == pdTRUE;
+#else
+    (void)out;
+    return false;
+#endif
 }

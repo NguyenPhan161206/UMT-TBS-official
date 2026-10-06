@@ -24,6 +24,7 @@
 #include "coreiot_client.h"
 #include "espnow_receiver.h"
 #include "sensor_model.h"
+#include "soak_heartbeat.h"
 #include "ui_dashboard.h"
 #include "vehicle_profile.h"
 #include "vehicle_settings.h"
@@ -55,6 +56,14 @@ static void on_coreiot_data(const char *topic, int topic_len, const char *payloa
     if (root == NULL) {
         ESP_LOGW(TAG, "Ignored non-JSON payload");
         return;
+    }
+
+    /* Đo độ trễ đường MQTT (DMXT-57): rule-chain chuyển tiếp "seq" của telemetry sensor-node;
+     * tools/latency ghép dòng này với "LAT MQTT_TX seq=" bên COM sensor-node. Log trước khi
+     * chờ LVGL lock để mốc thời gian không cộng thời gian vẽ. */
+    cJSON *seq = cJSON_GetObjectItem(root, "seq");
+    if (cJSON_IsNumber(seq)) {
+        ESP_LOGI("LAT", "MQTT_RX seq=%d", (int)cJSON_GetNumberValue(seq));
     }
 
     if (esp_lv_adapter_lock(LV_LOCK_TIMEOUT_TICKS) != ESP_OK) {
@@ -201,6 +210,9 @@ static void espnow_link_watchdog_cb(lv_timer_t *timer)
     static int s_prev_linked = -1;
     if ((int)linked != s_prev_linked) {
         ESP_LOGI(TAG, "ESP-NOW link %s", linked ? "UP" : "DOWN");
+        if (s_prev_linked == 1 && !linked) {
+            soak_heartbeat_note_link_down(); /* chỉ đếm UP -> DOWN, không tính trạng thái lúc boot */
+        }
         s_prev_linked = (int)linked;
         ui_dashboard_set_espnow_status(linked);
         if (!linked) {
@@ -276,6 +288,8 @@ static void lvgl_add_psram_pool(void)
 void app_main(void)
 {
     load_vehicle_profile();
+    /* Ngay sau NVS init: dòng BOOT in ra cả khi các bước init sau bị treo/reset (soak, DMXT-58). */
+    soak_heartbeat_start();
 
     const esp_lv_adapter_rotation_t rotation = ESP_LV_ADAPTER_ROTATE_0;
     /* Chế độ NONE: Single PSRAM buffer, vẽ cục bộ (partial), không block task chờ VSYNC,

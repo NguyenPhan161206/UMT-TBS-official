@@ -33,12 +33,16 @@ public:
 
     bool isConnected() const;
 
+    // Số lần kết nối lại MQTT thành công kể từ boot (không tính lần kết nối đầu) — cho dòng SOAK.
+    uint32_t reconnectCount() const;
+
     // Gửi payload JSON lên COREIOT_TELEMETRY_TOPIC. Trả về false nếu
     // chưa kết nối MQTT hoặc publish thất bại.
     bool publishTelemetry(const char *jsonPayload);
 
 private:
     uint32_t _lastMqttRetryMs = 0;
+    uint32_t _connectCount = 0;
 
     void ensureWifiConnected();
     void ensureMqttConnected();

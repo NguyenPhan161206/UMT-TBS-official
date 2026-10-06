@@ -26,6 +26,8 @@ static bool s_wifi_connected = false;
 static int64_t s_last_mqtt_rx_time_ms = 0;
 static char s_broker_uri[128] = {0};
 static char s_token_display[128] = {0};
+/* Soak (DMXT-58): số lần MQTT_EVENT_CONNECTED kể từ boot. */
+static volatile uint32_t s_mqtt_connect_count = 0;
 
 static coreiot_wifi_status_cb_t s_wifi_cb = NULL;
 static coreiot_mqtt_status_cb_t s_mqtt_cb = NULL;
@@ -137,6 +139,12 @@ const char *coreiot_broker_uri_display(void)
     return s_broker_uri;
 }
 
+uint32_t coreiot_client_reconnect_count(void)
+{
+    uint32_t n = s_mqtt_connect_count;
+    return n > 0 ? n - 1 : 0;
+}
+
 const char *coreiot_token_display(void)
 {
     return s_token_display;
@@ -152,6 +160,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT Connected to CoreIoT (%s)", s_broker_uri);
+        s_mqtt_connect_count = s_mqtt_connect_count + 1;
         mqtt_debounce_cancel();
         if (!s_mqtt_reported_up && s_mqtt_cb) {
             s_mqtt_reported_up = true;

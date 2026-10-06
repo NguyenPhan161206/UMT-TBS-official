@@ -46,6 +46,7 @@ void CoreiotClient::ensureMqttConnected()
     // CoreIoT/ThingsBoard: access token = MQTT username, không cần password.
     if (s_mqttClient.connect("sensor-node", SENSOR_NODE_DEVICE_TOKEN, nullptr))
     {
+        ++_connectCount;
         Serial.println("[NET] MQTT connected");
     }
     else
@@ -65,6 +66,11 @@ void CoreiotClient::loop()
 
     ensureMqttConnected();
     s_mqttClient.loop();
+}
+
+uint32_t CoreiotClient::reconnectCount() const
+{
+    return _connectCount > 0 ? _connectCount - 1 : 0;
 }
 
 bool CoreiotClient::isConnected() const

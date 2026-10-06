@@ -74,6 +74,11 @@ bool coreiot_client_has_recent_data(uint32_t max_age_ms);
 const char *coreiot_broker_uri_display(void);
 
 /**
+ * @brief Số lần kết nối lại MQTT thành công kể từ boot (không tính lần đầu) — soak, DMXT-58.
+ */
+uint32_t coreiot_client_reconnect_count(void);
+
+/**
  * @brief Access token hiển thị trên SYSTEM page (caller tự mask khi in ra).
  */
 const char *coreiot_token_display(void);

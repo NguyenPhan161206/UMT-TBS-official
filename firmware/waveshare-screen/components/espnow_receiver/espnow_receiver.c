@@ -13,6 +13,7 @@
 #include "esp_now.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
+#include "freertos/FreeRTOS.h"
 #include <string.h>
 
 static const char *TAG = "espnow_receiver";
@@ -25,6 +26,12 @@ static int64_t s_last_any_rx_us = 0;
 static int64_t s_slot_rx_us[ESPNOW_SENSOR_SLOT_COUNT];
 
 static bool s_espnow_ready = false;
+
+/* Soak (DMXT-58): số gói hợp lệ kể từ boot + khoảng hở lớn nhất giữa 2 gói trong cửa sổ
+ * heartbeat hiện tại (đọc-rồi-xoá bởi espnow_receiver_take_max_gap_ms). */
+static volatile uint32_t s_rx_count = 0;
+static uint32_t s_max_gap_ms = 0;
+static portMUX_TYPE s_soak_mux = portMUX_INITIALIZER_UNLOCKED;
 
 static void on_data_recv(const esp_now_recv_info_t *info, const uint8_t *data, int len)
 {
@@ -42,8 +49,25 @@ static void on_data_recv(const esp_now_recv_info_t *info, const uint8_t *data, i
     espnow_sensor_msg_t msg;
     memcpy(&msg, data, sizeof(msg));
 
-    s_last_any_rx_us = esp_timer_get_time();
-    int64_t now_us = s_last_any_rx_us;
+#if TBS_LATENCY_PROBE
+    /* Echo ngay đầu callback (trước mọi xử lý) để RTT bên sensor-node không cộng thêm
+     * thời gian vẽ UI; dòng LAT RX cho script tools/latency đếm gói nhận/mất. */
+    espnow_echo_msg_t echo = {.type = ESPNOW_ECHO_LATENCY, .seq = msg.seq};
+    esp_now_send(ESPNOW_PEER_MAC, (const uint8_t *)&echo, sizeof(echo));
+    ESP_LOGI("LAT", "RX seq=%u", (unsigned)msg.seq);
+#endif
+
+    int64_t now_us = esp_timer_get_time();
+    if (s_last_any_rx_us != 0) {
+        uint32_t gap_ms = (uint32_t)((now_us - s_last_any_rx_us) / 1000);
+        portENTER_CRITICAL(&s_soak_mux);
+        if (gap_ms > s_max_gap_ms) {
+            s_max_gap_ms = gap_ms;
+        }
+        portEXIT_CRITICAL(&s_soak_mux);
+    }
+    s_rx_count = s_rx_count + 1;
+    s_last_any_rx_us = now_us;
 
     for (int i = 0; i < ESPNOW_SENSOR_SLOT_COUNT; i++) {
         if (msg.valid[i]) {
@@ -82,6 +106,16 @@ esp_err_t espnow_receiver_init(espnow_rx_cb_t cb)
 
     esp_wifi_set_ps(WIFI_PS_NONE);
 
+#if TBS_LATENCY_PROBE
+    /* esp_now_send() tới broadcast cần peer có sẵn; channel 0 = theo home channel hiện tại. */
+    if (!esp_now_is_peer_exist(ESPNOW_PEER_MAC)) {
+        esp_now_peer_info_t peer = {0};
+        memcpy(peer.peer_addr, ESPNOW_PEER_MAC, 6);
+        esp_now_add_peer(&peer);
+    }
+    ESP_LOGW(TAG, "LATENCY PROBE build: echo seq ve sensor-node (khong dung cho ban phat hanh)");
+#endif
+
     s_espnow_ready = true;
     ESP_LOGI(TAG, "ESP-NOW receiver ready (default/fallback channel %d)", ESPNOW_CHANNEL);
     return ESP_OK;
@@ -94,6 +128,20 @@ bool espnow_receiver_is_linked(void)
     }
     int64_t now_us = esp_timer_get_time();
     return (now_us - s_last_any_rx_us) <= (int64_t)ESPNOW_LINK_TIMEOUT_MS * 1000;
+}
+
+uint32_t espnow_receiver_rx_count(void)
+{
+    return s_rx_count;
+}
+
+uint32_t espnow_receiver_take_max_gap_ms(void)
+{
+    portENTER_CRITICAL(&s_soak_mux);
+    uint32_t gap = s_max_gap_ms;
+    s_max_gap_ms = 0;
+    portEXIT_CRITICAL(&s_soak_mux);
+    return gap;
 }
 
 uint32_t espnow_receiver_last_rx_ms(uint8_t slot)
