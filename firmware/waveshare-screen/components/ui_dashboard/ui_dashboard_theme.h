@@ -22,6 +22,16 @@
 #define COLOR_DANGER      0xFF1744
 #define COLOR_NODATA      0x64748B
 
+/* Bố cục (px) cho màn 800x480: header phía trên, phần nội dung còn lại bên dưới. */
+#define UI_HEADER_H        40
+#define UI_CONTENT_H       440             /* 480 - UI_HEADER_H */
+#define UI_CANVAS_W        440             /* canvas giữa (sơ đồ xe + cung quét) */
+#define UI_CANVAS_H        UI_CONTENT_H
+#define UI_CANVAS_MARGIN   50              /* lề quanh thân xe, chừa chỗ cho cung quét và nhãn khoảng cách */
+
+/* Chu kỳ cập nhật trang SYSTEM (Wi-Fi, heap, uptime...). */
+#define UI_SYS_INFO_REFRESH_MS 2000
+
 /* CROSSING_DELTA_CM / CROSSING_FRONT_THRESHOLD_CM ĐÃ CHUYỂN về hazard_core.h
  * (1 nguồn, B5 quy tắc single-truth — xem docs/ARCHITECTURE_G1_TESTING.md). */
 

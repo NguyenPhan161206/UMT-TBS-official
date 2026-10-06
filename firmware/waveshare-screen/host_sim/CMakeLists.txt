@@ -24,10 +24,11 @@ set(UI_DASH_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../components/ui_dashboard")
 set(SENSOR_MODEL_INC "${CMAKE_CURRENT_SOURCE_DIR}/../components/sensor_model/include")
 set(SENSOR_MODEL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../components/sensor_model/sensor_model.c")
 set(VEHICLE_PROFILE_INC "${CMAKE_CURRENT_SOURCE_DIR}/../components/vehicle_profile/include")
-set(VEHICLE_PROFILE_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/../components/vehicle_profile/vehicle_profile.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../components/vehicle_profile/vehicle_layout.c"
-)
+# GLOB để thêm file vehicle_*.c / ui_dashboard*.c mới không phải sửa CMake.
+file(GLOB VEHICLE_PROFILE_SRCS CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/../components/vehicle_profile/vehicle_*.c")
+file(GLOB UI_DASH_SRCS CONFIGURE_DEPENDS
+    "${UI_DASH_SRC_DIR}/ui_dashboard*.c")
 
 # ---------------------------------------------------------------------------- #
 # hazard_core_tests (T1.3) — C thuần, không phụ thuộc môi trường
@@ -59,6 +60,38 @@ if(NOT WIN32)
 endif()
 
 # ---------------------------------------------------------------------------- #
+# vehicle_settings_tests (T4.1b) — C thuần: codec blob NVS, resolve hồ sơ + override
+# ---------------------------------------------------------------------------- #
+add_executable(vehicle_settings_tests
+    ${VEHICLE_PROFILE_SRCS}
+    "tests/test_vehicle_settings.c"
+)
+target_include_directories(vehicle_settings_tests PRIVATE
+    "${VEHICLE_PROFILE_INC}"
+    "${SHARED_INC}"
+)
+target_compile_features(vehicle_settings_tests PRIVATE c_std_11)
+if(NOT WIN32)
+    target_link_libraries(vehicle_settings_tests PRIVATE m)
+endif()
+
+# vehicle_override_tests (T4.1c) — ghi đè từng cảm biến (dùng chung store giả với vehicle_settings_tests)
+add_executable(vehicle_override_tests
+    ${VEHICLE_PROFILE_SRCS}
+    "tests/test_vehicle_override.c"
+)
+target_include_directories(vehicle_override_tests PRIVATE
+    "${VEHICLE_PROFILE_INC}"
+    "${SHARED_INC}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+)
+target_compile_features(vehicle_override_tests PRIVATE c_std_11)
+if(NOT WIN32)
+    target_link_libraries(vehicle_override_tests PRIVATE m)
+endif()
+target_include_directories(vehicle_settings_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+
+# ---------------------------------------------------------------------------- #
 # umt_dash_sim (T1.2) — LVGL v9.1.0 + SDL2, compile file UI thật
 # ---------------------------------------------------------------------------- #
 include(FetchContent)
@@ -75,6 +108,9 @@ add_custom_command(
     COMMENT "Generating C scenario data from tools/scenarios.py"
     VERBATIM
 )
+# T2.3: hazard_core_tests chạy heuristic xe cắt ngang trên chính dữ liệu kịch bản (cần file sinh ra).
+target_sources(hazard_core_tests PRIVATE "${SCENARIOS_GEN_H}")
+target_include_directories(hazard_core_tests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../managed_components/lvgl__lvgl/CMakeLists.txt")
     FetchContent_Declare(
@@ -110,13 +146,10 @@ find_package(SDL2 REQUIRED)
 
 add_executable(umt_dash_sim
     "main.c"
+    "sim_tools.c"
     "${HAZARD_CORE_SRC}"
     "${SENSOR_MODEL_SRC}"
-    "${UI_DASH_SRC_DIR}/ui_dashboard.c"
-    "${UI_DASH_SRC_DIR}/ui_dashboard_layout.c"
-    "${UI_DASH_SRC_DIR}/ui_dashboard_system.c"
-    "${UI_DASH_SRC_DIR}/ui_dashboard_truck.c"
-    "${UI_DASH_SRC_DIR}/ui_dashboard_marker.c"
+    ${UI_DASH_SRCS}
     ${VEHICLE_PROFILE_SRCS}
     "${SCENARIOS_GEN_H}"   # chỉ để CMake sinh trước khi build
 )
@@ -157,12 +190,38 @@ endif()
 enable_testing()
 add_test(NAME hazard_core_tests COMMAND hazard_core_tests)
 add_test(NAME vehicle_layout_tests COMMAND vehicle_layout_tests)
+add_test(NAME vehicle_settings_tests COMMAND vehicle_settings_tests)
+add_test(NAME vehicle_override_tests COMMAND vehicle_override_tests)
 
 # headless render test: SDL dummy driver hoạt động không cần X (xvfb không bắt
 # buộc ở local; CI có thể dùng xvfb-run để đúng DoD). DoD yêu cầu exit 0 sau
 # --exit-after 3 --scenario approach.
 add_test(NAME umt_dash_sim_render COMMAND umt_dash_sim
     --scenario approach --exit-after 2 --interval 200)
+# T4.1b: đổi hồ sơ xe + dựng lại sơ đồ 120 lần — FAIL nếu số widget trôi hoặc heap LVGL rò > 1 KB.
+add_test(NAME umt_dash_sim_profile_stress COMMAND umt_dash_sim --stress-profiles 120)
+# T4.1b/c: kịch bản UI bằng chuột ảo — mở tab SETUP, chọn FRONT, lùi 200 mm, Apply, về COLLISION, Reset;
+# FAIL nếu sim treo/crash hoặc không lưu được ảnh chụp (xem ảnh ở ${CMAKE_BINARY_DIR}/ui_setup_*.bmp).
+add_test(NAME umt_dash_sim_setup_ui COMMAND umt_dash_sim --scenario approach --interval 40 --exit-after 8
+    --click 447,20@2000 --click 460,89@2400 --click 540,200@2800 --click 540,200@3100 --click 540,200@3400
+    --click 540,200@3700 --click 460,305@4100 --snapshot "${CMAKE_BINARY_DIR}/ui_setup_applied.bmp@4600"
+    --click 259,20@5000 --snapshot "${CMAKE_BINARY_DIR}/ui_collision_overridden.bmp@5700"
+    --click 447,20@6000 --click 584,305@6400 --snapshot "${CMAKE_BINARY_DIR}/ui_setup_reset.bmp@6900")
+# T2.3: xe cắt ngang phải hiện banner rồi tự tắt sau CROSSING_HOLD_MS (3000) dù không còn khung mới;
+# kịch bản normal không bao giờ hiện. (khung 100 ms: các mốc kết thúc ~400 ms, lần kích hoạt cuối ~200 ms)
+add_test(NAME umt_dash_sim_crossing_banner COMMAND umt_dash_sim --scenario crossing --interval 100 --exit-after 6
+    --expect-text "CROSSING TRAFFIC HAZARD@450" --expect-text "S3 (L-Front)@450"
+    --expect-no-text "CROSSING TRAFFIC HAZARD@4500" --expect-text "None detected@4500")
+add_test(NAME umt_dash_sim_normal_no_crossing COMMAND umt_dash_sim --scenario normal --interval 100 --exit-after 3
+    --expect-no-text "CROSSING TRAFFIC HAZARD@300" --expect-no-text "CROSSING TRAFFIC HAZARD@2500"
+    --expect-text "OVERALL: SAFE@2500")
+# T5.2: nút Calibrate (thanh trái, toạ độ 90,335) mở trang chỉnh cảm biến.
+add_test(NAME umt_dash_sim_calibrate_button COMMAND umt_dash_sim --scenario normal --interval 40 --exit-after 4
+    --expect-no-text "SENSOR POSITION@1500" --click 90,335@2000 --expect-text "SENSOR POSITION@2800")
+# Hết pool LVGL (LV_ASSERT_MALLOC) là vòng lặp vô hạn: có TIMEOUT thì test FAIL thay vì treo CI.
+set_tests_properties(umt_dash_sim_render umt_dash_sim_profile_stress umt_dash_sim_setup_ui
+    umt_dash_sim_crossing_banner umt_dash_sim_normal_no_crossing umt_dash_sim_calibrate_button
+    PROPERTIES TIMEOUT 60)
 # replay (T1.4 -> T1.2): hai định dạng — payload V2 (d1..d6) và file của tools/recorder (distances[] + valid[]).
 # 'skip invalid' trên stderr nghĩa là sim không hiểu dòng đó -> test phải FAIL.
 set(REPLAY_FIXTURES "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")

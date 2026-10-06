@@ -15,8 +15,10 @@
 extern lv_obj_t *s_screen;
 extern lv_obj_t *s_tab_btn_collision;
 extern lv_obj_t *s_tab_btn_system;
+extern lv_obj_t *s_tab_btn_setup;
 extern lv_obj_t *s_page_collision;
 extern lv_obj_t *s_page_system;
+extern lv_obj_t *s_page_setup;
 extern lv_obj_t *s_lbl_wifi_status;
 extern lv_obj_t *s_lbl_espnow_status;
 extern lv_obj_t *s_lbl_mqtt_status;
@@ -46,8 +48,6 @@ typedef struct {
     int16_t local_x;
     int16_t local_y;
     int16_t mid_angle_deg; /* LVGL angle convention: 0=right, 90=down, 180=left, 270=up */
-    lv_anim_t blink_anim;
-    bool blink_running;
     sensor_zone_t current_zone;
     bool has_zone;
 } sensor_arc_t;
@@ -58,14 +58,13 @@ typedef struct {
 
 extern sensor_arc_t s_arcs[SENSOR_MODEL_COUNT];
 extern sensor_row_t s_rows[SENSOR_MODEL_COUNT];
-extern uint16_t s_prev_distance_cm[SENSOR_MODEL_COUNT];
-extern bool s_forced_crossing_warning;
 
 /* ------------------- cross-file functions (ui_dashboard_layout) ----------- */
 void arc_set_zone(sensor_arc_t *a, sensor_zone_t zone);
 void arc_set_nodata(sensor_arc_t *a);
 void build_truck_body(lv_obj_t *canvas, const vehicle_layout_t *L);
 void markers_build(lv_obj_t *canvas, const vehicle_layout_t *L);
+void markers_reset(void);
 void marker_update(uint8_t slot, uint16_t dist_cm);
 void marker_hide(uint8_t slot);
 void build_header(lv_obj_t *parent);
@@ -73,8 +72,13 @@ lv_obj_t *build_left_sidebar(lv_obj_t *parent);
 lv_obj_t *build_center_canvas(lv_obj_t *parent);
 lv_obj_t *build_right_sidebar(lv_obj_t *parent);
 lv_obj_t *build_system_page(lv_obj_t *parent);
+lv_obj_t *build_setup_page(lv_obj_t *parent);      /* ui_dashboard_setup.c: chọn hồ sơ xe (T4.1b) */
+void setup_page_refresh(void);                     /* tô lại hàng hồ sơ đang dùng + cảnh báo lưu lỗi */
+lv_obj_t *build_sensor_editor(lv_obj_t *parent);   /* ui_dashboard_sensor_edit.c: chỉnh tay cảm biến (T4.1c) */
+void sensor_editor_refresh(void);                  /* nạp lại bản nháp từ hồ sơ đang dùng */
 void tab_collision_cb(lv_event_t *e);
 void tab_system_cb(lv_event_t *e);
+void tab_setup_cb(lv_event_t *e);
 void sys_info_timer_cb(lv_timer_t *timer);
 
 /* ------------------- cross-file functions (ui_dashboard.c) --------------- */

@@ -46,11 +46,6 @@ void ui_dashboard_set_wifi_status(bool is_connected, const char *ip);
 void ui_dashboard_set_mqtt_status(bool is_connected);
 
 /**
- * @brief Force/clear the pedestrian crossing hazard banner.
- */
-void ui_dashboard_set_hazard_warning(bool is_pedestrian_crossing_risk);
-
-/**
  * @brief Update relay + warning_status text (server path).
  */
 void ui_dashboard_set_relay_state(bool relay_on, const char *warning_status);
@@ -82,6 +77,12 @@ typedef void (*ui_dashboard_mute_cb_t)(bool muted);
  * @brief Đăng ký callback Mute (NULL = bỏ đăng ký). Callback chạy trên LVGL task.
  */
 void ui_dashboard_set_mute_cb(ui_dashboard_mute_cb_t cb);
+
+/**
+ * @brief Dựng lại sơ đồ xe (thân xe + 6 cung + marker) theo vehicle_profile_active(), rồi
+ *        áp lại trạng thái cảm biến hiện có. Gọi sau khi đổi hồ sơ xe. Chạy trên LVGL task.
+ */
+void ui_dashboard_rebuild_vehicle(void);
 
 #ifdef __cplusplus
 }

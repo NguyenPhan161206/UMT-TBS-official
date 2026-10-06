@@ -6,7 +6,7 @@
  *
  * Hai đường dữ liệu:
  *   - ĐƯỜNG CHÍNH: ESP-NOW receiver (components/espnow_receiver) — sensor-node
- *     gửi espnow_sensor_msg_t (firmware/shared/espnow_protocol.h, R2) mỗi 500ms.
+ *     gửi espnow_sensor_msg_t (firmware/shared/espnow_protocol.h, R2) mỗi ESPNOW_SEND_INTERVAL_MS (100 ms).
  *   - ĐƯỜNG PHỤ: CoreIoT MQTT (components/coreiot_client) qua Wi-Fi STA.
  */
 
@@ -15,14 +15,19 @@
 #include <string.h>
 
 #include "cJSON.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_lv_adapter.h"
 #include "esp_timer.h"
+#include "nvs_flash.h"
 
 #include "coreiot_client.h"
 #include "espnow_receiver.h"
 #include "sensor_model.h"
 #include "ui_dashboard.h"
+#include "vehicle_profile.h"
+#include "vehicle_settings.h"
+#include "vehicle_store_nvs.h"
 #include "waveshare_rgb_lcd_port.h"
 
 #include "freertos/FreeRTOS.h"
@@ -82,10 +87,8 @@ static void on_coreiot_data(const char *topic, int topic_len, const char *payloa
         ui_dashboard_set_buzzer_state(strcmp(buzzer->valuestring, "ON") == 0);
     }
 
-    cJSON *crossing = cJSON_GetObjectItem(root, "crossing_hazard");
-    if (cJSON_IsBool(crossing)) {
-        ui_dashboard_set_hazard_warning(cJSON_IsTrue(crossing));
-    }
+    /* Xe cắt ngang không đến từ cloud: màn hình tự tính từ khoảng cách (ui_dashboard_evaluate_hazard ở trên),
+     * chung một heuristic cho cả đường ESP-NOW lẫn MQTT. Rule-chain không xuất trường "crossing_hazard". */
 
     esp_lv_adapter_unlock();
     cJSON_Delete(root);
@@ -235,8 +238,45 @@ static void espnow_link_watchdog_cb(lv_timer_t *timer)
     }
 }
 
+/* Hồ sơ xe phải nạp TRƯỚC ui_dashboard_init() (UI dựng sơ đồ xe từ hồ sơ), mà coreiot_client_init()
+ * — nơi gọi nvs_flash_init() lần đầu — chạy SAU UI. Vì vậy init NVS sớm ở đây (lần gọi thứ hai là vô hại). */
+static void load_vehicle_profile(void)
+{
+    esp_err_t nvs_err = nvs_flash_init();
+    if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(nvs_err);
+
+    vehicle_settings_init_result_t res = vehicle_settings_init(vehicle_store_nvs_ops());
+    const vehicle_profile_t *p = vehicle_profile_active();
+    ESP_LOGI(TAG, "Vehicle profile: id=%u name=%s (%s)", (unsigned)p->id, p->name,
+             res == VEHICLE_SETTINGS_INIT_LOADED          ? "loaded from NVS"
+             : res == VEHICLE_SETTINGS_INIT_DEFAULTS_INVALID ? "NVS data invalid, using default"
+                                                             : "no saved data, using default");
+}
+
+/* Pool phụ của LVGL trong PSRAM (xem sdkconfig.defaults): pool chính LV_MEM_SIZE là mảng tĩnh ở RAM nội nên không
+ * được tăng (bounce buffer RGB + Wi-Fi cần RAM nội). Gọi sau esp_lv_adapter_init() (lv_init) và trước khi task LVGL
+ * chạy — LV_OS_NONE nên bộ cấp phát LVGL không có mutex riêng. */
+static void lvgl_add_psram_pool(void)
+{
+    const size_t bytes = CONFIG_LV_MEM_POOL_EXPAND_SIZE_KILOBYTES * 1024U;
+    void *mem = heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (mem == NULL || lv_mem_add_pool(mem, bytes) == NULL) {
+        ESP_LOGE(TAG, "LVGL PSRAM pool (%u KB) unavailable — UI may run out of LVGL memory", (unsigned)(bytes / 1024));
+        heap_caps_free(mem);
+        return;
+    }
+    ESP_LOGI(TAG, "LVGL heap: %u KB internal + %u KB PSRAM", (unsigned)CONFIG_LV_MEM_SIZE_KILOBYTES,
+             (unsigned)(bytes / 1024));
+}
+
 void app_main(void)
 {
+    load_vehicle_profile();
+
     const esp_lv_adapter_rotation_t rotation = ESP_LV_ADAPTER_ROTATE_0;
     /* Chế độ NONE: Single PSRAM buffer, vẽ cục bộ (partial), không block task chờ VSYNC,
      * giảm tải bus PSRAM 300 lần so với full-frame mode và tương thích hoàn hảo khi bật Wi-Fi. */
@@ -257,6 +297,7 @@ void app_main(void)
     adapter_config.stack_in_psram = true;
     adapter_config.task_min_delay_ms = 5;
     ESP_ERROR_CHECK(esp_lv_adapter_init(&adapter_config));
+    lvgl_add_psram_pool();
 
     esp_lv_adapter_display_config_t disp_config = ESP_LV_ADAPTER_DISPLAY_RGB_DEFAULT_CONFIG(
         panel_handle,
@@ -310,4 +351,9 @@ void app_main(void)
     if (en_err != ESP_OK) {
         ESP_LOGE(TAG, "ESP-NOW receiver init failed: %d", (int)en_err);
     }
+
+    /* RAM nội là tài nguyên khan nhất (bounce buffer RGB, Wi-Fi, stack task) — in ra để thấy biên còn lại. */
+    ESP_LOGI(TAG, "Internal heap after init: free %u KB, largest block %u KB",
+             (unsigned)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+             (unsigned)(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024));
 }

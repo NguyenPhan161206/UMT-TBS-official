@@ -38,7 +38,9 @@ Cùng "vị trí/hướng 6 cảm biến quanh xe" nhưng mã hóa 2 lần với
 grep toàn repo (trừ .pio) = 2 (1 define + 1 usage). Mục B geometry còn lại: `k_layout[]` = pixel-only.
 
 **Xử lý đề xuất:** ✅ đã bỏ `offset_deg` dead-field + `k_offsets_deg[]` (nhánh `nguyen`, 2026-09-09);
-✅ đã gộp FOV về 1 nguồn (2026-09-10); giữ MỘT bảng geometry (vd chuyển lên một `vehicle_layout.h`/profile struct khi dựng EX8 ở T3.2).
+✅ đã gộp FOV về 1 nguồn (2026-09-10); ✅ **2026-10-03/05**: `k_layout[]` đã xoá (T3.2); hình học xe + vị trí/góc
+6 cảm biến + trục bánh nằm ở MỘT nơi là hồ sơ xe `components/vehicle_profile/vehicle_profile.c` (T4.1a),
+UI quy đổi qua `vehicle_layout_compute()` (test `vehicle_layout_tests`).
 DoD hiện tại: grep `offset_deg` trong firmware (trừ .pio) = 0 ✅.
 
 ## C. Timing / tuning ẩn dưới literal không tên (không grep được, khó tune)
@@ -60,9 +62,9 @@ DoD hiện tại: grep `offset_deg` trong firmware (trừ .pio) = 0 ✅.
 ### waveshare-screen
 | Vị trí | Literal | Ý nghĩa |
 |---|---|---|
-| `components/ui_dashboard/ui_dashboard.c:129` | `lv_timer_create(sys_info_timer_cb, 2000, ...)` | Chu kỳ cập nhật SYSTEM page |
-| `components/ui_dashboard/ui_dashboard_layout.c:35-36` | `lv_anim_set_time(..., 400)` | Chu kỳ blink cảnh báo |
-| `components/ui_dashboard/ui_dashboard.c:101` | `lv_obj_set_size(content, LV_PCT(100), 440)` | Chiều cao content (440 vs screen 480) |
+| `components/ui_dashboard/ui_dashboard.c:129` | `lv_timer_create(sys_info_timer_cb, 2000, ...)` | ✅ **ĐÃ XỬ LÝ 2026-10-05**: `UI_SYS_INFO_REFRESH_MS` (ui_dashboard_theme.h) |
+| `components/ui_dashboard/ui_dashboard_layout.c:35-36` | `lv_anim_set_time(..., 400)` | ✅ **ĐÃ XOÁ 2026-10-05**: hiệu ứng nhấp nháy là code chết (không chỗ nào khởi động anim) |
+| `components/ui_dashboard/ui_dashboard.c:101` | `lv_obj_set_size(content, LV_PCT(100), 440)` | ✅ **ĐÃ XỬ LÝ 2026-10-05**: `UI_CONTENT_H`; canvas `440, 440, 50` → `UI_CANVAS_W/H/MARGIN`; header 40 → `UI_HEADER_H` |
 | `components/coreiot_client/coreiot_client.c:39-40` | `MQTT_DOWN_DEBOUNCE_MS 6000`, `WIFI_RECONNECT_RETRY_MS 3000` | ✅ đã đặt tên (define đầu file) — OK |
 
 **Xử lý đề xuất:** ✅ **ĐÃ XỬ LÝ 2026-09-10** (nhánh `nguyen`): literal timing sensor-node
@@ -91,9 +93,10 @@ screen numeric ticker (`sys_info_timer_cb`, blink 400ms) giữ nguyên — low-p
 | Muốn đổi... | Chạm đúng... | Được bảo vệ bởi |
 |---|---|---|
 | Ngưỡng zone 30/100 | `thresholds.h` (1 dòng) | `arch_guard.py` (B5) + `check_rulechain_thresholds.py` |
-| Legend hiển thị zone | tự đổi theo threshold (nếu đã làm macro) | không — đang là string cứng (mục A) |
-| Heuristic crossing | `hazard_core.c` | test boundary CI |
-| Hình học 6 cảm biến / sơ đồ EX8 | 1 bảng geometry duy nhất (sau mục B) | — (đang 2 chỗ) |
+| Legend hiển thị zone | tự đổi theo threshold (đã làm macro, mục A ✅) | `lv_label_set_text_fmt` từ `SENSOR_*_CM` |
+| Heuristic crossing (ngưỡng, cửa sổ, thời gian giữ) | `hazard_core.h` (`CROSSING_*`) | `hazard_core_tests` (gồm dữ liệu kịch bản) + ctest `umt_dash_sim_crossing_banner` |
+| Hình học 6 cảm biến / sơ đồ EX8 | hồ sơ xe `vehicle_profile.c` (1 chỗ) | `vehicle_layout_tests` + `validate` |
+| Bố cục px chính / chu kỳ SYSTEM | `ui_dashboard_theme.h` (`UI_*`) | host_sim |
 | Vị trí/giao diện widget | `ui_dashboard_layout.c` | host_sim (step 3) |
 | Số cảm biến | thêm/bớt `SENSOR_PINS` | `static_assert` R4 tự chặn lệch |
 

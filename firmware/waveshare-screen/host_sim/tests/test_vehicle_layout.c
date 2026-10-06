@@ -50,6 +50,29 @@ static void test_profile_validate(void)
     bad = *p;
     bad.sensors[0].x_mm = (int16_t)(p->width_mm / 2 + 150);
     CHECK(vehicle_profile_validate(&bad) == false, "validate sensor out of bbox == false");
+
+    /* id, tên và trục bánh (T4.1a) — không ghim số cụ thể của EX8 */
+    CHECK(p->id != 0, "active profile has non-zero id");
+
+    bad = *p;
+    bad.name = NULL;
+    CHECK(vehicle_profile_validate(&bad) == false, "validate name NULL == false");
+
+    bad = *p;
+    bad.id = 0;
+    CHECK(vehicle_profile_validate(&bad) == false, "validate id 0 == false");
+
+    bad = *p;
+    bad.front_axle_mm = 0;
+    CHECK(vehicle_profile_validate(&bad) == false, "validate front_axle 0 == false");
+
+    bad = *p;
+    bad.wheelbase_mm = 0;
+    CHECK(vehicle_profile_validate(&bad) == false, "validate wheelbase 0 == false");
+
+    bad = *p;
+    bad.wheelbase_mm = (uint16_t)(p->length_mm - p->front_axle_mm);   /* trục sau đúng bằng chiều dài xe */
+    CHECK(vehicle_profile_validate(&bad) == false, "validate rear axle >= length == false");
 }
 
 static void test_layout_computation(void)
@@ -76,6 +99,8 @@ static void test_layout_computation(void)
     mock.width_mm = 3000;
     mock.length_mm = 6000;
     mock.cab_length_mm = 1500;
+    mock.front_axle_mm = 1000;                /* trục sau 4500 < 6000 */
+    mock.wheelbase_mm = 3500;
     mock.sensors[ESPNOW_SLOT_FRONT].y_mm = 3000;
     mock.sensors[ESPNOW_SLOT_REAR].y_mm = -3000;
     mock.sensors[ESPNOW_SLOT_LEFT_FRONT].x_mm = -1500;
@@ -95,6 +120,23 @@ static void test_layout_computation(void)
         CHECK(L.sensor_px[i].x >= 0 && L.sensor_px[i].x <= 440, "sensor_px x within canvas");
         CHECK(L.sensor_px[i].y >= 0 && L.sensor_px[i].y <= 440, "sensor_px y within canvas");
     }
+
+    /* (i) trục bánh (T4.1a): đo từ đầu xe, cơ sở = khoảng cách giữa hai trục, đều nằm trong thân xe */
+    int exp_front = L.body_y + (int)roundf((float)p->front_axle_mm * (float)L.scale_num / (float)L.scale_den);
+    int exp_wb = (int)roundf((float)p->wheelbase_mm * (float)L.scale_num / (float)L.scale_den);
+    CHECK(abs(L.front_axle_y - exp_front) <= 1, "front_axle_y == body_y + front_axle_mm*scale (+-1)");
+    CHECK(abs((L.rear_axle_y - L.front_axle_y) - exp_wb) <= 1, "rear - front axle == wheelbase*scale (+-1)");
+    CHECK(L.front_axle_y >= L.body_y && L.rear_axle_y <= L.body_y + L.body_h, "axles inside body");
+    CHECK(L.rear_axle_y > L.front_axle_y, "rear axle below front axle");
+
+    vehicle_profile_t axle = *p;
+    axle.front_axle_mm = (uint16_t)(p->front_axle_mm + 500);
+    axle.wheelbase_mm = (uint16_t)(p->wheelbase_mm - 1000);
+    vehicle_layout_t L_axle;
+    CHECK(vehicle_layout_compute(&axle, 440, 440, 50, &L_axle) == true, "compute layout with moved axles");
+    CHECK(L_axle.front_axle_y > L.front_axle_y, "front axle moves back when front_axle_mm grows");
+    CHECK(L_axle.rear_axle_y - L_axle.front_axle_y < L.rear_axle_y - L.front_axle_y,
+          "axle spacing shrinks when wheelbase shrinks");
 
     /* (h) compute false khi canvas quá nhỏ */
     vehicle_layout_t L_small;
@@ -133,12 +175,64 @@ static void test_marker_math(void)
     CHECK(vehicle_layout_marker(&L, ESPNOW_SLOT_FRONT, 50, NULL) == false, "NULL out -> false");
 }
 
+static void test_registry(void)
+{
+    size_t n = vehicle_profile_count();
+    CHECK(n == 3, "registry has 3 profiles");
+    CHECK(vehicle_profile_get(n) == NULL, "get(count) == NULL");
+
+    for (size_t i = 0; i < n; i++) {
+        const vehicle_profile_t *p = vehicle_profile_get(i);
+        CHECK(p != NULL, "get(i) != NULL");
+        if (p == NULL) {
+            continue;
+        }
+        CHECK(vehicle_profile_validate(p) == true, "every registry profile validates");
+        CHECK(vehicle_profile_find(p->id) == p, "find(id) returns the same profile");
+
+        vehicle_layout_t L;
+        CHECK(vehicle_layout_compute(p, 440, 440, 50, &L) == true, "layout computes for every profile");
+        for (int s = 0; s < ESPNOW_SENSOR_SLOT_COUNT; s++) {
+            CHECK(L.sensor_px[s].x >= 0 && L.sensor_px[s].x <= 440 &&
+                  L.sensor_px[s].y >= 0 && L.sensor_px[s].y <= 440, "sensor_px within canvas for every profile");
+        }
+        for (size_t j = i + 1; j < n; j++) {
+            CHECK(vehicle_profile_get(j) != NULL && p->id != vehicle_profile_get(j)->id, "profile ids unique");
+        }
+    }
+    CHECK(vehicle_profile_find(99) == NULL, "find(99) == NULL");
+    CHECK(vehicle_profile_find(0) == NULL, "find(0) == NULL");
+
+    /* set_active: từ chối hồ sơ sai, giữ nguyên hồ sơ cũ */
+    const vehicle_profile_t *before = vehicle_profile_active();
+    uint8_t before_id = before->id;
+    vehicle_profile_t bad = *vehicle_profile_get(0);
+    bad.id = 0;
+    CHECK(vehicle_profile_set_active(&bad) == false, "set_active(invalid) == false");
+    CHECK(vehicle_profile_set_active(NULL) == false, "set_active(NULL) == false");
+    CHECK(vehicle_profile_active() == before && vehicle_profile_active()->id == before_id,
+          "active unchanged after rejected set_active");
+
+    /* set_active: COPY, con trỏ active ổn định */
+    const vehicle_profile_t *p2 = vehicle_profile_find(2);
+    CHECK(p2 != NULL && vehicle_profile_set_active(p2) == true, "set_active(profile 2)");
+    CHECK(vehicle_profile_active()->id == 2, "active id == 2");
+    CHECK(vehicle_profile_active() != p2, "active is a copy, not the registry entry");
+    const vehicle_profile_t *stable = vehicle_profile_active();
+    CHECK(vehicle_profile_set_active(vehicle_profile_find(3)) == true, "set_active(profile 3)");
+    CHECK(vehicle_profile_active() == stable && stable->id == 3, "active pointer is stable across set_active");
+
+    /* trả về mặc định để không ảnh hưởng test khác */
+    CHECK(vehicle_profile_set_active(vehicle_profile_get(0)) == true, "restore default profile");
+}
+
 int main(void)
 {
     printf("=== Running vehicle_layout_tests ===\n");
     test_profile_validate();
     test_layout_computation();
     test_marker_math();
+    test_registry();
 
     printf("Result: %d passed, %d failed\n", s_pass, s_fail);
     return (s_fail == 0) ? 0 : 1;

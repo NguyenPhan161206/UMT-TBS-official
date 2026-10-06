@@ -22,8 +22,10 @@ static const char *TAG = "ui_dashboard";
 lv_obj_t *s_screen;
 lv_obj_t *s_tab_btn_collision;
 lv_obj_t *s_tab_btn_system;
+lv_obj_t *s_tab_btn_setup;
 lv_obj_t *s_page_collision;
 lv_obj_t *s_page_system;
+lv_obj_t *s_page_setup;
 lv_obj_t *s_lbl_wifi_status;
 lv_obj_t *s_lbl_espnow_status;
 lv_obj_t *s_lbl_mqtt_status;
@@ -50,53 +52,29 @@ lv_obj_t *s_mute_btn_lbl;
 
 sensor_arc_t s_arcs[SENSOR_MODEL_COUNT];
 sensor_row_t s_rows[SENSOR_MODEL_COUNT];
-uint16_t s_prev_distance_cm[SENSOR_MODEL_COUNT];
-bool s_forced_crossing_warning = false;
 
 static uint16_t s_last_displayed_dist[SENSOR_MODEL_COUNT];
 static sensor_zone_t s_last_displayed_zone[SENSOR_MODEL_COUNT];
 
-/* Callback Mute do tầng main đăng ký: UI chỉ báo ý định, không biết đường truyền. */
-static ui_dashboard_mute_cb_t s_mute_cb = NULL;
+/* Heuristic xe cắt ngang có trạng thái (mốc tham chiếu + thời gian giữ) — logic thuần ở hazard_core. */
+static hazard_crossing_state_t s_crossing_state;
+/* Khi đang giữ cảnh báo, đánh giá lại định kỳ để banner tự tắt đúng hạn kể cả khi không còn khung mới. */
+#define CROSSING_RECHECK_MS 250
 
-void ui_dashboard_set_mute_cb(ui_dashboard_mute_cb_t cb)
+static void crossing_recheck_timer_cb(lv_timer_t *timer)
 {
-    s_mute_cb = cb;
-}
-
-/* Reflects s_alarm_muted on the button itself - otherwise "Mute Alarm" always
- * reads the same regardless of state and there is no way to tell from the
- * dashboard whether the alarm is currently silenced or live.
- */
-void update_mute_button_visual(void)
-{
-    if (s_mute_btn_lbl) {
-        lv_label_set_text(s_mute_btn_lbl, s_alarm_muted ? "Unmute Alarm" : "Mute Alarm");
-    }
-    if (s_mute_btn) {
-        lv_obj_set_style_bg_color(s_mute_btn, lv_color_hex(s_alarm_muted ? COLOR_DANGER : COLOR_PANEL), 0);
+    (void)timer;
+    if (s_crossing_state.holding) {
+        evaluate_hazard();
     }
 }
 
-void mute_btn_cb(lv_event_t *e)
-{
-    (void)e;
-    s_alarm_muted = !s_alarm_muted;
-    update_mute_button_visual();
-
-    // Báo ra ngoài: tầng main gửi lệnh MUTE về sensor-node (xem on_ui_mute_changed).
-    if (s_mute_cb != NULL) {
-        s_mute_cb(s_alarm_muted);
-    }
-
-    // Chỉ cập nhật banner/status, KHÔNG thay màu arc của sensor
-    evaluate_hazard();
-}
+/* Nút Mute (set_mute_cb / update_mute_button_visual / mute_btn_cb) nằm ở ui_dashboard_actions.c. */
 
 void ui_dashboard_init(void)
 {
     sensor_model_init();
-    memset(s_prev_distance_cm, 0, sizeof(s_prev_distance_cm));
+    memset(&s_crossing_state, 0, sizeof(s_crossing_state));
     for (int i = 0; i < SENSOR_MODEL_COUNT; i++) {
         s_last_displayed_dist[i] = 0xFFFF;
         s_last_displayed_zone[i] = (sensor_zone_t)-1;
@@ -115,7 +93,7 @@ void ui_dashboard_init(void)
     build_header(s_screen);
 
     lv_obj_t *content = lv_obj_create(s_screen);
-    lv_obj_set_size(content, LV_PCT(100), 440);
+    lv_obj_set_size(content, LV_PCT(100), UI_CONTENT_H);
     lv_obj_align(content, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_style_pad_all(content, 0, 0);
     lv_obj_set_style_pad_column(content, 0, 0);
@@ -140,10 +118,15 @@ void ui_dashboard_init(void)
     s_page_system = build_system_page(content);
     lv_obj_add_flag(s_page_system, LV_OBJ_FLAG_HIDDEN);
 
+    s_page_setup = build_setup_page(content);
+    lv_obj_add_flag(s_page_setup, LV_OBJ_FLAG_HIDDEN);
+
     lv_obj_add_event_cb(s_tab_btn_collision, tab_collision_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(s_tab_btn_system, tab_system_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(s_tab_btn_setup, tab_setup_cb, LV_EVENT_CLICKED, NULL);
 
-    s_sys_info_timer = lv_timer_create(sys_info_timer_cb, 2000, NULL);
+    s_sys_info_timer = lv_timer_create(sys_info_timer_cb, UI_SYS_INFO_REFRESH_MS, NULL);
+    lv_timer_create(crossing_recheck_timer_cb, CROSSING_RECHECK_MS, NULL);
 
     ESP_LOGI(TAG, "Collision dashboard UI initialized");
 }
@@ -156,10 +139,13 @@ void evaluate_hazard(void)
     uint16_t dist_cm[SENSOR_MODEL_COUNT];
     bool is_stale[SENSOR_MODEL_COUNT];
     uint8_t health[SENSOR_MODEL_COUNT];
+    bool ok[SENSOR_MODEL_COUNT];          /* slot có dữ liệu thật (slot bị xoá mang khoảng cách 0) */
     for (int i = 0; i < SENSOR_MODEL_COUNT; i++) {
         dist_cm[i]  = readings[i].distance_cm;
         is_stale[i] = readings[i].is_stale;
         health[i]   = (uint8_t)readings[i].health;
+        ok[i] = !readings[i].is_stale && readings[i].health != SENSOR_HEALTH_DISCONNECTED &&
+                readings[i].health != SENSOR_HEALTH_STALE;
     }
 
     /* Worst zone — dùng hazard_worst_zone: bỏ qua slot DISCONNECTED/STALE
@@ -202,14 +188,13 @@ void evaluate_hazard(void)
         }
     }
 
-    /* Crossing-traffic heuristic — logic nằm ở hazard_core (hazard_eval_crossing):
-     * front_close && side slot chuyển nhanh (|cur-prev| >= 40). Seam T2.3:
-     * s_forced_crossing_warning (do rule-chain gửi) OR kết quả heuristic local. */
-    hazard_crossing_result_t crossing = hazard_eval_crossing(dist_cm, s_prev_distance_cm, SENSOR_MODEL_COUNT);
+    /* Xe cắt ngang (T2.3) — logic thuần ở hazard_core: FRONT gần && slot bên đổi nhanh so với mốc tham chiếu
+     * (cửa sổ CROSSING_WINDOW_MS), giữ CROSSING_HOLD_MS; slot không hợp lệ bị bỏ qua (không báo giả khi mất link).
+     * Mỗi khung (ESP-NOW hoặc MQTT) đều đi qua đây nên cả hai đường dùng chung một heuristic. */
+    hazard_crossing_result_t crossing = hazard_eval_crossing(&s_crossing_state, dist_cm, ok,
+                                                             SENSOR_MODEL_COUNT, lv_tick_get());
 
-    bool crossing_hazard = s_forced_crossing_warning || crossing.active;
-    /* Label hiển thị sensor "fast-change" khi có (bất kể front_close — giữ đúng
-     * hành vi cũ: loop side set crossing_sensor kể cả khi front chưa close). */
+    bool crossing_hazard = crossing.active;
     const char *crossing_sensor = (crossing.sensor != HAZARD_CROSSING_NO_SENSOR)
                                       ? k_sensor_labels[crossing.sensor]
                                       : NULL;
@@ -233,10 +218,6 @@ void evaluate_hazard(void)
                 lv_obj_set_style_text_color(s_lbl_crossing_risk, lv_color_hex(COLOR_TEXT), 0);
             }
         }
-    }
-
-    for (int i = 0; i < SENSOR_MODEL_COUNT; i++) {
-        s_prev_distance_cm[i] = readings[i].distance_cm;
     }
 }
 
@@ -277,7 +258,10 @@ void ui_dashboard_update_sensor(uint8_t sensor_id, uint16_t dist_cm)
     if (s_arcs[sensor_id].arc) {
         arc_set_zone(&s_arcs[sensor_id], zone);
     }
-    marker_update(sensor_id, dist_cm);
+    /* Nhãn trên sơ đồ dùng đúng số đang hiện ở thanh trái (đã qua vùng chết 3 cm; đổi zone luôn cập nhật),
+     * để một cảm biến không hiện hai con số khác nhau. */
+    uint16_t shown = (s_last_displayed_dist[sensor_id] == 0xFFFF) ? dist_cm : s_last_displayed_dist[sensor_id];
+    marker_update(sensor_id, shown);
 }
 
 void ui_dashboard_clear_sensor(uint8_t sensor_id)
@@ -344,12 +328,6 @@ void ui_dashboard_set_mqtt_status(bool is_connected)
         lv_label_set_text_fmt(s_lbl_sys_mqtt, "MQTT/CoreIoT: %s", is_connected ? "up" : "down");
         lv_obj_set_style_text_color(s_lbl_sys_mqtt, is_connected ? lv_color_hex(COLOR_SAFE) : lv_color_hex(COLOR_TEXT), 0);
     }
-}
-
-void ui_dashboard_set_hazard_warning(bool is_pedestrian_crossing_risk)
-{
-    s_forced_crossing_warning = is_pedestrian_crossing_risk;
-    evaluate_hazard();
 }
 
 void ui_dashboard_set_relay_state(bool relay_on, const char *warning_status)

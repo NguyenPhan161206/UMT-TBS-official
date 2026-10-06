@@ -1,0 +1,58 @@
+{
+  "project_name": "vehicle-profile-override (T4.1c: chỉnh tay từng cảm biến, ghi đè hồ sơ)",
+  "total_steps": 4,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "vehicle_settings: API ghi đè từng cảm biến, lưu NVS, test",
+      "target_files": [
+        "firmware/waveshare-screen/components/vehicle_profile/include/vehicle_settings.h",
+        "firmware/waveshare-screen/components/vehicle_profile/vehicle_settings.c",
+        "firmware/waveshare-screen/host_sim/tests/test_vehicle_settings.c"
+      ],
+      "prerequisites": [],
+      "objective": "TIỀN ĐỀ: roadmap vehicle-profile đã xong tới step 8 (vehicle_settings_init/select + store ops). Thêm API: bool vehicle_settings_set_override(espnow_slot_t slot, const vehicle_sensor_pose_t *pose) (slot >= ESPNOW_SENSOR_SLOT_COUNT hoặc pose NULL thì false; dựng thử hồ sơ = gốc + override mới rồi vehicle_profile_validate, sai thì false và KHÔNG đổi gì; đúng thì override_mask |= 1<<slot, lưu pose, vehicle_profile_set_active, save); bool vehicle_settings_clear_override(espnow_slot_t slot) (bỏ ghi đè 1 cảm biến, khôi phục đúng toạ độ hồ sơ gốc, save); bool vehicle_settings_clear_all_overrides(void); uint8_t vehicle_settings_override_mask(void). Quy ước đã chốt: vehicle_settings_select() xoá toàn bộ override (đã làm ở roadmap trước). Test với store giả: set_override hợp lệ thì active()->sensors[slot] == pose và blob lưu decode ra đúng mask; init lại (mô phỏng khởi động lại) thì override còn nguyên; pose sai (x ngoài bbox, angle 360, angle âm) thì false và active/mask/save_count không đổi; clear_override khôi phục đúng toạ độ gốc; select(khác) thì mask==0.",
+      "definition_of_done": "vehicle_settings_tests 0 failed với >= 14 CHECK mới; thử phá cố ý (bỏ validate trong set_override, hoặc cho select giữ lại override) thì FAIL rồi hoàn lại; R7 mỗi file <= 400 dòng.",
+      "verification_command": "cmake --build build/host_sim && ctest --test-dir build/host_sim -R vehicle_ --output-on-failure",
+      "risk": "medium"
+    },
+    {
+      "step_id": 2,
+      "task_title": "ui_dashboard: widget chỉnh tay cảm biến (chọn slot, tăng giảm x/y/góc)",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_sensor_edit.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h"
+      ],
+      "prerequisites": [1],
+      "objective": "TIỀN ĐỀ: roadmap vehicle-profile xong (có trang SETUP, ui_dashboard_rebuild_vehicle). Khai báo trong private.h: lv_obj_t *build_sensor_editor(lv_obj_t *parent); void sensor_editor_refresh(void). Widget: chọn 1 trong 6 slot (nhãn ASCII FRONT, REAR, L-FRONT, L-REAR, R-FRONT, R-REAR, slot đang bị ghi đè có dấu '*'), hiện bản nháp (x_mm, y_mm, angle_deg), nút -/+ cho x (bước 50 mm), y (50 mm), góc (5 độ, quay vòng 0..359), nút Apply (vehicle_settings_set_override rồi ui_dashboard_rebuild_vehicle; trả false thì hiện 'Invalid position' màu đỏ và KHÔNG đổi gì) và nút Reset (vehicle_settings_clear_override rồi rebuild). Bản nháp chỉ áp dụng khi bấm Apply. Không dùng bàn phím (màn cảm ứng, chỉ nút). Chưa gắn vào trang SETUP ở step này.",
+      "definition_of_done": "File <= 400 dòng; host_sim build + ctest pass; pio run -e yolo_uno SUCCESS; arch_guard exit 0; mọi chuỗi UI là ASCII.",
+      "verification_command": "test $(wc -l < firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_sensor_edit.c) -le 400 && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && PYTHONUTF8=1 python tools/guard/arch_guard.py && cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "medium"
+    },
+    {
+      "step_id": 3,
+      "task_title": "ui_dashboard: gắn widget chỉnh cảm biến vào trang SETUP, nghiệm thu NVS",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_setup.c"
+      ],
+      "prerequisites": [2],
+      "objective": "Trong build_setup_page() thêm build_sensor_editor() cạnh danh sách hồ sơ (bố cục vừa màn 800x440, không cuộn); setup_page_refresh() cũng gọi sensor_editor_refresh() để dấu '*' và bản nháp đúng sau khi đổi hồ sơ.",
+      "definition_of_done": "Sim (harness tạm không commit): chọn slot FRONT, tăng y thêm 200 mm, Apply thì cung và marker FRONT dịch về phía đầu xe đúng 200 mm theo tỷ lệ; Reset thì về vị trí cũ; Apply pose sai thì thấy 'Invalid position' và hình không đổi; chọn hồ sơ khác thì dấu '*' biến mất. Phần cứng: nạp lên màn, chỉnh FRONT, Apply, bấm reset board thì sau khởi động ghi đè còn nguyên; chọn hồ sơ khác rồi reset thì ghi đè mất. Nếu không có board thì ghi rõ chưa kiểm chứng. ctest pass; pio run SUCCESS; arch_guard OK; ui_dashboard_setup.c <= 400 dòng.",
+      "verification_command": "test $(wc -l < firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_setup.c) -le 400 && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && PYTHONUTF8=1 python tools/guard/arch_guard.py && cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "medium"
+    },
+    {
+      "step_id": 4,
+      "task_title": "Log T4.1c + cập nhật CHECKLIST và kiểm tra toàn bộ",
+      "target_files": [
+        "docs/logs/WAVESHARE_SCREEN_VEHICLE_PROFILE_LOG.md",
+        "docs/CHECKLIST.md"
+      ],
+      "prerequisites": [3],
+      "objective": "Bổ sung mục T4.1c vào log (file đã tạo, số test đo lại, cách dùng màn chỉnh tay, hạn chế: bước 50 mm/5 độ, chưa có nhập số trực tiếp, đổi hồ sơ xoá override) và đánh dấu T4.1c trong CHECKLIST (✅ chỉ khi đã kiểm chứng reset trên board, nếu chưa thì 🟡 kèm lý do); đếm lại bảng Tổng hợp nhanh từ các dòng chi tiết. Ghi rõ T4.1d chưa làm (để dành giai đoạn sau).",
+      "definition_of_done": "Log có mục T4.1c; CHECKLIST không ghi T4.1c là ❌ và vẫn ghi T4.1d là ❌ CHƯA; mọi lệnh kiểm tra chạy exit 0; mọi con số khớp lần chạy lại.",
+      "verification_command": "grep -q T4.1c docs/logs/WAVESHARE_SCREEN_VEHICLE_PROFILE_LOG.md && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && PYTHONUTF8=1 python tools/guard/scan_secrets.py && PYTHONUTF8=1 python tools/guard/arch_guard.py && PYTHONUTF8=1 python -m pytest tools/guard/test_guard.py -q && cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "low"
+    }
+  ]
+}

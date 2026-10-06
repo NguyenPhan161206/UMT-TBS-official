@@ -2,3 +2,11 @@ CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_SPEED_80M=y
 CONFIG_ESP32S3_SPIRAM_SUPPORT=y
+
+# LVGL dùng bộ cấp phát dựng sẵn với pool cố định; UI (3 tab + SETUP + chỉnh cảm biến) dùng ~62 KB nên pool 64 KB bị cạn
+# (LV_ASSERT_MALLOC = treo). Tổng cần ~128 KB (host_sim: "lvgl heap after UI init" còn trống ~52%).
+# KHÔNG tăng LV_MEM_SIZE: pool chính là mảng tĩnh trong .bss RAM NỘI, mà bounce buffer RGB (2 x 800x40 px = 125 KB DMA nội)
+# + Wi-Fi cũng cần RAM nội — LV_MEM_SIZE=128 làm esp_lcd_new_rgb_panel() hết bộ nhớ → abort → reboot liên tục, màn đen.
+# Giữ 64 KB nội, 64 KB còn lại là pool phụ cấp từ PSRAM (main.c: lv_mem_add_pool sau esp_lv_adapter_init).
+CONFIG_LV_MEM_SIZE_KILOBYTES=64
+CONFIG_LV_MEM_POOL_EXPAND_SIZE_KILOBYTES=64

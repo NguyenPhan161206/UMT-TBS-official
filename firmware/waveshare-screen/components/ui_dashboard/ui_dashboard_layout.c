@@ -9,13 +9,10 @@
  */
 
 #include "ui_dashboard_private.h"
+#include "ui_dashboard.h"
+#include "hazard_core.h"
 
 /* --------------------------- sensor arc styling --------------------------- */
-
-static void blink_anim_cb(void *var, int32_t value)
-{
-    lv_obj_set_style_arc_opa((lv_obj_t *)var, (lv_opa_t)value, LV_PART_INDICATOR);
-}
 
 void arc_set_zone(sensor_arc_t *a, sensor_zone_t zone)
 {
@@ -24,11 +21,6 @@ void arc_set_zone(sensor_arc_t *a, sensor_zone_t zone)
     }
     a->has_zone = true;
     a->current_zone = zone;
-
-    if (a->blink_running) {
-        lv_anim_delete(a->arc, blink_anim_cb);
-        a->blink_running = false;
-    }
 
     lv_obj_set_style_arc_color(a->arc, zone_color(zone), LV_PART_INDICATOR);
     lv_obj_set_style_arc_opa(a->arc, LV_OPA_COVER, LV_PART_INDICATOR);
@@ -40,16 +32,12 @@ void arc_set_zone(sensor_arc_t *a, sensor_zone_t zone)
  */
 void arc_set_nodata(sensor_arc_t *a)
 {
-    if (a->has_zone && !a->blink_running && a->current_zone == (sensor_zone_t)-1) {
+    if (a->has_zone && a->current_zone == (sensor_zone_t)-1) {
         return;
     }
     a->has_zone = true;
     a->current_zone = (sensor_zone_t)-1;
 
-    if (a->blink_running) {
-        lv_anim_delete(a->arc, blink_anim_cb);
-        a->blink_running = false;
-    }
     lv_obj_set_style_arc_color(a->arc, lv_color_hex(COLOR_NODATA), LV_PART_INDICATOR);
     lv_obj_set_style_arc_opa(a->arc, LV_OPA_COVER, LV_PART_INDICATOR);
 }
@@ -88,7 +76,7 @@ static lv_obj_t *make_arc(lv_obj_t *parent, int16_t local_x, int16_t local_y, in
 void build_header(lv_obj_t *parent)
 {
     lv_obj_t *header = lv_obj_create(parent);
-    lv_obj_set_size(header, LV_PCT(100), 40);
+    lv_obj_set_size(header, LV_PCT(100), UI_HEADER_H);
     lv_obj_align(header, LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_set_style_bg_color(header, lv_color_hex(COLOR_PANEL), 0);
     lv_obj_set_style_bg_opa(header, LV_OPA_COVER, 0);
@@ -105,19 +93,27 @@ void build_header(lv_obj_t *parent)
     lv_obj_set_style_text_color(title, lv_color_hex(COLOR_ACCENT), 0);
     lv_obj_align(title, LV_ALIGN_LEFT_MID, 0, 0);
 
+    /* 3 tab 90 px, cách nhau 4 px, nằm giữa tiêu đề (bên trái) và nhãn ESP-NOW (bên phải). */
     s_tab_btn_collision = lv_btn_create(header);
-    lv_obj_set_size(s_tab_btn_collision, 100, 28);
-    lv_obj_align(s_tab_btn_collision, LV_ALIGN_CENTER, -55, 0);
+    lv_obj_set_size(s_tab_btn_collision, 90, 28);
+    lv_obj_align(s_tab_btn_collision, LV_ALIGN_CENTER, -141, 0);
     lv_obj_t *lbl1 = lv_label_create(s_tab_btn_collision);
     lv_label_set_text(lbl1, "COLLISION");
     lv_obj_center(lbl1);
 
     s_tab_btn_system = lv_btn_create(header);
-    lv_obj_set_size(s_tab_btn_system, 100, 28);
-    lv_obj_align(s_tab_btn_system, LV_ALIGN_CENTER, 55, 0);
+    lv_obj_set_size(s_tab_btn_system, 90, 28);
+    lv_obj_align(s_tab_btn_system, LV_ALIGN_CENTER, -47, 0);
     lv_obj_t *lbl2 = lv_label_create(s_tab_btn_system);
     lv_label_set_text(lbl2, "SYSTEM");
     lv_obj_center(lbl2);
+
+    s_tab_btn_setup = lv_btn_create(header);
+    lv_obj_set_size(s_tab_btn_setup, 90, 28);
+    lv_obj_align(s_tab_btn_setup, LV_ALIGN_CENTER, 47, 0);
+    lv_obj_t *lbl3 = lv_label_create(s_tab_btn_setup);
+    lv_label_set_text(lbl3, "SETUP");
+    lv_obj_center(lbl3);
 
     s_lbl_espnow_status = lv_label_create(header);
     lv_label_set_text(s_lbl_espnow_status, "ESP-NOW: --");
@@ -172,8 +168,10 @@ lv_obj_t *build_left_sidebar(lv_obj_t *parent)
     lv_obj_center(s_mute_btn_lbl);
     update_mute_button_visual();
 
+    /* T5.2: "Calibrate" = chỉnh vị trí/hướng cảm biến theo xe thật → mở trang SETUP (bộ chỉnh cảm biến, T4.1c). */
     lv_obj_t *calib_btn = lv_btn_create(sidebar);
     lv_obj_set_size(calib_btn, LV_PCT(100), 32);
+    lv_obj_add_event_cb(calib_btn, tab_setup_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_t *calib_lbl = lv_label_create(calib_btn);
     lv_label_set_text(calib_lbl, "Calibrate");
     lv_obj_center(calib_lbl);
@@ -181,37 +179,30 @@ lv_obj_t *build_left_sidebar(lv_obj_t *parent)
     return sidebar;
 }
 
-lv_obj_t *build_center_canvas(lv_obj_t *parent)
-{
-    lv_obj_t *canvas = lv_obj_create(parent);
-    lv_obj_set_size(canvas, 440, LV_PCT(100));
-    lv_obj_set_style_bg_color(canvas, lv_color_hex(COLOR_BG), 0);
-    lv_obj_set_style_bg_opa(canvas, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(canvas, 0, 0);
-    lv_obj_set_style_radius(canvas, 0, 0);
-    lv_obj_set_style_pad_all(canvas, 0, 0);
-    lv_obj_remove_flag(canvas, LV_OBJ_FLAG_SCROLLABLE);
+static lv_obj_t *s_center_canvas;
+static vehicle_layout_t s_layout;
 
-    static vehicle_layout_t s_layout;
+/* Dựng thân xe + 6 cung + marker trong canvas rỗng theo hồ sơ xe đang dùng. */
+static void canvas_populate(lv_obj_t *canvas)
+{
     const vehicle_profile_t *p = vehicle_profile_active();
-    bool layout_ok = vehicle_layout_compute(p, 440, 440, 50, &s_layout);
+    bool layout_ok = vehicle_layout_compute(p, UI_CANVAS_W, UI_CANVAS_H, UI_CANVAS_MARGIN, &s_layout);
 
     if (layout_ok) {
         build_truck_body(canvas, &s_layout);
     } else {
-        LV_LOG_ERROR("Failed to compute vehicle layout for EX8 profile");
+        LV_LOG_ERROR("Failed to compute vehicle layout for profile %s", p->name);
     }
 
     for (int i = 0; i < SENSOR_MODEL_COUNT; i++) {
-        int16_t x = layout_ok ? s_layout.sensor_px[i].x : 220;
-        int16_t y = layout_ok ? s_layout.sensor_px[i].y : 220;
+        int16_t x = layout_ok ? s_layout.sensor_px[i].x : UI_CANVAS_W / 2;
+        int16_t y = layout_ok ? s_layout.sensor_px[i].y : UI_CANVAS_H / 2;
         int16_t angle = layout_ok ? s_layout.sensor_angle_deg[i] : 0;
 
         s_arcs[i].local_x = x;
         s_arcs[i].local_y = y;
         s_arcs[i].mid_angle_deg = angle;
         s_arcs[i].arc = make_arc(canvas, x, y, angle);
-        s_arcs[i].blink_running = false;
         s_arcs[i].has_zone = false;
         s_arcs[i].current_zone = (sensor_zone_t)-1;
     }
@@ -219,8 +210,55 @@ lv_obj_t *build_center_canvas(lv_obj_t *parent)
     if (layout_ok) {
         markers_build(canvas, &s_layout);
     }
+}
 
+lv_obj_t *build_center_canvas(lv_obj_t *parent)
+{
+    lv_obj_t *canvas = lv_obj_create(parent);
+    lv_obj_set_size(canvas, UI_CANVAS_W, LV_PCT(100));
+    lv_obj_set_style_bg_color(canvas, lv_color_hex(COLOR_BG), 0);
+    lv_obj_set_style_bg_opa(canvas, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(canvas, 0, 0);
+    lv_obj_set_style_radius(canvas, 0, 0);
+    lv_obj_set_style_pad_all(canvas, 0, 0);
+    lv_obj_remove_flag(canvas, LV_OBJ_FLAG_SCROLLABLE);
+
+    s_center_canvas = canvas;
+    canvas_populate(canvas);
     return canvas;
+}
+
+void ui_dashboard_rebuild_vehicle(void)
+{
+    if (s_center_canvas == NULL) {
+        return;
+    }
+
+    /* Mọi con trỏ widget trong canvas sắp thành dangling: quên cung/marker cũ TRƯỚC khi xoá,
+     * để không có đường nào chạm vào widget đã bị xoá. */
+    for (int i = 0; i < SENSOR_MODEL_COUNT; i++) {
+        s_arcs[i].arc = NULL;
+    }
+    markers_reset();
+
+    lv_obj_clean(s_center_canvas);
+    canvas_populate(s_center_canvas);
+
+    /* Áp lại trạng thái cảm biến hiện có (cung mới ra đời không có dữ liệu): cảm biến cũ/mất kết nối
+     * thì xám "no data"; còn lại tô theo zone và đặt marker. Không phụ thuộc khung ESP-NOW kế tiếp. */
+    sensor_reading_t readings[SENSOR_MODEL_COUNT];
+    sensor_model_get_all(readings);
+    for (int i = 0; i < SENSOR_MODEL_COUNT; i++) {
+        if (s_arcs[i].arc == NULL) {
+            continue;
+        }
+        if (readings[i].is_stale) {
+            arc_set_nodata(&s_arcs[i]);
+        } else {
+            arc_set_zone(&s_arcs[i], hazard_classify(readings[i].distance_cm));
+            marker_update((uint8_t)i, readings[i].distance_cm);
+        }
+    }
 }
 
 lv_obj_t *build_right_sidebar(lv_obj_t *parent)
@@ -294,26 +332,36 @@ lv_obj_t *build_right_sidebar(lv_obj_t *parent)
 
 /* ------------------------------- tabs ------------------------------------ */
 
-static void set_active_tab(bool collision)
+static void set_active_tab(lv_obj_t *page)
 {
-    if (s_page_collision) lv_obj_add_flag(s_page_collision, LV_OBJ_FLAG_HIDDEN);
-    if (s_page_system) lv_obj_add_flag(s_page_system, LV_OBJ_FLAG_HIDDEN);
-
-    if (collision && s_page_collision) {
-        lv_obj_remove_flag(s_page_collision, LV_OBJ_FLAG_HIDDEN);
-    } else if (!collision && s_page_system) {
-        lv_obj_remove_flag(s_page_system, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_t *const pages[] = { s_page_collision, s_page_system, s_page_setup };
+    for (size_t i = 0; i < sizeof(pages) / sizeof(pages[0]); i++) {
+        if (pages[i] == NULL) {
+            continue;
+        }
+        if (pages[i] == page) {
+            lv_obj_remove_flag(pages[i], LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_add_flag(pages[i], LV_OBJ_FLAG_HIDDEN);
+        }
     }
 }
 
 void tab_collision_cb(lv_event_t *e)
 {
     (void)e;
-    set_active_tab(true);
+    set_active_tab(s_page_collision);
 }
 
 void tab_system_cb(lv_event_t *e)
 {
     (void)e;
-    set_active_tab(false);
+    set_active_tab(s_page_system);
+}
+
+void tab_setup_cb(lv_event_t *e)
+{
+    (void)e;
+    setup_page_refresh();
+    set_active_tab(s_page_setup);
 }

@@ -24,6 +24,7 @@ typedef struct {
     int32_t scale_num, scale_den;                  /* px = mm * scale_num / scale_den (scale_den = 10000) */
     int16_t body_x, body_y, body_w, body_h;        /* thân xe (px) trong canvas */
     int16_t cab_h;                                 /* chiều cao cabin (px), tính từ đầu xe */
+    int16_t front_axle_y, rear_axle_y;             /* tâm trục trước/sau (px TUYỆT ĐỐI trong canvas, cùng hệ với sensor_px) */
     vl_point_t sensor_px[ESPNOW_SENSOR_SLOT_COUNT];
     int16_t sensor_angle_deg[ESPNOW_SENSOR_SLOT_COUNT];
 } vehicle_layout_t;

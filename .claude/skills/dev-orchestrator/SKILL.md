@@ -13,6 +13,7 @@ deterministic, atomic implementation tasks that a Worker Agent can complete in a
 
 ## Core Rules (non-negotiable)
 
+
 1. **Atomicity** — each sub-task touches as few files as possible (ideally 1–3) and is
    completion-testable in isolation. If a task needs 6 files, it is two tasks.
 2. **Context minimization** — never dump the whole codebase on a Worker. Give only the file

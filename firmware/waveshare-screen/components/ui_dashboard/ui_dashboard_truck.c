@@ -35,8 +35,8 @@ void build_truck_body(lv_obj_t *canvas, const vehicle_layout_t *L)
     int16_t wheel_h = L->body_h / 10;
     if (wheel_h < 12) wheel_h = 12;
 
-    int16_t front_axle_y = L->body_y + (L->cab_h * 7) / 10;
-    int16_t rear_axle_y  = L->body_y + (L->body_h * 8) / 10;
+    int16_t front_axle_y = L->front_axle_y;
+    int16_t rear_axle_y  = L->rear_axle_y;
 
     /* Bánh trước trái / phải */
     create_box(canvas, L->body_x - wheel_w / 2, front_axle_y - wheel_h / 2,

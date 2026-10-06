@@ -1,0 +1,292 @@
+{
+  "project_name": "vehicle-profile (T4.1a + T4.1b: hồ sơ xe, 3 hồ sơ, màn chọn, lưu NVS)",
+  "total_steps": 18,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Build: GLOB nguồn ui_dashboard/vehicle_profile, khỏi sửa CMake mỗi file mới",
+      "target_files": [
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt",
+        "firmware/waveshare-screen/components/ui_dashboard/CMakeLists.txt",
+        "firmware/waveshare-screen/components/vehicle_profile/CMakeLists.txt"
+      ],
+      "prerequisites": [],
+      "objective": "Thay danh sách nguồn liệt kê tay bằng file(GLOB ... CONFIGURE_DEPENDS): host_sim/CMakeLists.txt gom ${UI_DASH_SRC_DIR}/ui_dashboard*.c (thay 5 dòng hiện có trong umt_dash_sim) và VEHICLE_PROFILE_SRCS = components/vehicle_profile/vehicle_*.c; hai CMakeLists của component ESP-IDF dùng GLOB RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} cho ui_dashboard*.c và vehicle_*.c rồi truyền ${SRCS} vào idf_component_register (giữ nguyên INCLUDE_DIRS và REQUIRES). Lý do: các step sau thêm ≥5 file .c mới; không có bước này mỗi step phải sửa thêm 2 CMakeLists và vượt giới hạn 3 file. Không đổi hành vi build.",
+      "definition_of_done": "Tập file biên dịch không đổi: ui_dashboard còn đúng 5 .o và vehicle_profile đúng 2 .o trong .pio/build/yolo_uno/components/; host_sim configure + build + ctest pass toàn bộ; pio run -e yolo_uno SUCCESS; flash size không đổi quá 64 B so với trước (31,8% / 1.311.361 B).",
+      "verification_command": "cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "medium",
+      "notes": "Rủi ro: PlatformIO/ESP-IDF cache CMake nên có thể không thấy file mới; nếu vậy chạy pio run -e yolo_uno -t clean rồi build lại và ghi vào báo cáo. Nếu GLOB trong component ESP-IDF không chạy ổn định thì DỪNG và báo lại, không tự đổi sang cách khác."
+    },
+    {
+      "step_id": 2,
+      "task_title": "vehicle_profile: thêm id + vị trí trục bánh vào struct, validate, test",
+      "target_files": [
+        "firmware/waveshare-screen/components/vehicle_profile/include/vehicle_profile.h",
+        "firmware/waveshare-screen/components/vehicle_profile/vehicle_profile.c",
+        "firmware/waveshare-screen/host_sim/tests/test_vehicle_layout.c"
+      ],
+      "prerequisites": [],
+      "objective": "Thêm vào vehicle_profile_t: uint8_t id (khoá ổn định dùng cho NVS, KHÔNG đổi khi thêm hồ sơ, 0 là không hợp lệ), uint16_t front_axle_mm (từ ĐẦU xe tới tâm trục trước, tức phần nhô trước) và uint16_t wheelbase_mm (chiều dài cơ sở, đúng đại lượng hãng công bố; trục sau nằm ở front_axle_mm + wheelbase_mm tính từ đầu xe). Hồ sơ EX8 TẠM giữ: id=1, front_axle_mm=1400, wheelbase_mm=5000 — cho trục sau ở 6400 mm, đúng vị trí bánh đang vẽ hôm nay (70% chiều cao cabin, 80% chiều dài thân) nên hình không đổi ở step 4; số chiều dài cơ sở thật 3850 của hãng sẽ vào ở step 16. Ghi chú PLACEHOLDER như các số khác của EX8. vehicle_profile_validate() thêm: name != NULL, id != 0, front_axle_mm > 0, wheelbase_mm > 0, front_axle_mm + wheelbase_mm < length_mm. Cập nhật comment đầu header. Test KHÔNG ghim số cụ thể của EX8 (để không vỡ khi step 16 đổi số đo): thêm CHECK validate==false cho name NULL, id 0, front_axle_mm 0, wheelbase_mm 0, front+wheelbase >= length; validate==true cho hồ sơ active.",
+      "definition_of_done": "vehicle_layout_tests in 'Result: N passed, 0 failed' với N >= 46 (40 cũ + >= 6 mới); thử phá cố ý (bỏ kiểm front_axle_mm + wheelbase_mm < length_mm, hoặc đổi id != 0 thành id >= 0) thì suite FAIL, rồi hoàn lại và PASS.",
+      "verification_command": "cmake --build build/host_sim --target vehicle_layout_tests && build/host_sim/vehicle_layout_tests",
+      "risk": "low"
+    },
+    {
+      "step_id": 3,
+      "task_title": "vehicle_layout: quy đổi trục bánh mm sang px trong layout + test",
+      "target_files": [
+        "firmware/waveshare-screen/components/vehicle_profile/include/vehicle_layout.h",
+        "firmware/waveshare-screen/components/vehicle_profile/vehicle_layout.c",
+        "firmware/waveshare-screen/host_sim/tests/test_vehicle_layout.c"
+      ],
+      "prerequisites": [
+        2
+      ],
+      "objective": "Thêm vào vehicle_layout_t: int16_t front_axle_y, rear_axle_y (px TUYỆT ĐỐI trong canvas, cùng hệ với sensor_px; đầu xe ở trên). front_axle_y = body_y + làm tròn(front_axle_mm * scale_num / scale_den); rear_axle_y = body_y + làm tròn((front_axle_mm + wheelbase_mm) * scale_num / scale_den) (cộng mm trước rồi mới đổi sang px để không cộng dồn sai số làm tròn), dùng cùng kiểu làm tròn số nguyên với sensor_px. vehicle_layout_compute() điền hai trường này. Test (không ghim số cụ thể của EX8): với hồ sơ active, canvas 440x440 margin 50: front_axle_y == body_y + round(front_axle_mm*scale) (±1); rear_axle_y - front_axle_y == round(wheelbase_mm*scale) (±1); cả hai nằm trong [body_y, body_y+body_h]; profile giả đổi front_axle_mm/wheelbase_mm thì giá trị đổi theo.",
+      "definition_of_done": "vehicle_layout_tests 0 failed với >= 5 CHECK mới; thử phá cố ý (dùng sai scale cho trục sau, hoặc bỏ cộng front_axle_mm vào trục sau) thì FAIL rồi hoàn lại PASS; không file nào ngoài target_files bị sửa.",
+      "verification_command": "cmake --build build/host_sim --target vehicle_layout_tests && build/host_sim/vehicle_layout_tests",
+      "risk": "low"
+    },
+    {
+      "step_id": 4,
+      "task_title": "ui_dashboard_truck: vẽ bánh theo trục trong layout, bỏ hằng 70%/80%",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_truck.c"
+      ],
+      "prerequisites": [
+        3
+      ],
+      "objective": "Trong build_truck_body() thay front_axle_y = body_y + cab_h*7/10 và rear_axle_y = body_y + body_h*8/10 bằng L->front_axle_y và L->rear_axle_y. Các hằng thẩm mỹ khác (cỡ bánh, gương, cabin 90%) giữ nguyên. Với EX8 placeholder (1400/6400) hình vẽ phải giống hệt trước.",
+      "definition_of_done": "grep không còn '* 7) / 10' và '* 8) / 10' trong file; host_sim build + ctest pass toàn bộ; ảnh chụp sim --scenario normal trước và sau khác nhau không quá 1 px ở vị trí bánh (chụp theo hướng dẫn trong memory windows-dev-env-gotchas: chờ >= 4 s rồi PrintWindow); nếu không chụp được phải ghi rõ, không tuyên bố đã so sánh.",
+      "verification_command": "! grep -nE \"[*] 7[)] / 10|[*] 8[)] / 10\" firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_truck.c && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure",
+      "risk": "low"
+    },
+    {
+      "step_id": 5,
+      "task_title": "vehicle_profile: registry 3 hồ sơ, set_active (copy), test",
+      "target_files": [
+        "firmware/waveshare-screen/components/vehicle_profile/include/vehicle_profile.h",
+        "firmware/waveshare-screen/components/vehicle_profile/vehicle_profile.c",
+        "firmware/waveshare-screen/host_sim/tests/test_vehicle_layout.c"
+      ],
+      "prerequisites": [
+        2
+      ],
+      "objective": "API mới trong vehicle_profile.h: size_t vehicle_profile_count(void); const vehicle_profile_t *vehicle_profile_get(size_t index); const vehicle_profile_t *vehicle_profile_find(uint8_t id) (NULL nếu không có); bool vehicle_profile_set_active(const vehicle_profile_t *p) (validate rồi COPY vào bộ nhớ trong; false thì giữ nguyên). vehicle_profile_active() trả con trỏ ỔN ĐỊNH tới bản copy đó, mặc định = EX8. Mọi truy cập từ LVGL task. Thêm 2 hồ sơ PLACEHOLDER, tên ASCII vì font LVGL không có dấu tiếng Việt: id=2 'Small truck (placeholder)' dài 5500 rộng 2100 cabin 1500 front_axle_mm=1100 wheelbase_mm=3200 (trục sau ở 4300); id=3 'Large truck (placeholder)' dài 12000 rộng 2500 cabin 2200 front_axle_mm=1600 wheelbase_mm=8000 (trục sau ở 9600). Cảm biến theo đúng quy tắc của EX8: FRONT (0, +length/2, 270), REAR (0, -length/2, 90), cảm biến bên ở x=±width/2 và y=±(length/2-1500) với góc 180 (trái) / 0 (phải) theo slot LEFT_*/RIGHT_*. Ghi chú rõ các số này là tuỳ ý, không phải xe thật. Test: count==3; id duy nhất; cả 3 validate và vehicle_layout_compute(440,440,50) thành công, sensor_px trong canvas; find(99)==NULL; set_active(profile sai) false và active không đổi; set_active(find(2)) thì active()->id==2 và active() != find(2); cuối test trả active về EX8.",
+      "definition_of_done": "vehicle_layout_tests 0 failed với >= 12 CHECK mới; mỗi hồ sơ có đúng 6 cảm biến khởi tạo bằng designated initializer [ESPNOW_SLOT_*]; _Static_assert số cảm biến vẫn còn; thử phá cố ý (bỏ validate trong set_active) thì FAIL rồi hoàn lại.",
+      "verification_command": "cmake --build build/host_sim --target vehicle_layout_tests && build/host_sim/vehicle_layout_tests",
+      "risk": "low",
+      "notes": "Quyết định đã chốt trong ledger: 2 hồ sơ thêm là placeholder có tên chung, KHÔNG bịa tên xe thật. Người dùng thay số/tên sau (cùng chỗ vehicle_profile.c). Test không được ghim số cụ thể nào của EX8 (số EX8 đổi ở step 16)."
+    },
+    {
+      "step_id": 6,
+      "task_title": "vehicle_settings: codec blob NVS + resolve hồ sơ gốc cộng override",
+      "target_files": [
+        "firmware/waveshare-screen/components/vehicle_profile/include/vehicle_settings.h",
+        "firmware/waveshare-screen/components/vehicle_profile/vehicle_settings.c"
+      ],
+      "prerequisites": [
+        5
+      ],
+      "objective": "C thuần, không include ESP-IDF/LVGL. Header: #define VEHICLE_SETTINGS_BLOB_MAX 64; typedef struct { uint8_t selected_id; uint8_t override_mask; vehicle_sensor_pose_t override_pose[ESPNOW_SENSOR_SLOT_COUNT]; } vehicle_settings_t; void vehicle_settings_defaults(vehicle_settings_t *s) (selected_id=1, mask=0, pose=0); uint16_t vehicle_settings_crc16(const uint8_t *d, size_t n) (CRC16-CCITT, phơi ra để test); size_t vehicle_settings_encode(const vehicle_settings_t *s, uint8_t *buf, size_t cap) (trả 0 nếu NULL, cap quá nhỏ, hoặc mask có bit >= ESPNOW_SENSOR_SLOT_COUNT); bool vehicle_settings_decode(const uint8_t *buf, size_t len, vehicle_settings_t *out) (false khi len sai, magic != 0x5648, version != 1, CRC sai, mask có bit lạ; *out không bị ghi khi false); bool vehicle_settings_resolve(const vehicle_settings_t *s, vehicle_profile_t *out) (hồ sơ gốc = vehicle_profile_find(selected_id), áp override theo mask, rồi vehicle_profile_validate; false nếu id không có hoặc kết quả không hợp lệ). Bố cục blob 43 byte, little-endian ghi từng byte (KHÔNG memcpy struct): magic(2) version(1) selected_id(1) mask(1) 6 pose x (x_mm,y_mm,angle_deg mỗi cái int16) = 36 byte, crc16(2) tính trên 41 byte đầu. Có trường version để T4.1d (hồ sơ người dùng tự tạo) nâng cấp sau.",
+      "definition_of_done": "gcc -std=c11 -Wall -Wextra -Werror -fsyntax-only biên dịch sạch vehicle_settings.c; header không chứa include nào ngoài <stdint.h>, <stdbool.h>, <stddef.h>, vehicle_profile.h; R7 file <= 400 dòng; chưa có test ở bước này (step 7).",
+      "verification_command": "gcc -std=c11 -Wall -Wextra -Werror -fsyntax-only -Ifirmware/shared -Ifirmware/waveshare-screen/components/vehicle_profile/include firmware/waveshare-screen/components/vehicle_profile/vehicle_settings.c",
+      "risk": "low"
+    },
+    {
+      "step_id": 7,
+      "task_title": "Test host cho vehicle_settings codec và resolve",
+      "target_files": [
+        "firmware/waveshare-screen/host_sim/tests/test_vehicle_settings.c",
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt"
+      ],
+      "prerequisites": [
+        1,
+        6
+      ],
+      "objective": "Tạo target vehicle_settings_tests (nguồn = ${VEHICLE_PROFILE_SRCS} + tests/test_vehicle_settings.c, include ${VEHICLE_PROFILE_INC} và ${SHARED_INC}, c_std_11, link m khi không WIN32) và add_test(NAME vehicle_settings_tests ...). Test: roundtrip defaults và roundtrip có override; lật từng byte một trong 43 byte thì decode==false (vòng lặp); len 42 và 44 thì false; sửa version (tự tính lại CRC bằng vehicle_settings_crc16) thì false; mask bit 6 hoặc 7 (tự tính lại CRC) thì false; decode false không ghi vào out; encode với cap 42 trả 0; resolve: id=2 + override slot FRONT thì sensors[FRONT] == override còn 5 slot kia == hồ sơ gốc; id=99 thì false; override có x ngoài bbox thì false.",
+      "definition_of_done": "ctest -R vehicle_ chạy cả vehicle_layout_tests và vehicle_settings_tests, đều pass; vehicle_settings_tests in 'Result: N passed, 0 failed' với N >= 50 (vòng lật byte đóng góp 43); thử phá cố ý (bỏ kiểm CRC trong decode) thì FAIL rồi hoàn lại.",
+      "verification_command": "cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim && ctest --test-dir build/host_sim -R vehicle_ --output-on-failure",
+      "risk": "low"
+    },
+    {
+      "step_id": 8,
+      "task_title": "vehicle_settings: init/select qua store ops, nạp lỗi thì về EX8, test",
+      "target_files": [
+        "firmware/waveshare-screen/components/vehicle_profile/include/vehicle_settings.h",
+        "firmware/waveshare-screen/components/vehicle_profile/vehicle_settings.c",
+        "firmware/waveshare-screen/host_sim/tests/test_vehicle_settings.c"
+      ],
+      "prerequisites": [
+        7
+      ],
+      "objective": "Thêm (dependency injection, để lõi vẫn host-test được và không dính NVS): typedef struct { bool (*load)(uint8_t *buf, size_t cap, size_t *out_len); bool (*save)(const uint8_t *buf, size_t len); bool (*erase)(void); } vehicle_store_ops_t; void vehicle_settings_init(const vehicle_store_ops_t *ops); const vehicle_settings_t *vehicle_settings_current(void); bool vehicle_settings_select(uint8_t id). init: ops==NULL nghĩa là không lưu; nạp blob -> decode -> resolve -> vehicle_profile_set_active; MỌI lỗi (chưa có dữ liệu, CRC sai, id lạ, resolve sai) thì dùng defaults (EX8), KHÔNG gọi erase, không crash; gọi init nhiều lần được (mỗi lần đặt lại trạng thái RAM). select(id): id không có thì false và không đổi gì; thành công thì selected_id=id, override_mask=0 (đổi hồ sơ xoá toàn bộ override), set_active, save; save thất bại vẫn trả true (đã áp dụng trong RAM) nhưng log cảnh báo qua hàm log yếu có thể rỗng trên host. Test với store giả trong RAM đếm số lần save/erase: init ops rỗng thì active id=1; select(2) thì active id=2 và store giữ blob decode ra selected_id=2; init lại (mô phỏng khởi động lại) thì active id=2; lật 1 byte blob rồi init thì active id=1 và erase_count==0; select(99) thì false và save_count không đổi; ops==NULL thì select(3) vẫn chạy.",
+      "definition_of_done": "vehicle_settings_tests 0 failed với >= 12 CHECK mới; thử phá cố ý (cho init gọi erase khi decode lỗi) thì FAIL rồi hoàn lại.",
+      "verification_command": "cmake --build build/host_sim && ctest --test-dir build/host_sim -R vehicle_ --output-on-failure",
+      "risk": "medium"
+    },
+    {
+      "step_id": 9,
+      "task_title": "Component vehicle_store: adapter NVS cho vehicle_store_ops_t",
+      "target_files": [
+        "firmware/waveshare-screen/components/vehicle_store/CMakeLists.txt",
+        "firmware/waveshare-screen/components/vehicle_store/include/vehicle_store_nvs.h",
+        "firmware/waveshare-screen/components/vehicle_store/vehicle_store_nvs.c"
+      ],
+      "prerequisites": [
+        8
+      ],
+      "objective": "Public: const vehicle_store_ops_t *vehicle_store_nvs_ops(void). Namespace NVS 'vehicle', key 'settings', kiểu blob <= VEHICLE_SETTINGS_BLOB_MAX. load: nvs_open read-only, ESP_ERR_NVS_NOT_FOUND thì trả false không báo lỗi; save: open read-write, set_blob, commit; erase: erase_key + commit. Mọi lỗi khác trả false kèm ESP_LOGW. KHÔNG tự gọi nvs_flash_init (người gọi lo, xem step 10) và KHÔNG xoá phân vùng NVS. CMakeLists: idf_component_register(SRCS vehicle_store_nvs.c INCLUDE_DIRS include REQUIRES vehicle_profile nvs_flash).",
+      "definition_of_done": "pio run -e yolo_uno SUCCESS; file .pio/build/yolo_uno/components/vehicle_store/vehicle_store_nvs.c.o tồn tại (module được build — R6); arch_guard exit 0; flash không tăng quá 4 KB.",
+      "verification_command": "cd firmware/waveshare-screen && pio run -e yolo_uno && test -f .pio/build/yolo_uno/components/vehicle_store/vehicle_store_nvs.c.o && cd ../.. && PYTHONUTF8=1 python tools/guard/arch_guard.py",
+      "risk": "medium",
+      "notes": "Rủi ro: component mới trong thư mục components/ có thể không được PlatformIO nhận nếu CMake không chạy lại; chạy pio run -e yolo_uno -t clean rồi build lại và báo cáo nếu phải làm vậy."
+    },
+    {
+      "step_id": 10,
+      "task_title": "main.c: nvs_flash_init sớm + vehicle_settings_init trước ui_dashboard_init",
+      "target_files": [
+        "firmware/waveshare-screen/src/main.c",
+        "firmware/waveshare-screen/src/CMakeLists.txt"
+      ],
+      "prerequisites": [
+        9
+      ],
+      "objective": "Hiện ui_dashboard_init() (main.c khoảng dòng 289) chạy TRƯỚC coreiot_client_init() (khoảng dòng 305) — nơi duy nhất gọi nvs_flash_init() — nên nếu chỉ nạp hồ sơ lúc dựng UI thì NVS chưa sẵn sàng. Đầu app_main(): nvs_flash_init() với cùng mẫu thử lại (ESP_ERR_NVS_NO_FREE_PAGES / NEW_VERSION_FOUND thì nvs_flash_erase rồi init lại) như components/coreiot_client/coreiot_client.c dòng 263-266, ESP_ERROR_CHECK; ngay sau đó vehicle_settings_init(vehicle_store_nvs_ops()) và ESP_LOGI 'Vehicle profile: id=%u name=%s'. KHÔNG sửa coreiot_client.c (lần nvs_flash_init thứ hai của nó phải vô hại — kiểm chứng bằng log boot). src/CMakeLists.txt thêm REQUIRES vehicle_profile vehicle_store.",
+      "definition_of_done": "pio run -e yolo_uno SUCCESS; nạp lên màn Waveshare (dò cổng bằng pyserial, CH343 VID 1A86:55D3, không phụ thuộc số COM); log boot có dòng 'Vehicle profile: id=1' (board mới/NVS trống), không có lỗi nvs_flash_init, không reboot lặp, UI vẫn lên và nhận ESP-NOW như trước. Nếu không có board thì ghi rõ 'chưa kiểm chứng trên phần cứng', không báo PASS.",
+      "verification_command": "cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "medium",
+      "notes": "Đọc log serial không reset board: pyserial với dtr=False, rts=False TRƯỚC khi open (memory windows-dev-env-gotchas). PlatformIO có thể chọn nhầm cổng sensor-node nên luôn truyền --upload-port."
+    },
+    {
+      "step_id": 11,
+      "task_title": "host_sim: tham số --profile <id> cho trình mô phỏng",
+      "target_files": [
+        "firmware/waveshare-screen/host_sim/main.c"
+      ],
+      "prerequisites": [
+        8
+      ],
+      "objective": "Thêm --profile <id> vào CLI umt_dash_sim và dòng Usage/--help: gọi vehicle_settings_init(NULL) rồi, nếu có tham số, vehicle_settings_select(id) TRƯỚC ui_dashboard_init(); id không tồn tại thì in lỗi lên stderr và thoát mã 2. Không có tham số thì vẫn gọi vehicle_settings_init(NULL) để sim giống firmware. Dùng để chụp ảnh từng hồ sơ ở các step sau.",
+      "definition_of_done": "umt_dash_sim --profile 2 --scenario approach --exit-after 2 --interval 200 thoát 0; --profile 99 thoát mã khác 0 và in lỗi; ctest toàn bộ vẫn pass; ảnh chụp --profile 2 và --profile 3 cho thấy thân xe có tỷ lệ khác EX8.",
+      "verification_command": "cmake --build build/host_sim && build/host_sim/umt_dash_sim --profile 2 --scenario approach --exit-after 2 --interval 200 && ! build/host_sim/umt_dash_sim --profile 99 --exit-after 1 && ctest --test-dir build/host_sim --output-on-failure",
+      "risk": "low"
+    },
+    {
+      "step_id": 12,
+      "task_title": "ui_dashboard: tách mute và cache hiển thị sang ui_dashboard_actions.c",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_actions.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h"
+      ],
+      "prerequisites": [
+        1
+      ],
+      "objective": "ui_dashboard.c đang 399/400 dòng (R7) nên không thể thêm trang SETUP. Chuyển nguyên văn sang file mới ui_dashboard_actions.c: s_mute_cb, ui_dashboard_set_mute_cb(), update_mute_button_visual(), mute_btn_cb(), và hai mảng s_last_displayed_dist / s_last_displayed_zone (đổi từ static sang extern khai báo trong ui_dashboard_private.h). Thêm void display_cache_reset(void) (đặt dist=0xFFFF, zone=-1 cho mọi slot) và để ui_dashboard_init() gọi nó thay vòng lặp khởi tạo hiện có. Không đổi hành vi.",
+      "definition_of_done": "ui_dashboard.c <= 360 dòng; ui_dashboard_actions.c tồn tại; grep không còn định nghĩa mute_btn_cb trong ui_dashboard.c; host_sim build + ctest pass; arch_guard exit 0 (UI vẫn không nhắc espnow_receiver); pio run -e yolo_uno SUCCESS; harness tạm không commit: gửi LV_EVENT_CLICKED vào nút Mute hai lần thì callback nhận muted=true rồi false như trước.",
+      "verification_command": "test $(wc -l < firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c) -le 360 && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && PYTHONUTF8=1 python tools/guard/arch_guard.py && cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "medium"
+    },
+    {
+      "step_id": 13,
+      "task_title": "ui_dashboard: dựng lại canvas xe khi đổi hồ sơ (rebuild_vehicle)",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_marker.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h"
+      ],
+      "prerequisites": [
+        4,
+        12
+      ],
+      "objective": "Hiện build_center_canvas() chỉ chạy một lần và s_layout/markers giữ con trỏ widget nên không đổi hồ sơ lúc chạy được. Tách phần dựng nội dung canvas thành hàm populate dùng lại được, lưu canvas vào biến static; thêm vào ui_dashboard_private.h: void ui_dashboard_rebuild_vehicle(void) — gọi từ LVGL task: với mỗi s_arcs[i] nếu blink_running thì lv_anim_delete(arc, blink_anim_cb) và đặt blink_running=false; lv_obj_clean(canvas); dựng lại thân xe + 6 cung + markers_build() theo vehicle_profile_active(); display_cache_reset() để khung ESP-NOW kế tiếp vẽ lại màu cung (không có bước này, cung giữ trạng thái không dữ liệu nếu khoảng cách không đổi). markers_build() phải đặt lại s_markers và s_marker_layout (dot cũ đã bị lv_obj_clean xoá). Kích thước canvas 440x440, lề 50 giữ nguyên hằng hiện có.",
+      "definition_of_done": "Harness tạm KHÔNG commit trong sim: sau init gọi luân phiên vehicle_settings_select(1/2/3) + ui_dashboard_rebuild_vehicle() 200 lần: không crash/assert, số con của canvas bằng cùng một giá trị cho mỗi hồ sơ ở mọi lần lặp, lv_mem_monitor free sau vòng lặp >= free trước - 1 KB (nếu lv_mem_monitor không dùng được thì nêu rõ và chỉ đo số con); ảnh chụp sim cho thấy hình xe đổi theo hồ sơ và cung đúng màu sau rebuild khi chạy --scenario approach; host_sim build + ctest pass; pio run -e yolo_uno SUCCESS.",
+      "verification_command": "cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "high",
+      "notes": "Bước rủi ro nhất của roadmap: xoá/dựng widget trong lúc LVGL còn anim và cache tham chiếu. Nếu không đạt DoD sau hai lần thử thì DỪNG, ghi BLOCKED và đề xuất phương án dự phòng (lưu NVS rồi esp_restart(), áp dụng ở lần khởi động kế) — không tự đổi thiết kế."
+    },
+    {
+      "step_id": 14,
+      "task_title": "ui_dashboard: trang SETUP chọn hồ sơ xe (danh sách hồ sơ)",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_setup.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h"
+      ],
+      "prerequisites": [
+        8,
+        13
+      ],
+      "objective": "Tạo ui_dashboard_setup.c (đã được GLOB ở step 1). Khai báo trong private.h: lv_obj_t *build_setup_page(lv_obj_t *parent); void setup_page_refresh(void). Trang có tiêu đề, một hàng nút cho mỗi vehicle_profile_get(i) hiển thị 'name  LxW mm' (chữ ASCII), hàng hồ sơ đang dùng (so id với vehicle_profile_active()->id) được tô nổi, nhãn 'Active: <name>'. Bấm hàng: nếu vehicle_settings_select(id) trả true thì ui_dashboard_rebuild_vehicle() rồi setup_page_refresh(). Không include espnow_receiver (arch_guard B1). Trang chưa được nối vào header ở step này (step 15).",
+      "definition_of_done": "File <= 400 dòng; host_sim build + ctest pass; pio run -e yolo_uno SUCCESS; arch_guard exit 0; mọi chuỗi hiển thị là ASCII (grep không thấy ký tự > 0x7F trong chuỗi UI).",
+      "verification_command": "test $(wc -l < firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_setup.c) -le 400 && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && PYTHONUTF8=1 python tools/guard/arch_guard.py && cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "medium"
+    },
+    {
+      "step_id": 15,
+      "task_title": "ui_dashboard: nối tab SETUP vào header và chuyển trang, nghiệm thu NVS",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h"
+      ],
+      "prerequisites": [
+        12,
+        13,
+        14
+      ],
+      "objective": "Header có 3 tab: COLLISION / SYSTEM / SETUP (cỡ và vị trí chỉnh để không đè nhãn ESP-NOW/WiFi/MQTT bên phải; hiện đã có lỗi chồng chữ ESP-NOW ở header, đừng làm xấu thêm). Thêm s_tab_btn_setup, s_page_setup (tạo trong ui_dashboard_init() bằng build_setup_page(content), ẩn mặc định), tab_setup_cb. Đổi set_active_tab(bool collision) thành hàm nhận trang (enum 3 giá trị) để ẩn/hiện đúng 3 trang. ui_dashboard.c giữ <= 400 dòng.",
+      "definition_of_done": "Sim: harness tạm gửi LV_EVENT_CLICKED vào tab SETUP thì trang SETUP hiện còn COLLISION/SYSTEM ẩn, bấm lại COLLISION thì ngược lại; bấm hàng hồ sơ 3 thì canvas đổi sang xe lớn; ảnh chụp sim 3 tab không đè nhãn bên phải. Phần cứng (tiêu chí nghiệm thu T4.1b): nạp lên màn Waveshare, chạm SETUP, chọn hồ sơ 3, bấm reset board thì sau khởi động hồ sơ 3 vẫn đang dùng (log 'Vehicle profile: id=3'); chọn hồ sơ 1 rồi reset thì quay lại EX8. Nếu không có board thì ghi rõ chưa kiểm chứng NVS trên phần cứng. host_sim ctest pass; pio run SUCCESS; arch_guard OK; ui_dashboard.c <= 400 dòng.",
+      "verification_command": "test $(wc -l < firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c) -le 400 && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && PYTHONUTF8=1 python tools/guard/arch_guard.py && cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "medium"
+    },
+    {
+      "step_id": 16,
+      "task_title": "EX8: áp số đo công bố của hãng (dài 7370, rộng 2028, cơ sở 3850)",
+      "target_files": [
+        "firmware/waveshare-screen/components/vehicle_profile/vehicle_profile.c"
+      ],
+      "prerequisites": [
+        5
+      ],
+      "objective": "Nguồn: bảng thông số kỹ thuật Hyundai New Mighty EX8 do người dùng cung cấp ngày 2026-10-05 (ảnh chụp, chưa rõ trang gốc): kích thước tổng thể 7370 x 2028 x 2310 mm (DxRxC), chiều dài cơ sở 3850 mm, vết bánh trước/sau 1750/1680 mm, khoảng sáng gầm 220 mm; kích thước thùng hàng KHÔNG có trong bảng. Trong s_profile_ex8 đặt length_mm=7370, width_mm=2028, wheelbase_mm=3850 và ghi nguồn trong comment. Các trường CHƯA có số thật vẫn giữ nhãn PLACEHOLDER: cab_length_mm, front_axle_mm và toạ độ + góc 6 cảm biến. Vì chiều dài đổi nên toạ độ cảm biến placeholder phải tính lại theo đúng quy tắc cũ để validate vẫn đúng: FRONT (0, +3685, 270), REAR (0, -3685, 90), cảm biến bên x=±1014, y=±2185 (cách đầu/đuôi xe 1500 mm), góc 180 (trái) / 0 (phải). Không đổi bất kỳ file nào khác; không suy diễn số đo nào ngoài bảng.",
+      "definition_of_done": "grep -nE '7370|2028|3850' vehicle_profile.c ra đúng 3 giá trị trong khối s_profile_ex8; khối này còn nhãn PLACEHOLDER cho cab_length_mm, front_axle_mm và cảm biến; host_sim ctest pass toàn bộ (vehicle_profile_validate(EX8)==true, layout compute thành công, test aspect ratio ±2% vẫn đúng với tỷ lệ 2028/7370); pio run -e yolo_uno SUCCESS; ảnh chụp sim --scenario normal cho thấy thân xe thon hơn bản cũ (tỷ lệ rộng/dài ≈ 0,275 so với 0,3125) và bánh sau cách bánh trước ≈ 3850 mm theo tỷ lệ.",
+      "verification_command": "grep -cE '7370|2028|3850' firmware/waveshare-screen/components/vehicle_profile/vehicle_profile.c && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "low",
+      "notes": "Làm được bất cứ lúc nào sau step 5. Chiều dài tổng 7370 có thể phụ thuộc loại thùng; nhờ người dùng xác nhận xe thật dùng đúng cấu hình này. Vết bánh 1750/1680 chưa dùng (UI vẽ bánh ở mép thân); nếu muốn vẽ chính xác thì thêm trường track_front_mm/track_rear_mm ở một task riêng."
+    },
+    {
+      "step_id": 17,
+      "task_title": "Log T4.1a/T4.1b + cập nhật CHECKLIST và kiểm tra toàn bộ",
+      "target_files": [
+        "docs/logs/WAVESHARE_SCREEN_VEHICLE_PROFILE_LOG.md",
+        "docs/CHECKLIST.md"
+      ],
+      "prerequisites": [
+        15,
+        16
+      ],
+      "objective": "Viết log theo AGENTS.md (mục tiêu, file đã tạo/sửa kèm số dòng đo bằng wc -l, kết quả kiểm thử đo lại, hướng dẫn chạy sim --profile, hạn chế còn lại, mọi sai khác so với danh sách file). Ghi rõ: chiều dài, chiều rộng, chiều dài cơ sở của EX8 lấy từ bảng thông số hãng (nêu nguồn); cab_length_mm, front_axle_mm, toạ độ + góc 6 cảm biến và cả hai hồ sơ thêm là PLACEHOLDER; kiểm chứng NVS trên phần cứng đã làm hay chưa. CHECKLIST: T4.1a giữ 🟡 (cấu trúc xong, 3 số đo hãng đã có, còn cabin/phần nhô trước/vị trí cảm biến placeholder — chỉ ✅ khi step 18 xong), T4.1b ✅ chỉ khi đã kiểm chứng reset trên board (nếu chưa thì 🟡 kèm lý do), cập nhật ngày và đếm lại bảng Tổng hợp nhanh từ các dòng chi tiết. Không tuyên bố điều chưa đo.",
+      "definition_of_done": "Log tồn tại và chứa chuỗi 'placeholder' và 'EX8'; CHECKLIST không ghi T4.1b là ❌; mọi lệnh kiểm tra chạy exit 0 (build + ctest + 3 guard + pio run); mọi con số trong log khớp lần chạy lại.",
+      "verification_command": "grep -q placeholder docs/logs/WAVESHARE_SCREEN_VEHICLE_PROFILE_LOG.md && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && PYTHONUTF8=1 python tools/guard/scan_secrets.py && PYTHONUTF8=1 python tools/guard/arch_guard.py && PYTHONUTF8=1 python -m pytest tools/guard/test_guard.py -q && cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "low"
+    },
+    {
+      "step_id": 18,
+      "task_title": "BLOCKED: số đo cabin, phần nhô trước, vị trí/góc 6 cảm biến của xe thật",
+      "target_files": [
+        "firmware/waveshare-screen/components/vehicle_profile/vehicle_profile.c",
+        "docs/logs/WAVESHARE_SCREEN_VEHICLE_PROFILE_LOG.md",
+        "docs/CHECKLIST.md"
+      ],
+      "prerequisites": [
+        17
+      ],
+      "objective": "CHỜ người dùng đo trên xe thật những số bảng hãng KHÔNG có: (1) chiều dài cabin tính từ đầu xe -> cab_length_mm; (2) khoảng cách từ đầu xe tới tâm trục trước -> front_axle_mm; (3) vị trí (x,y) so với tâm thân xe và hướng búp của từng cảm biến trong 6 slot FRONT/REAR/LEFT_FRONT/LEFT_REAR/RIGHT_FRONT/RIGHT_REAR đúng như đang lắp; (4) XÁC NHẬN hướng 4 cảm biến bên: docs/INSTALLATION_SENSOR_NODE.md mục 4 và HARDWARE_INSTALLATION.md mục 5 ghi 'nghiêng ngoài ~30°' còn hồ sơ placeholder đặt thẳng ngang (180° trái, 0° phải) — phải biết 30° là so với trục dọc xe hay so với phương ngang để đổi sang quy ước góc LVGL (0 phải, 90 đuôi, 180 trái, 270 đầu); (5) tên chính xác của biến thể xe để xác nhận 'Hyundai Mighty EX8'. Thay vào s_profile_ex8 (nơi duy nhất), bỏ nhãn PLACEHOLDER của EX8 khi đủ số, giữ nhãn cho hai hồ sơ còn lại. Tuyệt đối không tự suy diễn số đo.",
+      "definition_of_done": "vehicle_layout_tests và vehicle_settings_tests pass với số đo thật (validate==true); grep 'PLACEHOLDER' trong khối s_profile_ex8 = 0; log và CHECKLIST ghi nguồn của từng số đo; CHECKLIST T4.1a thành ✅; ảnh chụp sim cho thấy cung quét 4 cảm biến bên hướng đúng như đã lắp trên xe.",
+      "verification_command": "cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure && cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "low",
+      "notes": "Có thể làm bất cứ lúc nào sau step 16 nếu người dùng đã có số đo; đặt cuối vì không chặn các step khác."
+    }
+  ]
+}

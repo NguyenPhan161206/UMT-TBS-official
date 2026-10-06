@@ -48,6 +48,13 @@ bool vehicle_layout_compute(const vehicle_profile_t *p, int16_t canvas_w, int16_
     out->body_x = (int16_t)(((int32_t)canvas_w - (int32_t)out->body_w) / 2);
     out->body_y = (int16_t)(((int32_t)canvas_h - (int32_t)out->body_h) / 2);
 
+    /* Trục bánh: đo từ đầu xe (mm) → px, làm tròn cùng kiểu với sensor_px. Trục sau cộng mm trước
+     * rồi mới đổi sang px để không cộng dồn sai số làm tròn. */
+    int32_t front_axle_mm = (int32_t)p->front_axle_mm;
+    int32_t rear_axle_mm  = front_axle_mm + (int32_t)p->wheelbase_mm;
+    out->front_axle_y = (int16_t)(out->body_y + (front_axle_mm * scale_num + scale_den / 2) / scale_den);
+    out->rear_axle_y  = (int16_t)(out->body_y + (rear_axle_mm * scale_num + scale_den / 2) / scale_den);
+
     int16_t cx = (int16_t)(canvas_w / 2);
     int16_t cy = (int16_t)(canvas_h / 2);
 

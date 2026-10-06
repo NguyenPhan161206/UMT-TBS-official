@@ -1,0 +1,263 @@
+--- a/AGENTS.template.md
++++ b/AGENTS.template.md
+@@ -39,4 +39,4 @@
+ pio run -e yolo_uno_coreiot                          # Build có CoreIoT (bắt buộc CI)
+-pio run -e yolo_uno -t upload --upload-port /dev/ttyACM0
+-pio device monitor -p /dev/ttyACM0 -b 115200
++pio run -e yolo_uno -t upload --upload-port <SENSOR_NODE_PORT>
++pio device monitor -p <SENSOR_NODE_PORT> -b 115200
+ ```
+@@ -47,4 +47,4 @@
+ pio run -e yolo_uno
+-pio run -e yolo_uno -t upload --upload-port /dev/ttyACM1
+-pio device monitor -p /dev/ttyACM1 -b 115200
++pio run -e yolo_uno -t upload --upload-port <WAVESHARE_SCREEN_PORT>
++pio device monitor -p <WAVESHARE_SCREEN_PORT> -b 115200
+ ```
+@@ -60,6 +60,6 @@
+ python3 -m pytest tools/guard/test_guard.py -q      # unit test các guard
+-cmake -S firmware/waveshare-screen/host_sim -B /tmp/host_sim && cmake --build /tmp/host_sim && /tmp/host_sim/hazard_core_tests   # host test hazard_core (T1.3)
++cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure   # mọi host test waveshare-screen (hazard_core, hồ sơ xe, sim UI)
+ ```
+-Unit test host (DistanceFilter, thresholds) nằm ở `firmware/sensor-node/test/` và
+-`firmware/waveshare-screen/test/` (làm ở giai đoạn firmware).
++Unit test host: sensor-node ở `firmware/sensor-node/test/` (Unity — `cd firmware/sensor-node && pio test -e native`);
++waveshare-screen ở `firmware/waveshare-screen/host_sim/tests/` (chạy bằng lệnh ctest ở trên).
+ 
+@@ -68,3 +68,3 @@
+ - **Telemetry Topic**: `v1/devices/me/telemetry`
+-- **Script Test**: `tools/test_mqtt_coreiot.py` (chưa port sang V2 — xem roadmap)
++- **Script Test**: `tools/test_mqtt_coreiot.py` (schema V2; `--scenario <tên>` phát kịch bản từ `tools/scenarios.py`)
+ ```bash
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -39,4 +39,4 @@
+ pio run -e yolo_uno_coreiot                          # Build có CoreIoT (bắt buộc CI)
+-pio run -e yolo_uno -t upload --upload-port /dev/ttyACM0
+-pio device monitor -p /dev/ttyACM0 -b 115200
++pio run -e yolo_uno -t upload --upload-port COM4
++pio device monitor -p COM4 -b 115200
+ ```
+@@ -47,4 +47,4 @@
+ pio run -e yolo_uno
+-pio run -e yolo_uno -t upload --upload-port /dev/ttyACM1
+-pio device monitor -p /dev/ttyACM1 -b 115200
++pio run -e yolo_uno -t upload --upload-port COM9
++pio device monitor -p COM9 -b 115200
+ ```
+@@ -60,6 +60,6 @@
+ python3 -m pytest tools/guard/test_guard.py -q      # unit test các guard
+-cmake -S firmware/waveshare-screen/host_sim -B /tmp/host_sim && cmake --build /tmp/host_sim && /tmp/host_sim/hazard_core_tests   # host test hazard_core (T1.3)
++cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure   # mọi host test waveshare-screen (hazard_core, hồ sơ xe, sim UI)
+ ```
+-Unit test host (DistanceFilter, thresholds) nằm ở `firmware/sensor-node/test/` và
+-`firmware/waveshare-screen/test/` (làm ở giai đoạn firmware).
++Unit test host: sensor-node ở `firmware/sensor-node/test/` (Unity — `cd firmware/sensor-node && pio test -e native`);
++waveshare-screen ở `firmware/waveshare-screen/host_sim/tests/` (chạy bằng lệnh ctest ở trên).
+ 
+@@ -68,3 +68,3 @@
+ - **Telemetry Topic**: `v1/devices/me/telemetry`
+-- **Script Test**: `tools/test_mqtt_coreiot.py` (chưa port sang V2 — xem roadmap)
++- **Script Test**: `tools/test_mqtt_coreiot.py` (schema V2; `--scenario <tên>` phát kịch bản từ `tools/scenarios.py`)
+ ```bash
+--- a/.opencode/command/test.md
++++ b/.opencode/command/test.md
+@@ -9,9 +9,11 @@
+   `python3 tools/guard/check_rulechain_thresholds.py`.
+-- **Unit test C++ host** (DistanceFilter, thresholds): tìm trong `firmware/*/test/` — build với g++
+-  thuần (không phụ thuộc Arduino):
++- **Unit test sensor-node** (DistanceFilter, thresholds — Unity, `[env:native]`):
+   ```bash
+-  g++ -std=c++17 -I firmware/shared ... test/<name>.cpp -o /tmp/test_<name> && /tmp/test_<name>
++  cd firmware/sensor-node && pio test -e native
+   ```
+ - **Python**: `python3 -m pytest tools/` (nếu có) hoặc chạy script trực tiếp.
+-- **Mô phỏng LVGL/SDL** (nếu có): chạy binary mô phỏng trên PC.
++- **Host test + mô phỏng LVGL/SDL waveshare-screen** (`host_sim`: hazard_core, hồ sơ xe, kịch bản UI):
++  ```bash
++  cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure
++  ```
+ 
+--- a/.opencode/command/flash.md
++++ b/.opencode/command/flash.md
+@@ -16,2 +16,3 @@
+ > serial log đạt trạng thái mong đợi trong thời gian xác định (ví dụ: `warn_state=1` trong 2 s khi
+-> distance < 50 cm). Trên Windows dùng `build_and_flash.bat flash <COM>`.
+\ No newline at end of file
++> distance < 50 cm). Trên Windows dùng chính lệnh `pio` ở trên với `--upload-port COMx`; `build_and_flash.bat`
++> không nhận tham số (luôn nạp `yolo_uno`, tự dò cổng).
+\ No newline at end of file
+--- a/.opencode/command/build.md
++++ b/.opencode/command/build.md
+@@ -13,4 +13,4 @@
+ 
+-> Nếu PlatformIO chưa cài trên máy: hướng dẫn `pip install platformio`; build xác minh qua CI (B7)
+-> hoặc máy Windows `build_and_flash.bat`.
++> Nếu PlatformIO chưa cài trên máy: hướng dẫn `pip install platformio`; build xác minh qua CI (B7).
++> `build_and_flash.bat` (Windows) nạp luôn lên board sau khi build — không dùng nó chỉ để kiểm build.
+ 
+--- a/.opencode/command/scaffold.md
++++ b/.opencode/command/scaffold.md
+@@ -13,4 +13,4 @@
+ 4. Cài plugin: `cd .opencode && npm install && cd ..`.
+-5. Xác minh config: đọc qua từng file (`opencode.json`, `CONSTITUTION`, `SELFCHECK`, `ROADMAP_CHECKLIST`,
+-   agent, command, plugin) + `python3 tools/guard/scan_secrets.py` exit 0.
++5. Xác minh config: đọc qua từng file (`opencode.json`, `.opencode/docs/CONSTITUTION.md`, skill `selfcheck` và
++   `roadmap_checklist` trong `.agents/skills/`, agent, command, plugin) + `python3 tools/guard/scan_secrets.py` exit 0.
+ 6. Commit đầu tiên (chỉ file cụ thể — không `git add -A`) với message
+--- a/.opencode/command/plan.md
++++ b/.opencode/command/plan.md
+@@ -6,3 +6,3 @@
+ Gọi skill `dev-orchestrator` ở **MODE 1 — Decomposition**. Trước hết đọc:
+-- `AGENTS.md` và gọi skill `roadmap_checklist` (ưu tiên B0–B9)
++- `AGENTS.md` và `docs/CHECKLIST.md` (trạng thái + thứ tự ưu tiên hiện hành)
+ - `.opencode/docs/CONSTITUTION.md` (R1–R12 — DoD phải tôn trọng)
+--- a/.opencode/agent/dev-orchestrator.md
++++ b/.opencode/agent/dev-orchestrator.md
+@@ -16,3 +16,3 @@
+ - `read .claude/skills/dev-orchestrator/references/worker-prompt-template.md` — template prompt Worker MODE 2
+-- `read AGENTS.md` (repo root) và gọi skill `roadmap_checklist` — build commands, cổng `/dev/ttyACM0`/`/dev/ttyACM1`, thứ tự ưu tiên B0–B9
++- `read AGENTS.md` (repo root) — build commands, cổng serial của máy này; `read docs/CHECKLIST.md` — trạng thái + thứ tự ưu tiên hiện hành
+ 
+--- a/.opencode/docs/CONSTITUTION.md
++++ b/.opencode/docs/CONSTITUTION.md
+@@ -50,3 +50,4 @@
+ - **Luật**: `*.c|*.cpp|*.h` (firmware) ≤ 400 dòng/file; nếu vượt → tách theo module/trách nhiệm.
+-- **Kiểm tra**: scan tự động (CI size-gate, B7) + arch-guard review.
++- **Kiểm tra**: `wc -l` khi review + agent arch-guard. Chưa có scan tự động cho mọi file: `arch_guard.py` (B7) chỉ
++  đếm dòng `hazard_core`; CI size-gate (`check_size.py`) đo kích thước `firmware.bin`, không đếm dòng.
+ - **Hành động**: tách file, không xoá trách nhiệm.
+--- a/.agents/skills/roadmap_checklist/SKILL.md
++++ b/.agents/skills/roadmap_checklist/SKILL.md
+@@ -2,3 +2,3 @@
+ name: roadmap_checklist
+-description: Lộ trình chuẩn V2 (B0-B9, T5, CI) và thứ tự ưu tiên. Gọi skill này khi tra cứu tiến độ dự án, phân rã kế hoạch (/plan), hoặc đối chiếu checklist trước khi nhận việc.
++description: Lịch sử dựng repo V2 (B0-B9 — config, shared contract, firmware scaffold, CI, CoreIoT) và các quy ước cố định. Trạng thái và thứ tự ưu tiên hiện hành nằm ở docs/CHECKLIST.md. Gọi skill này khi cần biết một hạng mục B# đã làm gì.
+ ---
+@@ -7,4 +7,4 @@
+ 
+-> Nguồn chuẩn hoá lộ trình. Mọi agent đối chiếu checklist này khi nhận việc. Thứ tự ưu tiên:
+-> **config/enforcement (B0–B1) → contract (B2) → firmware đo được (B3–B5) → CI (B7) → cloud demo (B9)**.
++> Lịch sử giai đoạn dựng repo (B0–B9). **Trạng thái và thứ tự ưu tiên hiện hành: `docs/CHECKLIST.md`**
++> (T0–T5, có ngày audit) — đối chiếu file đó khi nhận việc.
+ 
+@@ -58,6 +58,4 @@
+ ## Thứ tự ưu tiên
+-1. **Config + enforcement** (B0–B1, B6e) — đang thực thi.
+-2. **Đo được & kiểm thử được** (B2–B3 host test) trước khi sửa/feature.
+-3. **CI** (B7) bảo vệ toàn bộ sau khi firmware chạy.
+-4. **Cloud demo** (B9) sau cùng.
++Theo mục *Thứ tự ưu tiên đề xuất* trong `docs/CHECKLIST.md`. Bảng trên là lịch sử; các hạng mục còn 🟡/⏳
++(B0b, B7 protected branch, B9b) chưa được chuyển sang CHECKLIST — kiểm lại trước khi coi là xong.
+ 
+--- a/.agents/skills/cross_device_reconfig/SKILL.md
++++ b/.agents/skills/cross_device_reconfig/SKILL.md
+@@ -51,3 +51,3 @@
+ 4. **Update `AGENTS.md`**:
+-   Replace placeholders `<IDF_PATH>`, `<SHELL_PROFILE_PATH>`, `<PYTHON_VENV_PATH>`, `<SENSOR_NODE_PORT>`, and `<WAVESHARE_SCREEN_PORT>` in `AGENTS.md` with your local values.
++   Replace the placeholders `<SENSOR_NODE_PORT, ...>` and `<WAVESHARE_SCREEN_PORT, ...>` in `AGENTS.md` with the local serial ports (the template has no other `<...>` environment placeholders).
+ 
+@@ -61,3 +61,3 @@
+ - [ ] `AGENTS.md` contains valid, absolute local paths.
+-- [ ] Running project batch scripts (e.g. `firmware/sensor-node/build_and_flash.bat build`) successfully activates ESP-IDF.
++- [ ] `cd firmware/sensor-node && pio run -e yolo_uno` builds successfully. (`build_and_flash.bat` takes no arguments and uploads to the connected board, so it is not a build-only check.)
+ - [ ] `AGENTS.md` is ignored by git (via `.gitignore`), ensuring local changes are not committed to source control.
+--- a/.agents/skills/lvgl_v9_warning_display/SKILL.md
++++ b/.agents/skills/lvgl_v9_warning_display/SKILL.md
+@@ -13,13 +13,6 @@
+ 
+-### 1. Design System & HSL Theme Tokens
+-Enforce a modern dark-mode canvas paired with clear visual alert state tokens:
+-
+-| Token Name | Hex Code | HSL Color | Visual State | Trigger Condition |
+-| :--- | :--- | :--- | :--- | :--- |
+-| `COLOR_BG_DARK` | `#0F172A` | H:222, S:47%, L:11% | Slate Dark Background | Base Layout Canvas |
+-| `COLOR_SURFACE` | `#1E293B` | H:215, S:28%, L:17% | Card / Container Surface | Widget Panels & Tabs |
+-| `COLOR_SAFE` | `#10B981` | H:160, S:84%, L:39% | Emerald Green | Distance > 100 cm |
+-| `COLOR_APPROACHING` | `#F59E0B` | H:38, S:92%, L:50% | Amber Yellow | 50 cm < Distance ≤ 100 cm |
+-| `COLOR_WARNING` | `#F97316` | H:24, S:95%, L:53% | Vivid Orange | 20 cm < Distance ≤ 50 cm |
+-| `COLOR_CRITICAL` | `#EF4444` | H:0, S:84%, L:60% | Flash Crimson Red | Distance ≤ 20 cm |
++### 1. Zones, Thresholds & Colors — read them from the code
++- Zones and thresholds have exactly one source: `firmware/shared/thresholds.h` (`SENSOR_CAUTION_CM`, `SENSOR_DANGER_CM`; CONSTITUTION R3). `hazard_classify()` in `components/hazard_core` maps a distance to SAFE / CAUTION / DANGER (`x <= DANGER_CM` → DANGER, `x <= CAUTION_CM` → CAUTION). Do not restate the numbers in UI code or docs.
++- Colors live in `components/ui_dashboard/ui_dashboard_theme.h` (`COLOR_SAFE`, `COLOR_CAUTION`, `COLOR_DANGER`, `COLOR_NODATA`; background `COLOR_BG`, panels `COLOR_PANEL`).
++- A slot with no fresh data (stale / DISCONNECTED) is drawn as "no data", never as a detected object.
+ 
+@@ -27,24 +20,4 @@
+ 
+-### 2. 4-Level Warning State Machine & 5cm Hysteresis
+-
+-To eliminate rapid toggle flickering (chatter) near threshold boundaries, enforce a 5cm hysteresis offset on state exit transitions:
+-
+-```mermaid
+-stateDiagram-v2
+-    [*] --> SAFE: Distance > 100 cm
+-    SAFE --> APPROACHING: Distance <= 100 cm
+-    APPROACHING --> WARNING: Distance <= 50 cm
+-    WARNING --> CRITICAL_DANGER: Distance <= 20 cm
+-    
+-    CRITICAL_DANGER --> WARNING: Distance > 25 cm (Hysteresis)
+-    WARNING --> APPROACHING: Distance > 55 cm (Hysteresis)
+-    APPROACHING --> SAFE: Distance > 105 cm (Hysteresis)
+-```
+-
+-| Warning State | Threshold Range | Color Token | UI Animation & Overlay | Audio Alert Behavior |
+-| :--- | :--- | :--- | :--- | :--- |
+-| **`SAFE`** | > 100 cm | `COLOR_SAFE` | Static arc gauge, neutral status badge | Mute |
+-| **`APPROACHING`** | 50 cm - 100 cm | `COLOR_APPROACHING` | Yellow arc glow, 1Hz status pulse | Mute |
+-| **`WARNING`** | 20 cm - 50 cm | `COLOR_WARNING` | Orange warning banner slide-in | 2Hz Beep Tone |
+-| **`CRITICAL_DANGER`** | ≤ 20 cm | `COLOR_CRITICAL` | Flashing full-screen red overlay (5Hz) | Continuous Rapid Beep |
++### 2. Flicker Control
++There is no hysteresis in the classifier. Noise is handled upstream by the sensor-node filter ("fast in, slow out": `FILTER_RELEASE_CONFIRM_SAMPLES` in `thresholds.h`) and by the 3 cm label deadband in `ui_dashboard.c`.
+ 
+@@ -52,14 +25,4 @@
+ 
+-### 3. Modular 3-Tab Architecture
+-
+-Partition UI responsibilities into 3 distinct functional tabs using `lv_tabview`:
+-
+-1. **Tab 1 - Live Warning**:
+-   - Central dynamic distance gauge (`lv_arc` + `lv_scale`).
+-   - Pill-shaped state status badge.
+-   - Animated warning banner overlay (`lv_anim_t`).
+-2. **Tab 2 - Telemetry History**:
+-   - Real-time chart (`lv_chart`) showing rolling distance samples with threshold marker lines.
+-3. **Tab 3 - System Config**:
+-   - Interactive sliders (`lv_slider`) for threshold tuning, sound toggle switch (`lv_switch`), and sensor zero-point calibration trigger.
++### 3. Page Layout
++Three header tabs built from plain buttons (not `lv_tabview`): COLLISION (vehicle diagram from the vehicle profile, sensor arcs, distance badges), SYSTEM (device and network info), SETUP (vehicle profile selection and per-sensor position editor). Thresholds are not adjustable at runtime (R3).
+ 
+@@ -86,3 +49,4 @@
+ 
+-- **PSRAM Dual Framebuffers**: Allocate 2 full framebuffers in PSRAM (`.fb_in_psram = 1`) for 800x480 RGB565 display (~1.5 MB total).
++- **PSRAM Framebuffer**: framebuffers live in PSRAM (`.fb_in_psram = 1`); their count comes from `esp_lv_adapter_get_required_frame_buffer_count()`. `src/main.c` picks `ESP_LV_ADAPTER_TEAR_AVOID_MODE_NONE` (single buffer, partial refresh) so drawing does not starve the PSRAM bus while Wi-Fi is active — the reason is in the comment in `app_main`.
++- **LVGL Heap**: LVGL's built-in allocator uses a fixed pool, `CONFIG_LV_MEM_SIZE_KILOBYTES` (128 KB in `sdkconfig.defaults`). Running out hits `LV_ASSERT_MALLOC`, which hangs. `host_sim` prints the usage after UI init (`[sim] lvgl heap after UI init`) and its stress test fails below 30% free — re-check after adding widgets.
+ - **Internal SRAM Bounce Buffer**: Allocate a 40-line internal SRAM bounce buffer (`bounce_buffer_size_px = 800 * 40`) to prevent PSRAM bus starvation and LCD flickering during simultaneous Wi-Fi/MQTT activities.
+@@ -95,5 +59,5 @@
+ 
+-- **[`references/ui_development_pipeline.md`](file:///e:/supersonic-sensor-ACLAB/.agents/skills/lvgl_v9_warning_display/references/ui_development_pipeline.md)**: Master UI Development Pipeline & SOP document.
+-- **[`references/warning_system_pipeline.md`](file:///e:/supersonic-sensor-ACLAB/.agents/skills/lvgl_v9_warning_display/references/warning_system_pipeline.md)**: End-to-end telemetry pipeline, state machine, and hardware driver setup sequence.
+-- **[`references/lvgl_demos_architecture_review.md`](file:///e:/supersonic-sensor-ACLAB/.agents/skills/lvgl_v9_warning_display/references/lvgl_demos_architecture_review.md)**: Audit of LVGL v9 standard demos (`widgets`, `music`, `benchmark`, `stress`).
+-- **[`references/waveshare_hardware_examples_review.md`](file:///e:/supersonic-sensor-ACLAB/.agents/skills/lvgl_v9_warning_display/references/waveshare_hardware_examples_review.md)**: Audit of manufacturer hardware peripheral examples (I2C, RS485, SD, ADC, UART, CAN/TWAI, LVGL v8/v9).
++- **[`references/ui_development_pipeline.md`](references/ui_development_pipeline.md)**: Master UI Development Pipeline & SOP document.
++- **[`references/warning_system_pipeline.md`](references/warning_system_pipeline.md)**: End-to-end telemetry pipeline, state machine, and hardware driver setup sequence.
++- **[`references/lvgl_demos_architecture_review.md`](references/lvgl_demos_architecture_review.md)**: Audit of LVGL v9 standard demos (`widgets`, `music`, `benchmark`, `stress`).
++- **[`references/waveshare_hardware_examples_review.md`](references/waveshare_hardware_examples_review.md)**: Audit of manufacturer hardware peripheral examples (I2C, RS485, SD, ADC, UART, CAN/TWAI, LVGL v8/v9).
+--- a/.agents/skills/lvgl_v9_warning_display/references/ui_development_pipeline.md
++++ b/.agents/skills/lvgl_v9_warning_display/references/ui_development_pipeline.md
+@@ -1,2 +1,4 @@
+ # UI Development Pipeline & Standard Operating Procedure (SOP)
++
++> **Note:** this is the original design document, written before the firmware. The 4-level state machine (100/50/20 cm, 5 cm hysteresis), the `lv_tabview` layout, threshold sliders and the `xI2C_Mutex` rule below were not implemented. Current zones and thresholds: `firmware/shared/thresholds.h` (R3); current layout: `../SKILL.md` §3.
+ 
+--- a/.agents/skills/lvgl_v9_warning_display/references/lvgl_demos_architecture_review.md
++++ b/.agents/skills/lvgl_v9_warning_display/references/lvgl_demos_architecture_review.md
+@@ -1,2 +1,4 @@
+ # LVGL `lv_demos` Architecture & Vehicle Warning System Pipeline Guide
++
++> **Note:** the vehicle-warning design in this review (4-level state machine with 100/50/20 cm and 5 cm hysteresis, `lv_tabview` tabs, telemetry chart) was not implemented. Current zones and thresholds: `firmware/shared/thresholds.h` (R3); current layout: `../SKILL.md` §3.
+ 
+@@ -11,3 +13,3 @@
+ 
+-The LVGL component in [`waveshare-screen/managed_components/lvgl__lvgl/demos`](file:///e:/supersonic-sensor-ACLAB/waveshare-screen/managed_components/lvgl__lvgl/demos) provides standardized reference implementations for UI components, dynamic media rendering, performance profiling, and memory stress testing.
++The LVGL component in `firmware/waveshare-screen/managed_components/lvgl__lvgl/demos` (generated by the IDF component manager, git-ignored) provides standardized reference implementations for UI components, dynamic media rendering, performance profiling, and memory stress testing.
+ 

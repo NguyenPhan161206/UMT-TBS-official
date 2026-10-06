@@ -1,7 +1,10 @@
 idf_component_register(
     SRCS
         "ui_dashboard.c"
+        "ui_dashboard_actions.c"
         "ui_dashboard_layout.c"
+        "ui_dashboard_sensor_edit.c"
+        "ui_dashboard_setup.c"
         "ui_dashboard_system.c"
         "ui_dashboard_truck.c"
         "ui_dashboard_marker.c"

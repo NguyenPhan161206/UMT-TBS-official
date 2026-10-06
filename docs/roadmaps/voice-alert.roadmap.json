@@ -1,0 +1,113 @@
+{
+  "project_name": "voice-alert (T3.3 mở rộng: thay còi bíp bằng cảnh báo giọng nói tiếng Việt theo vị trí)",
+  "total_steps": 8,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Công cụ WAV → mảng C (tools/voice)",
+      "target_files": [
+        "tools/voice/phrases.json",
+        "tools/voice/gen_voice_clips.py",
+        "tools/voice/test_gen_voice_clips.py"
+      ],
+      "prerequisites": [],
+      "objective": "Tạo phrases.json (12 clip: caution_/danger_ x front, rear, left_front, left_rear, right_front, right_rear, kèm câu tiếng Việt và tên file wav) và gen_voice_clips.py: đọc WAV 16 kHz mono 16-bit trong firmware/sensor-node/assets/voice/, kiểm định dạng/độ dài (<=1.5 s/clip), sinh firmware/sensor-node/include/voice_clips.h + src/voice_clips_gen.cpp theo thứ tự cố định (khối CAUTION 6 clip theo thứ tự espnow_slot_t, rồi khối DANGER). Có cờ --placeholder để sinh WAV thử (âm hiệu hình sin, KHÔNG phải giọng nói) và cờ --check (so sánh file sinh ra với file đang có, exit 1 nếu lệch).",
+      "definition_of_done": "pytest test_gen_voice_clips.py pass: từ chối WAV sai định dạng (stereo, 44.1 kHz, 8-bit, >1.5 s), thứ tự clip đúng espnow_slot_t, đầu ra deterministic (chạy 2 lần y hệt), --check phát hiện lệch.",
+      "verification_command": "python3 -m pytest tools/voice/test_gen_voice_clips.py -q"
+    },
+    {
+      "step_id": 2,
+      "task_title": "Sinh tài sản placeholder + mảng C đã commit",
+      "target_files": [
+        "firmware/sensor-node/include/voice_clips.h",
+        "firmware/sensor-node/src/voice_clips_gen.cpp",
+        "firmware/sensor-node/assets/voice/README.md"
+      ],
+      "prerequisites": [1],
+      "objective": "Chạy gen_voice_clips.py --placeholder để tạo 12 file WAV placeholder trong firmware/sensor-node/assets/voice/ (caution_front.wav ... danger_right_rear.wav), rồi sinh voice_clips.h/voice_clips_gen.cpp. README.md hướng dẫn thay bằng giọng thật (nguồn TTS hoặc tự thu, lệnh ffmpeg chuyển 16 kHz mono 16-bit, rồi chạy lại generator). Mảng nằm trong flash (const, không chép vào RAM).",
+      "definition_of_done": "voice_clips.h có enum VOICE_CLIP_COUNT == 12 và thứ tự khối CAUTION/DANGER đúng; tổng kích thước mảng <= 700 KB; gen_voice_clips.py --check exit 0; README nêu rõ placeholder chưa phải giọng nói.",
+      "verification_command": "python3 tools/voice/gen_voice_clips.py --check && grep -c VOICE_CLIP_COUNT firmware/sensor-node/include/voice_clips.h"
+    },
+    {
+      "step_id": 3,
+      "task_title": "voice_policy: logic quyết định phát clip nào (C++ thuần) + test native",
+      "target_files": [
+        "firmware/sensor-node/include/voice_policy.h",
+        "firmware/sensor-node/src/voice_policy.cpp",
+        "firmware/sensor-node/test/test_voice_policy.cpp",
+        "firmware/sensor-node/platformio.ini",
+        "firmware/shared/thresholds.h"
+      ],
+      "prerequisites": [2],
+      "objective": "Hiện thực voice_policy_step(state, input, now_ms) -> action {NONE|PLAY(clip)|STOP} theo bảng luật trong handoff (DANGER giành quyền, không ngắt clip DANGER đang phát, CAUTION lặp mỗi VOICE_CAUTION_REPEAT_MS, DANGER lặp mỗi VOICE_DANGER_REPEAT_GAP_MS, đổi vị trí thì xướng lại nhưng tối thiểu VOICE_MIN_GAP_MS, chỉ re-arm sau VOICE_REARM_SAFE_MS ở SAFE, mute thì STOP). Thêm các hằng VOICE_* vào thresholds.h (R3). Không include Arduino/FreeRTOS. Thêm test vào native env của platformio.ini.",
+      "definition_of_done": "pio test -e native chạy test_voice_policy.cpp và PASS các ca: SAFE im lặng, CAUTION xướng 1 lần rồi lặp đúng chu kỳ, CAUTION→DANGER ngắt ngay, DANGER không bị CAUTION ngắt, đổi slot, flapping quanh 100 cm không spam, mute dừng ngay, không có hợp lệ thì im.",
+      "verification_command": "cd firmware/sensor-node && pio test -e native"
+    },
+    {
+      "step_id": 4,
+      "task_title": "Truy vấn cảm biến gần nhất kèm vị trí + tách bản đồ slot",
+      "target_files": [
+        "firmware/sensor-node/include/shared_state.h",
+        "firmware/sensor-node/src/shared_state.cpp",
+        "firmware/sensor-node/include/sensor_slot_map.h",
+        "firmware/sensor-node/src/main.cpp"
+      ],
+      "prerequisites": [],
+      "objective": "Thêm bool sharedStateGetNearestIndex(size_t &sensorIndex, float &distanceCm) (cùng quy tắc hợp lệ/health như sharedStateGetNearest, giữ nguyên hàm cũ). Chuyển bảng SENSOR_ESPNOW_SLOT[] từ main.cpp sang include/sensor_slot_map.h (static const, header-only, giữ NGUYÊN giá trị và thứ tự), main.cpp include header đó. Không đổi hành vi telemetry/ESP-NOW.",
+      "definition_of_done": "pio run -e yolo_uno và -e yolo_uno_coreiot đều SUCCESS; grep SENSOR_ESPNOW_SLOT chỉ còn định nghĩa ở sensor_slot_map.h; payload ESP-NOW không đổi (slot mapping giữ nguyên: PINS[0..5] → FRONT, LEFT_FRONT, RIGHT_FRONT, LEFT_REAR, RIGHT_REAR, REAR).",
+      "verification_command": "cd firmware/sensor-node && pio run -e yolo_uno && pio run -e yolo_uno_coreiot && pio test -e native"
+    },
+    {
+      "step_id": 5,
+      "task_title": "voice_player: phát clip qua I2S, ngắt được",
+      "target_files": [
+        "firmware/sensor-node/include/voice_player.h",
+        "firmware/sensor-node/src/voice_player.cpp",
+        "firmware/shared/thresholds.h"
+      ],
+      "prerequisites": [2],
+      "objective": "API: bool voicePlayerBegin(); void voicePlayerPlay(int clipId) (không chặn caller, ngắt clip đang phát); void voicePlayerStop(); bool voicePlayerIsPlaying(). Có task/luồng riêng ghi I2S theo khối nhỏ (<=512 mẫu) và kiểm cờ ngắt giữa các khối; xả im lặng (zero) khi dừng để amp không phát tiếng lạch cạch. Chân I2S (BCLK/LRC/DIN) khai báo trong thresholds.h cạnh BUZZER_PIN: VOICE_I2S_BCLK_PIN, VOICE_I2S_LRC_PIN, VOICE_I2S_DOUT_PIN (đề xuất 12/13/14 — phải xác minh không trùng chân cảm biến/PSRAM/flash/USB).",
+      "definition_of_done": "Build 2 env SUCCESS; không malloc theo mỗi lần phát; chân I2S không trùng SENSOR_PINS/BUZZER_PIN/GPIO cấm (có static_assert hoặc kiểm tra trong test_thresholds); không dùng delay() chặn task mạng.",
+      "verification_command": "cd firmware/sensor-node && pio run -e yolo_uno && pio run -e yolo_uno_coreiot && pio test -e native"
+    },
+    {
+      "step_id": 6,
+      "task_title": "voice_alert task thay buzzerTask (có cờ USE_VOICE_ALERT)",
+      "target_files": [
+        "firmware/sensor-node/include/voice_alert.h",
+        "firmware/sensor-node/src/voice_alert.cpp",
+        "firmware/sensor-node/src/main.cpp",
+        "firmware/sensor-node/platformio.ini"
+      ],
+      "prerequisites": [3, 4, 5],
+      "objective": "voiceAlertTask: vòng lặp TASK_POLL_INTERVAL_MS, đọc sharedStateGetNearestIndex + sharedStateGetMute + voicePlayerIsPlaying, đổi index→wire slot qua SENSOR_ESPNOW_SLOT, gọi voice_policy_step rồi thực thi PLAY/STOP. main.cpp tạo voiceAlertTask khi USE_VOICE_ALERT=1 (mặc định, đặt trong [env] build_flags) và buzzerTask khi =0; cả hai module luôn được biên dịch (R6). warnIfReservedPin cho 3 chân I2S khi USE_VOICE_ALERT=1.",
+      "definition_of_done": "pio run SUCCESS cả 2 env mặc định VÀ khi build với -DUSE_VOICE_ALERT=0 (buzzer cũ vẫn hoạt động); báo cáo dung lượng flash (<=80% partition app); chạy trên board có amp: xem handoff mục nghiệm thu phần cứng.",
+      "verification_command": "cd firmware/sensor-node && pio run -e yolo_uno && pio run -e yolo_uno_coreiot && PLATFORMIO_BUILD_FLAGS=\"-DUSE_VOICE_ALERT=0\" pio run -e yolo_uno && pio test -e native"
+    },
+    {
+      "step_id": 7,
+      "task_title": "Tài liệu phần cứng + log + CHECKLIST",
+      "target_files": [
+        "docs/HARDWARE_INSTALLATION.md",
+        "docs/INSTALLATION_SENSOR_NODE.md",
+        "docs/logs/SENSOR_NODE_VOICE_ALERT_LOG.md",
+        "docs/CHECKLIST.md"
+      ],
+      "prerequisites": [6],
+      "objective": "Thêm mục âm thanh: danh sách linh kiện (module I2S MAX98357A, loa 4–8 ohm, nguồn 5 V), bảng đấu dây BCLK/LRC/DIN/VIN/GND theo chân đã chọn, lưu ý nguồn xe tải 24 V cần hạ áp 5 V, lưu ý ồn trong cabin; viết log theo AGENTS.md; cập nhật CHECKLIST T3.3 (còi → giọng nói, phần cứng chưa nghiệm thu, giọng hiện là placeholder).",
+      "definition_of_done": "Hai tài liệu có bảng đấu dây I2S khớp chân trong thresholds.h; log nêu rõ TODO: thay giọng thật + nghiệm thu phần cứng; scan_secrets và pytest guard pass.",
+      "verification_command": "python3 tools/guard/scan_secrets.py && python3 -m pytest tools/guard/test_guard.py tools/voice/test_gen_voice_clips.py -q"
+    },
+    {
+      "step_id": 8,
+      "task_title": "Kịch bản nghiệm thu trên phần cứng thật",
+      "target_files": [
+        "docs/TEST_PROTOCOL.md"
+      ],
+      "prerequisites": [7],
+      "objective": "Thêm mục kiểm thử giọng nói: 6 vị trí x 2 mức, đổi vị trí, mute từ màn hình, rút dây cảm biến (không được xướng cảnh báo cho cảm biến mất kết nối), đo mức ồn nghe được ở khoảng cách tai người lái, điền bảng kết quả. Bước này chỉ chạy được khi người dùng đã có loa + amp (BLOCKED nếu chưa).",
+      "definition_of_done": "TEST_PROTOCOL.md có mục 'Cảnh báo giọng nói' với bảng ca kiểm thử và tiêu chí đạt/không đạt; ghi rõ trạng thái nghiệm thu (chưa thực hiện nếu chưa có phần cứng).",
+      "verification_command": "grep -c \"Cảnh báo giọng nói\" docs/TEST_PROTOCOL.md"
+    }
+  ]
+}

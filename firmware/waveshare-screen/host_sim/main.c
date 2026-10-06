@@ -30,6 +30,7 @@
 #include "ui_dashboard.h"
 #include "scenarios_gen.h"
 #include "sensor_model.h"
+#include "sim_tools.h"
 
 #define SIM_W 800
 #define SIM_H 480
@@ -187,6 +188,8 @@ static void feed_row(const replay_row_t *row)
             snprintf(txt[id], sizeof(txt[id]), "--");
         }
     }
+    /* Như firmware (main.c đánh giá 1 lần sau mỗi khung ESP-NOW/MQTT): banner OVERALL và xe cắt ngang. */
+    ui_dashboard_evaluate_hazard();
     printf("[sim] feed step: d1=%s d2=%s d3=%s d4=%s d5=%s d6=%s\n",
            txt[0], txt[1], txt[2], txt[3], txt[4], txt[5]);
 }
@@ -223,7 +226,6 @@ static void feed_status_badges(void)
     ui_dashboard_set_espnow_status(false);
     ui_dashboard_set_buzzer_state(false);
     ui_dashboard_set_relay_state(false, "NORMAL");
-    ui_dashboard_set_hazard_warning(false);
 }
 
 static int run_scenario(const char *name, uint32_t exit_after_ms, uint32_t interval_ms)
@@ -328,8 +330,16 @@ int main(int argc, char **argv)
     bool exit_after_set = false;
     bool interval_set = false;
     double speed = 1.0;
+    sim_opts_t sim_opts = { .profile_id = -1, .stress_rounds = 0 };   /* --profile/--stress-profiles/--click/--snapshot */
 
     for (int i = 1; i < argc; i++) {
+        int po = sim_parse_option(argc, argv, &i, &sim_opts);
+        if (po < 0) {
+            return 2;
+        }
+        if (po > 0) {
+            continue;
+        }
         if (strcmp(argv[i], "--scenario") == 0 && i + 1 < argc) {
             scenario = argv[++i];
         } else if (strcmp(argv[i], "--replay") == 0 && i + 1 < argc) {
@@ -354,6 +364,7 @@ int main(int argc, char **argv)
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             printf("Usage: umt_dash_sim [--scenario <name>|--replay <jsonl>|--list] "
                    "[--exit-after <sec>] [--interval <ms>] [--speed <x>]\n");
+            sim_print_usage_extra();
             printf("Replay: doc payload V2 (d1..d6) hoac file tools/recorder (distances[]+valid[]); "
                    "mac dinh phat dung nhip elapsed_ms, --interval ep nhip co dinh.\n");
             printf("Scenarios:");
@@ -371,6 +382,11 @@ int main(int argc, char **argv)
         scenario = "normal";
     }
 
+    int prc = sim_init_profile(&sim_opts);
+    if (prc != 0) {
+        return prc;
+    }
+
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
         fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
         return 3;
@@ -384,15 +400,24 @@ int main(int argc, char **argv)
         return 3;
     }
     lv_display_set_default(disp);
+    lv_sdl_mouse_create();                    /* chuột = màn cảm ứng: bấm được tab SETUP, chọn hồ sơ... */
+    sim_script_start();
 
     ui_dashboard_init();
     /* Batch một số badge dù scenario không feed */
     feed_status_badges();
 
-    int rc = (replay != NULL)
-                 ? run_replay(replay, exit_after_ms, exit_after_set, interval_ms, interval_set, speed)
-                 : run_scenario(scenario, exit_after_ms, interval_ms);
+    sim_print_heap();
 
+    int rc = (sim_opts.stress_rounds > 0)
+                 ? sim_run_profile_stress(sim_opts.stress_rounds)
+                 : (replay != NULL)
+                       ? run_replay(replay, exit_after_ms, exit_after_set, interval_ms, interval_set, speed)
+                       : run_scenario(scenario, exit_after_ms, interval_ms);
+
+    if (sim_script_failed() && rc == 0) {
+        rc = 1;
+    }
     lv_deinit();
     SDL_Quit();
     printf("[sim] exiting rc=%d (%s)\n", rc, rc == 0 ? "OK" : "FAIL");

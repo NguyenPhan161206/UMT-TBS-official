@@ -55,15 +55,16 @@ static const uint8_t ESPNOW_PEER_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
  * Cố định 6: khớp mô hình sensor_model/ui_dashboard bên waveshare-screen. */
 #define ESPNOW_SENSOR_SLOT_COUNT 6
 
-/* Thứ tự slot trên dây == thứ tự vật lý trong thresholds.h::SENSOR_PINS.
- * Ánh xạ thẳng sang sensor_id_t bên waveshare-screen. */
+/* Thứ tự slot trên dây KHÔNG trùng thứ tự chân vật lý thresholds.h::SENSOR_PINS: sensor-node ánh xạ
+ * vật lý -> slot qua SENSOR_ESPNOW_SLOT[] (sensor-node/src/main.cpp). Bên waveshare-screen ánh xạ thẳng
+ * sang sensor_id_t. Nhãn trên màn hình đánh số từ 1: S1 = slot 0 ... S6 = slot 5 (ui_dashboard_theme.h). */
 typedef enum {
-    ESPNOW_SLOT_FRONT = 0,       /* S0  */
-    ESPNOW_SLOT_REAR = 1,        /* S1  */
-    ESPNOW_SLOT_LEFT_FRONT = 2,  /* S2  */
-    ESPNOW_SLOT_LEFT_REAR = 3,   /* S3  */
-    ESPNOW_SLOT_RIGHT_FRONT = 4, /* S4  */
-    ESPNOW_SLOT_RIGHT_REAR = 5,  /* S5  */
+    ESPNOW_SLOT_FRONT = 0,       /* màn hình: S1 (Front)   */
+    ESPNOW_SLOT_REAR = 1,        /* màn hình: S2 (Rear)    */
+    ESPNOW_SLOT_LEFT_FRONT = 2,  /* màn hình: S3 (L-Front) */
+    ESPNOW_SLOT_LEFT_REAR = 3,   /* màn hình: S4 (L-Rear)  */
+    ESPNOW_SLOT_RIGHT_FRONT = 4, /* màn hình: S5 (R-Front) */
+    ESPNOW_SLOT_RIGHT_REAR = 5,  /* màn hình: S6 (R-Rear)  */
 } espnow_slot_t;
 
 /* Payload nhị phân gửi qua ESP-NOW — packed, kích thước cố định.

@@ -1,3 +1,3 @@
-idf_component_register(SRCS "vehicle_profile.c" "vehicle_layout.c"
+idf_component_register(SRCS "vehicle_profile.c" "vehicle_layout.c" "vehicle_settings.c"
                        INCLUDE_DIRS "include" "../../../shared"
                        REQUIRES)

@@ -1,0 +1,167 @@
+{
+  "project_name": "main-features (T2.3 xe cắt ngang, T5.2 Calibrate, T3.1 biểu tượng vật thể, T5.3/T5.x dọn kỹ thuật)",
+  "total_steps": 13,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "hazard_core: crossing có trạng thái (cửa sổ, giữ cảnh báo, bỏ slot lỗi)",
+      "target_files": [
+        "firmware/waveshare-screen/components/hazard_core/include/hazard_core.h",
+        "firmware/waveshare-screen/components/hazard_core/hazard_core.c",
+        "firmware/waveshare-screen/host_sim/tests/test_hazard_core.c"
+      ],
+      "prerequisites": [],
+      "objective": "Đổi hazard_eval_crossing thành hàm thuần có trạng thái do người gọi giữ (B2: không static mutable; B7: vẫn đúng 4 hàm public): hazard_crossing_result_t hazard_eval_crossing(hazard_crossing_state_t *st, const uint16_t *cur_cm, const bool *ok, size_t n, uint32_t now_ms). State zero-init = chưa có lịch sử. So sánh mỗi khung với MỐC THAM CHIẾU chỉ làm mới sau CROSSING_WINDOW_MS (500) → độc lập tốc độ khung (ESP-NOW 100 ms, MQTT ~500 ms). Slot chỉ tính khi ok[i] && ref_ok[i]; FRONT phải ok mới tính 'gần'. Kích hoạt → giữ cảnh báo CROSSING_HOLD_MS (3000); FRONT mất (ok=false) thì huỷ giữ. So sánh thời gian chống tràn (int32_t)(now - until).",
+      "definition_of_done": "hazard_core_tests pass gồm test mới: mất link (mọi slot 0 + ok=false) KHÔNG báo; FRONT stale không tính gần; slot bên rớt/nối lại không báo; vật bên đổi 10 cm/khung ở 100 ms (1 m/s) PHẢI báo; giữ 3000 ms rồi tắt; tràn uint32. Đột biến (bỏ kiểm ok, bỏ cửa sổ, bỏ giữ) đều FAIL. arch_guard OK.",
+      "verification_command": "cmake --build build/host_sim --target hazard_core_tests && build/host_sim/hazard_core_tests && PYTHONUTF8=1 python tools/guard/arch_guard.py",
+      "risk": "medium"
+    },
+    {
+      "step_id": 2,
+      "task_title": "Test crossing trên dữ liệu kịch bản thật (tools/scenarios.py) ở 100 và 500 ms",
+      "target_files": [
+        "firmware/waveshare-screen/host_sim/tests/test_hazard_core.c",
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt"
+      ],
+      "prerequisites": [1],
+      "objective": "hazard_core_tests đọc scenarios_gen.h (sinh từ tools/scenarios.py): crossing và crossing_right phải báo; normal, approach, fast_pass (FRONT thoáng) không báo; chạy ở khoảng cách khung 100 ms và 500 ms.",
+      "definition_of_done": "hazard_core_tests pass với các check kịch bản; CMake cho hazard_core_tests phụ thuộc file sinh ra.",
+      "verification_command": "cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim --target hazard_core_tests && build/host_sim/hazard_core_tests"
+    },
+    {
+      "step_id": 3,
+      "task_title": "ui_dashboard: dùng crossing có trạng thái + đánh giá lại định kỳ khi đang giữ",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h"
+      ],
+      "prerequisites": [1],
+      "objective": "evaluate_hazard: ok[i] = !is_stale && health không DISCONNECTED/STALE; gọi hazard_eval_crossing(&state, dist, ok, n, lv_tick_get()); bỏ s_prev_distance_cm. Thêm timer LVGL (250 ms) gọi lại evaluate_hazard khi crossing đang giữ, để banner tự tắt kể cả khi không còn khung mới (tránh kẹt banner).",
+      "definition_of_done": "host_sim build + ctest pass; grep s_prev_distance_cm = 0 trong components.",
+      "verification_command": "cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 4,
+      "task_title": "Bỏ đường cloud crossing_hazard ở main.c; sim đánh giá nguy hiểm sau mỗi mốc",
+      "target_files": [
+        "firmware/waveshare-screen/src/main.c",
+        "firmware/waveshare-screen/host_sim/main.c"
+      ],
+      "prerequisites": [3],
+      "objective": "Quyết định: xe cắt ngang tính tại màn hình từ khoảng cách (cả đường ESP-NOW lẫn MQTT đều đưa khoảng cách vào cùng evaluate_hazard); rule-chain không xuất crossing_hazard nên bỏ đoạn parse chết. Sim gọi ui_dashboard_evaluate_hazard() sau mỗi mốc như firmware (trước đây banner trong sim không bao giờ được đánh giá).",
+      "definition_of_done": "grep crossing_hazard trong src/main.c = 0; ctest pass.",
+      "verification_command": "! grep -n crossing_hazard firmware/waveshare-screen/src/main.c && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 5,
+      "task_title": "Xoá API ui_dashboard_set_hazard_warning và cờ s_forced_crossing_warning",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/include/ui_dashboard.h",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h"
+      ],
+      "prerequisites": [4],
+      "objective": "Không còn người gọi sau step 4 → xoá hàm public, biến và extern.",
+      "definition_of_done": "grep set_hazard_warning|s_forced_crossing_warning trong firmware = 0; ctest pass.",
+      "verification_command": "! grep -rnE 'set_hazard_warning|s_forced_crossing_warning' firmware/waveshare-screen/components firmware/waveshare-screen/src firmware/waveshare-screen/host_sim && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 6,
+      "task_title": "Sim: kiểm chữ hiển thị (--expect-text/--expect-no-text) + ctest xe cắt ngang",
+      "target_files": [
+        "firmware/waveshare-screen/host_sim/sim_tools.c",
+        "firmware/waveshare-screen/host_sim/sim_tools.h",
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt"
+      ],
+      "prerequisites": [4],
+      "objective": "Thêm mục kịch bản kiểm chữ trên label ĐANG HIỂN THỊ (bỏ qua trang ẩn) tại thời điểm ms; sai → rc 1. ctest: kịch bản crossing ở 100 ms phải hiện 'CROSSING TRAFFIC HAZARD' rồi tự tắt sau thời gian giữ; normal không bao giờ hiện.",
+      "definition_of_done": "ctest pass; đổi CROSSING_HOLD_MS về 0 hoặc bỏ timer đánh giá lại làm test FAIL.",
+      "verification_command": "cmake -S firmware/waveshare-screen/host_sim -B build/host_sim && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 7,
+      "task_title": "T5.2 Nút Calibrate mở trang chỉnh cảm biến (SETUP)",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c",
+        "firmware/waveshare-screen/host_sim/CMakeLists.txt"
+      ],
+      "prerequisites": [6],
+      "objective": "Gắn tab_setup_cb vào calib_btn (trước đây nút không có callback). ctest: bấm Calibrate bằng chuột ảo → 'SENSOR POSITION' hiển thị.",
+      "definition_of_done": "grep add_event_cb ... calib_btn = 1; ctest pass.",
+      "verification_command": "grep -n 'lv_obj_add_event_cb(calib_btn' firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 8,
+      "task_title": "T3.1 Marker thành nhãn vật thể hiện khoảng cách (màu theo zone)",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_marker.c"
+      ],
+      "prerequisites": [],
+      "objective": "Thay chấm tròn 16 px bằng nhãn bo tròn hiện số cm tại điểm phát hiện; nền màu zone, chữ tương phản; chỉ cập nhật khi vị trí/zone/số đổi.",
+      "definition_of_done": "Ảnh sim thấy nhãn số đúng vị trí cũ; stress test vẫn đạt dư địa heap >= 30%; ctest pass.",
+      "verification_command": "cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 9,
+      "task_title": "T5.3 Sửa comment sai (thứ tự slot, chu kỳ gửi, nguyên nhân treo LVGL)",
+      "target_files": [
+        "firmware/shared/espnow_protocol.h",
+        "firmware/waveshare-screen/src/main.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_sensor_edit.c"
+      ],
+      "prerequisites": [4],
+      "objective": "espnow_protocol.h nói thứ tự slot == SENSOR_PINS (sai: sensor-node ánh xạ qua SENSOR_ESPNOW_SLOT[]); main.c nói gửi mỗi 500 ms (ESPNOW_SEND_INTERVAL_MS = 100); sensor_edit.c đổ lỗi treo cho LV_SIZE_CONTENT (nguyên nhân thật: hết pool LVGL 64 KB). Chỉ sửa comment.",
+      "definition_of_done": "Comment khớp code; pio + host build không đổi hành vi.",
+      "verification_command": "cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 10,
+      "task_title": "T5.x Xoá code chết hiệu ứng nhấp nháy cung",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_private.h"
+      ],
+      "prerequisites": [3],
+      "objective": "blink_running không bao giờ = true, không có lv_anim_start: xoá blink_anim_cb, trường blink_anim/blink_running và các nhánh dừng anim.",
+      "definition_of_done": "grep blink trong ui_dashboard = 0; ctest pass (gồm stress rebuild).",
+      "verification_command": "! grep -rn blink firmware/waveshare-screen/components/ui_dashboard && cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 11,
+      "task_title": "T5.x Đặt tên hằng UI còn cứng (chiều cao nội dung, canvas, chu kỳ SYSTEM)",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_theme.h",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_layout.c"
+      ],
+      "prerequisites": [10],
+      "objective": "440 (nội dung), canvas 440x440 lề 50, chu kỳ SYSTEM 2000 ms → hằng có tên trong ui_dashboard_theme.h (một chỗ).",
+      "definition_of_done": "grep ', 440, 50' và '2000, NULL' trong ui_dashboard = 0; ctest pass; ảnh không đổi.",
+      "verification_command": "cmake --build build/host_sim && ctest --test-dir build/host_sim --output-on-failure"
+    },
+    {
+      "step_id": 12,
+      "task_title": "Build firmware + guard, ghi log",
+      "target_files": [
+        "docs/logs/WAVESHARE_SCREEN_MAIN_FEATURES_LOG.md"
+      ],
+      "prerequisites": [5, 7, 8, 9, 11],
+      "objective": "pio run -e yolo_uno, arch_guard, scan_secrets, pytest guard, ctest; viết log theo AGENTS.md (số đo lại, quyết định, chưa kiểm chứng phần cứng).",
+      "definition_of_done": "Mọi lệnh exit 0; log có số liệu đo lại.",
+      "verification_command": "cd firmware/waveshare-screen && pio run -e yolo_uno && cd ../.. && PYTHONUTF8=1 python tools/guard/arch_guard.py && PYTHONUTF8=1 python tools/guard/scan_secrets.py && PYTHONUTF8=1 python -m pytest tools/guard/test_guard.py -q && ctest --test-dir build/host_sim"
+    },
+    {
+      "step_id": 13,
+      "task_title": "Cập nhật CHECKLIST, ARCHITECTURE_G1_TESTING, HARDCODED_CONFIG_NOTES",
+      "target_files": [
+        "docs/CHECKLIST.md",
+        "docs/ARCHITECTURE_G1_TESTING.md",
+        "docs/HARDCODED_CONFIG_NOTES.md"
+      ],
+      "prerequisites": [12],
+      "objective": "T2.3, T3.1, T5.2, T5.3 theo bằng chứng mới; mô tả đường crossing mới; đánh dấu mục C/B đã xử lý.",
+      "definition_of_done": "Không còn mô tả đường crossing_hazard từ cloud như đang dùng; CHECKLIST đếm lại bảng Tổng hợp nhanh.",
+      "verification_command": "grep -c 'crossing' docs/ARCHITECTURE_G1_TESTING.md"
+    }
+  ]
+}

@@ -33,35 +33,45 @@ core/tests.
 
 #define CROSSING_DELTA_CM 40
 #define CROSSING_FRONT_THRESHOLD_CM 150   /* chuyển từ ui_dashboard_theme.h (1 nguồn) */
+#define CROSSING_WINDOW_MS 500            /* (2026-10-05) mốc tham chiếu làm mới sau ngần này ms */
+#define CROSSING_HOLD_MS 3000             /* (2026-10-05) giữ cảnh báo sau lần kích hoạt cuối */
 
 typedef struct {
-    bool active;
-    espnow_slot_t sensor;                  /* slot "fast-change" (LEFT_FRONT..RIGHT_REAR) */
+    bool active;                           /* đang kích hoạt hoặc đang giữ */
+    espnow_slot_t sensor;                  /* góc trước gây kích hoạt (LEFT_FRONT/RIGHT_FRONT) */
 } hazard_crossing_result_t;
 
+typedef struct { /* mốc tham chiếu + hạn giữ — do NGƯỜI GỌI giữ, zero-init (B2) */ } hazard_crossing_state_t;
+
 sensor_zone_t hazard_classify(uint16_t distance_cm);
-sensor_zone_t hazard_worst_zone(const uint16_t *dist_cm, const bool *is_stale, size_t n);
-hazard_crossing_result_t hazard_eval_crossing(const uint16_t *cur_cm, const uint16_t *prev_cm, size_t n);
+sensor_zone_t hazard_worst_zone(const uint16_t *dist_cm, const bool *is_stale, const uint8_t *health, size_t n);
+bool hazard_has_sensor_fault(const uint8_t *health, size_t n);
+hazard_crossing_result_t hazard_eval_crossing(hazard_crossing_state_t *st, const uint16_t *cur_cm,
+                                              const bool *ok, size_t n, uint32_t now_ms);
 ```
 
 - `hazard_classify` — nhận body từ `sensor_model_classify` (giữ nguyên semantics:
   `x < DANGER` → DANGER; `x <= CAUTION` → CAUTION; else SAFE).
 - `hazard_worst_zone` — nhận logic "worst + skip stale" (`ui_dashboard.c:139-150`).
-- `hazard_eval_crossing` — nhận heuristic crossing (`ui_dashboard.c:170-181`):
-  `front_close = cur[ESPNOW_SLOT_FRONT] < 150`; quét side slots, `|cur−prev| ≥ 40`.
-  KHÔNG xử lý stale (giữ hành vi cũ).
+- `hazard_eval_crossing` — heuristic xe cắt ngang. Bản 2026-09-09 so 2 khung liên tiếp và không xử lý
+  stale; **bản 2026-10-05** (roadmap `main-features`) sửa 4 lỗi: (1) slot không hợp lệ (`ok[i] = false`,
+  khoảng cách 0 sau khi bị xoá) không còn tính là "gần"/"đổi nhanh" — trước đây mất link là báo giả;
+  (2) so với mốc tham chiếu cũ tới `CROSSING_WINDOW_MS` → độ nhạy không phụ thuộc tốc độ khung
+  (ESP-NOW 100 ms: vật 1 m/s chỉ đổi 10 cm/khung); (3) giữ `CROSSING_HOLD_MS`; (4) chỉ xét 2 góc
+  trước (slot bên sau đổi nhanh không phải cắt ngang phía trước).
 
 **Bỏ `sensor_model_classify`** (quyết định 2026-09-09): 3 call-site `ui_dashboard.c:78/148/210`
 chuyển sang `hazard_classify`. Sensor_model chỉ là state container; không giữ wrapper để
 tránh 2 symbol cùng body (API gọn, ownership rõ).
 
-Seam cho **T2.3**: phần nhận firmware ĐÃ sẵn sàng — `main.c:84-87` parse
-`crossing_hazard` → `ui_dashboard_set_hazard_warning()` → `s_forced_crossing_warning`
-→ OR trong `evaluate_hazard()` (`ui_dashboard.c:183`) → `hazard_eval_crossing(...).active`.
-Phần "dead-path" THỰC SỰ là **rule-chain**: snapshot
-`cloud/coreiot/rule_chain/supersonic_rule_chain.json` hiện KHÔNG xuất `crossing_hazard`
-(grep = 0). T2.3 = thêm node JS xuất field này trên console (snapshot mới) — không cần
-sửa phía nhận firmware, chỉ đưa nhánh heuristic vào hazard_core (step 1).
+**T2.3 — quyết định 2026-10-05**: xe cắt ngang tính **tại màn hình** từ khoảng cách. Cả đường
+ESP-NOW (`main.c`, mỗi khung) lẫn MQTT (`on_coreiot_data`) đều đưa khoảng cách vào cùng
+`evaluate_hazard()` → `hazard_eval_crossing()`, nên rule-chain không cần tính gì thêm. Đường ép
+từ cloud cũ (`main.c` parse `crossing_hazard` → `ui_dashboard_set_hazard_warning()` →
+`s_forced_crossing_warning`) **đã xoá**: rule-chain `supersonic_rule_chain.json` chưa bao giờ xuất
+trường này (grep = 0), và một node JS của rule-chain không giữ được trạng thái giữa các bản tin để
+tính "đổi nhanh". Kiểm thử: `hazard_core_tests` (gồm chạy heuristic trên dữ liệu `tools/scenarios.py`)
+và ctest `umt_dash_sim_crossing_banner` (banner hiện rồi tự tắt sau `CROSSING_HOLD_MS`).
 
 ### Lớp 2 — State container `sensor_model` (giảm mặt API)
 Mutex-guarded, chỉ thao tác qua API; xoá `sensor_model_classify` khỏi `.c` + `.h`.
@@ -108,9 +118,13 @@ Xem chi tiết + bảng "blast radius" (sửa 1 chỗ, đụng 1 chỗ) ở `doc
   `{esp_log, esp_wifi, esp_system, esp_timer, esp_chip_info, esp_flash,
   esp_app_desc, coreiot_client}.h` trả dữ liệu giả (SYSTEM page không thấy token
   thật — R1).
-- `lv_conf.h`: `LV_USE_SDL=1`, 800x480.
+- `lv_conf.h`: `LV_USE_SDL=1`, 800x480, `LV_MEM_SIZE` 128 KB (khớp `CONFIG_LV_MEM_SIZE_KILOBYTES` firmware),
+  `LV_USE_SNAPSHOT=1`.
 - CLI: `--exit-after N` (CI headless `xvfb-run`), `--scenario <name>`,
-  `--replay <jsonl>`.
+  `--replay <jsonl>`; (2026-10) `--profile <id>`, `--stress-profiles N`, và kịch bản UI tự động
+  `--click X,Y@ms`, `--snapshot FILE.bmp@ms`, `--expect-text TEXT@ms`, `--expect-no-text TEXT@ms`
+  (chuột ảo + kiểm chữ trên label đang hiển thị, trong `sim_tools.c`). Sim đánh giá nguy hiểm sau mỗi mốc
+  như firmware (`ui_dashboard_evaluate_hazard()`).
 
 ## Unit test T1.3
 Target `hazard_core_tests` trong `host_sim/` (gcc, **mini assert-runner** — không Unity,

@@ -12,7 +12,7 @@
 /* ----------------------------- color & memory ---------------------------- */
 #define LV_COLOR_DEPTH 16
 #define LV_MEM_CUSTOM 0
-#define LV_MEM_SIZE (64 * 1024)          /* 64 KB: host thừa RAM, thoải mái */
+#define LV_MEM_SIZE (128 * 1024)         /* GIỮ KHỚP firmware: sdkconfig.defaults CONFIG_LV_MEM_SIZE_KILOBYTES=128 (pool 64 KB cũ bị cạn → LV_ASSERT_MALLOC treo) */
 
 /* -------------------------------- drivers -------------------------------- */
 #define LV_USE_SDL 1                     /* LVGL dùng SDL2 render (xem main.c) */
@@ -24,6 +24,7 @@
 #define LV_TICK_CUSTOM_SYS_TIME_EXPR (SDL_GetTicks())
 
 /* ------------------ widgets được dùng bởi ui_dashboard* ------------------- */
+#define LV_USE_SNAPSHOT 1                /* --snapshot: sim tự chụp màn hình (không phụ thuộc cửa sổ/foreground của máy dev) */
 #define LV_USE_ARC 1
 #define LV_USE_BTN 1
 #define LV_USE_LABEL 1

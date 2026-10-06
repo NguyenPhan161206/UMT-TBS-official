@@ -138,7 +138,8 @@ def main() -> int:
 
     if args.staged:
         diff = git_staged_diff()
-        lines = diff.splitlines()
+        # Chỉ quét các dòng thêm mới (+), bỏ qua dòng xoá (-) và diff header (+++)
+        lines = [ln[1:] for ln in diff.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
         scan_lines("(staged diff)", lines, hits)
     else:
         paths: list[str]

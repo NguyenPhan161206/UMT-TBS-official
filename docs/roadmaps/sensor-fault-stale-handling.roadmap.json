@@ -1,0 +1,83 @@
+{
+  "project_name": "sensor-fault-stale-handling",
+  "total_steps": 5,
+  "roadmap": [
+    {
+      "step_id": 1,
+      "task_title": "Shared Contract: Thêm sensor_health_t và freshness header vào thresholds.h & espnow_protocol.h",
+      "target_files": [
+        "firmware/shared/thresholds.h",
+        "firmware/shared/espnow_protocol.h"
+      ],
+      "prerequisites": [],
+      "objective": "Định nghĩa enum sensor_health_t (OK, OUT_OF_RANGE, DISCONNECTED, STALE), hằng số timing SENSOR_FAULT_CONSECUTIVE_MISS (3) và SENSOR_STALE_TIMEOUT_MS (1000ms). Cập nhật espnow_sensor_msg_t mang uint16_t seq và uint8_t health[6]. Đảm bảo tuân thủ R2/R3 và static_assert layout.",
+      "definition_of_done": "Enum và struct được định nghĩa đầy đủ; sizeof(espnow_sensor_msg_t) có static_assert; không vi phạm R2/R3.",
+      "verification_command": "python tools/guard/arch_guard.py && python tools/guard/scan_secrets.py",
+      "risk": "low",
+      "notes": "Thay đổi struct dùng chung ESP-NOW cần đồng bộ giữa cả 2 firmware."
+    },
+    {
+      "step_id": 2,
+      "task_title": "Sensor-node: Fast Disconnect Detection & Buzzer Immediate Silence",
+      "target_files": [
+        "firmware/sensor-node/src/ultrasonic_sensor.cpp",
+        "firmware/sensor-node/src/main.cpp",
+        "firmware/sensor-node/src/shared_state.h",
+        "firmware/sensor-node/src/shared_state.cpp",
+        "firmware/sensor-node/src/buzzer.cpp"
+      ],
+      "prerequisites": [1],
+      "objective": "Giảm ngưỡng bắt lỗi liên tiếp từ 15 lần xuống 3 lần (~300ms). Khi timeout/mất xung 3 lần, gán ngay trạng thái DISCONNECTED vào shared_state. BuzzerTask lập tức ngắt còi nếu sensor gần nhất không còn valid. NetworkTask gửi đúng seq và health mask.",
+      "definition_of_done": "Khi cảm biến lỗi, sau tối đa 300ms sharedState báo invalid và còi tắt ngay lập tức. Build thành công pio run -e yolo_uno và -e yolo_uno_coreiot.",
+      "verification_command": "cd firmware/sensor-node && pio run -e yolo_uno && pio run -e yolo_uno_coreiot",
+      "risk": "medium",
+      "notes": "Kiểm tra kỹ pin Echo cấu hình INPUT_PULLDOWN để tránh chân trôi nổi (floating) tạo xung giả khi rút dây."
+    },
+    {
+      "step_id": 3,
+      "task_title": "Hazard Core: Bỏ qua dữ liệu sensor lỗi/stale trong thuật toán phân loại nguy hiểm",
+      "target_files": [
+        "firmware/waveshare-screen/components/hazard_core/include/hazard_core.h",
+        "firmware/waveshare-screen/components/hazard_core/hazard_core.c",
+        "firmware/waveshare-screen/host_sim/tests/test_hazard_core.c"
+      ],
+      "prerequisites": [1],
+      "objective": "Cập nhật hazard_worst_zone để nhận thêm mảng health: nếu sensor bị DISCONNECTED hoặc STALE, tuyệt đối không dùng khoảng cách cũ để tính DANGER/CAUTION. Thêm hàm kiểm tra trạng thái lỗi cảm biến hệ thống.",
+      "definition_of_done": "Thêm unit tests trong test_hazard_core.c mô phỏng cảm biến đang DANGER bị rút nguồn -> worst_zone phải chuyển ngay về SAFE; chạy test host PASS 100%.",
+      "verification_command": "gcc -I firmware/shared -I firmware/waveshare-screen/components/hazard_core/include firmware/waveshare-screen/components/hazard_core/hazard_core.c firmware/waveshare-screen/host_sim/tests/test_hazard_core.c -o build_test_hazard.exe && ./build_test_hazard.exe",
+      "risk": "low",
+      "notes": "Logic thuần C không phụ thuộc ESP-IDF, chạy test được trực tiếp trên máy dev."
+    },
+    {
+      "step_id": 4,
+      "task_title": "Waveshare Receiver & Watchdog: Xử lý Stale Per-Sensor và Link Loss",
+      "target_files": [
+        "firmware/waveshare-screen/components/espnow_receiver/espnow_receiver.c",
+        "firmware/waveshare-screen/components/sensor_model/include/sensor_model.h",
+        "firmware/waveshare-screen/components/sensor_model/sensor_model.c",
+        "firmware/waveshare-screen/src/main.c"
+      ],
+      "prerequisites": [1, 2, 3],
+      "objective": "on_espnow_rx xử lý ngay khi health[i] == DISCONNECTED (không bỏ qua như cũ). Watchdog kiểm tra per-sensor timeout (1000ms): nếu slot quá hạn, tự động đánh dấu STALE và clear slot. Khi mất toàn bộ link ESP-NOW, chuyển trạng thái cảnh báo mất liên lạc hệ thống.",
+      "definition_of_done": "Khi nhận gói báo sensor lỗi hoặc quá 1000ms không có tin từ sensor đó, slot lập tức bị clear khỏi model; waveshare-screen build thành công.",
+      "verification_command": "cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "medium",
+      "notes": "Giữ tính ổn định chống flicker khi sóng chỉ miss 1 gói lẻ tẻ."
+    },
+    {
+      "step_id": 5,
+      "task_title": "UI Dashboard: Hiển thị trực quan trạng thái mất kết nối / hỏng cảm biến",
+      "target_files": [
+        "firmware/waveshare-screen/components/ui_dashboard/include/ui_dashboard.h",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard.c",
+        "firmware/waveshare-screen/components/ui_dashboard/ui_dashboard_theme.h"
+      ],
+      "prerequisites": [4],
+      "objective": "Cập nhật UI: slot bị lỗi hiển thị 'DISC' / 'ERR' màu xám cam. Khi mất toàn bộ kết nối ESP-NOW, hiển thị banner trung tâm 'SYSTEM: SENSOR LINK LOST' cảnh báo tài xế xe đang mất mắt nhìn.",
+      "definition_of_done": "UI phân biệt rõ giữa 'Không có vật cản (--) cm' và 'Mất kết nối (DISC)'; build thành công cả waveshare và host_sim.",
+      "verification_command": "cd firmware/waveshare-screen && pio run -e yolo_uno",
+      "risk": "low",
+      "notes": "Tuân thủ tiêu chuẩn giao diện cảnh báo trên xe tải: không gây hiểu lầm giữa An toàn và Mù cảm biến."
+    }
+  ]
+}
