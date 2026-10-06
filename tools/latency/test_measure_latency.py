@@ -67,7 +67,17 @@ def test_analyze_espnow_and_mqtt():
     m = res["mqtt"]
     assert m["tx"] == 2 and m["rx_screen"] == 1
     assert m["one_way_pc_ms"]["p50"] == 200.0
+    assert e["sent_seq_range"] == 10 and e["tx_log_missing"] == 0
     assert "ESP-NOW một chiều (RTT/2)" in ml.format_report(res)
+
+
+def test_delivery_uses_seq_range_when_tx_log_lines_lost():
+    """Dòng log TX rớt trên USB không được làm tỷ lệ nhận > 100 %."""
+    ev = [Event(s * 100 * MS, "sensor", "TX", s, {}) for s in (1, 2, 4, 5)]  # dòng TX seq 3 rớt
+    ev += [Event(s * 100 * MS + 3 * MS, "screen", "RX", s, {}) for s in (1, 2, 3, 4, 5)]
+    e = ml.analyze(ev)["espnow"]
+    assert e["sent_seq_range"] == 5 and e["tx_log_missing"] == 1
+    assert e["rx_screen"] == 5 and e["delivery_pct"] == 100.0
 
 
 def test_analyze_empty_reports_hint():

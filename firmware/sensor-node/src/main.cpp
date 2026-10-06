@@ -390,8 +390,12 @@ static void coreiotTask(void *pvParameters)
             (void)len;
 
 #if TBS_LATENCY_PROBE
-            // In TRƯỚC publish: mốc PC của dòng này là thời điểm bắt đầu gửi.
-            Serial.printf("LAT MQTT_TX seq=%lu\n", (unsigned long)s_mqttSeq);
+            // In TRƯỚC publish: mốc PC của dòng này là thời điểm bắt đầu gửi. Chỉ in khi MQTT đang
+            // kết nối, nếu không lần publish chắc chắn thất bại bị script tính nhầm là gói mất.
+            if (s_coreiotClient.isConnected())
+            {
+                Serial.printf("LAT MQTT_TX seq=%lu\n", (unsigned long)s_mqttSeq);
+            }
 #endif
             if (!s_coreiotClient.publishTelemetry(payload))
             {

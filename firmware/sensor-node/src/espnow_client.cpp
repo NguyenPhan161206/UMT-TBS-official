@@ -42,6 +42,14 @@ static void handleEcho(const uint8_t *data)
 
 static void onDataRecv(const uint8_t *macAddr, const uint8_t *data, int len)
 {
+#if TBS_LATENCY_PROBE
+    // Echo đo độ trễ (10 gói/s): xử lý ngay, không in log từng gói.
+    if (len == sizeof(espnow_echo_msg_t))
+    {
+        handleEcho(data);
+        return;
+    }
+#endif
     Serial.printf("[ESPNOW] RECV pkt len: %d\n", len);
     if (len == sizeof(espnow_cmd_msg_t))
     {

@@ -300,6 +300,11 @@ def main(argv: Iterable[str] | None = None) -> int:
         groups = group(samples, beam)
     else:
         paths = [Path(p) for pat in args.csv for p in (glob.glob(pat) or [pat])]
+        missing = [str(p) for p in paths if not p.is_file()]
+        if missing:
+            print(f"[ACC] Không tìm thấy file: {', '.join(missing)} — kiểm tra --tag/--sensor đã dùng khi record "
+                  "(xem thư mục data/accuracy/).", file=sys.stderr)
+            return 1
         samples = load_csv(paths)
         beam = args.beam
         groups = group(samples, beam)

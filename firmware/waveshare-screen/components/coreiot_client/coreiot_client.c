@@ -91,17 +91,23 @@ static esp_timer_handle_t s_wifi_reconnect_timer = NULL;
 static void wifi_reconnect_timer_cb(void *arg)
 {
     (void)arg;
-    ESP_LOGI(TAG, "Wi-Fi reconnect retry after %u ms (locked to channel %u)...",
-             (unsigned)s_reconnect_delay_ms,
-             (unsigned)((s_last_ap_channel != 0) ? s_last_ap_channel : ESPNOW_CHANNEL));
+    /* Đã biết kênh AP (từng GOT_IP): khóa quét đúng kênh đó — tránh nhảy 13 kênh làm rơi gói ESP-NOW
+     * và nghẽn bus PSRAM gây giật màn hình. Chưa biết kênh: quét mọi kênh (tối đa
+     * WIFI_MAX_STANDALONE_RETRIES lần lúc khởi động) — AP không nhất thiết ở ESPNOW_CHANNEL, ví dụ
+     * hotspot Windows phát cùng kênh với Wi-Fi mà PC đang nối (06/10: kênh 5 → khóa kênh 6 không
+     * bao giờ thấy AP). Sau khi nối, ESP-NOW chạy trên kênh AP; sensor-node tự bám home channel. */
+    const bool know_channel = (s_last_ap_channel != 0);
+    if (know_channel) {
+        ESP_LOGI(TAG, "Wi-Fi reconnect retry after %u ms (locked to channel %u)...",
+                 (unsigned)s_reconnect_delay_ms, (unsigned)s_last_ap_channel);
+    } else {
+        ESP_LOGI(TAG, "Wi-Fi connect retry after %u ms (scan all channels)...", (unsigned)s_reconnect_delay_ms);
+    }
 
-    /* Khóa kênh quét: luôn ép STA chỉ quét đúng kênh ESP-NOW (hoặc kênh AP cuối).
-     * Tránh tuyệt đối việc chip nhảy 13 kênh (channel hopping) làm rơi gói ESP-NOW
-     * và nghẽn bus PSRAM gây giật màn hình khi không có Wi-Fi. */
     wifi_config_t cfg;
     if (esp_wifi_get_config(WIFI_IF_STA, &cfg) == ESP_OK) {
-        cfg.sta.scan_method = WIFI_FAST_SCAN;
-        cfg.sta.channel = (s_last_ap_channel != 0) ? s_last_ap_channel : ESPNOW_CHANNEL;
+        cfg.sta.scan_method = know_channel ? WIFI_FAST_SCAN : WIFI_ALL_CHANNEL_SCAN;
+        cfg.sta.channel = know_channel ? s_last_ap_channel : 0; /* 0 = mọi kênh */
         esp_wifi_set_config(WIFI_IF_STA, &cfg);
     }
     esp_wifi_connect();

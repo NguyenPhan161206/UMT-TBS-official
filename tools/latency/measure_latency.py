@@ -142,11 +142,17 @@ def analyze(events: list[Event]) -> dict:
         lo, hi = min(tx), max(tx)
         rx_in = {s for s in rx if lo <= s <= hi}
         rtt_in = {s for s in rtt if lo <= s <= hi}
+        # Mẫu số = dải seq đã gửi (seq tăng liên tục mỗi gói), không phải số dòng "LAT TX" đọc được:
+        # dòng log USB có thể rớt trong khi gói radio vẫn đi.
+        sent = hi - lo + 1
         res["espnow"] = {
             "tx": len(tx),
+            "sent_seq_range": sent,
+            "tx_log_missing": sent - len(tx),
             "rx_screen": len(rx_in),
-            "delivery_pct": 100.0 * len(rx_in & set(tx)) / len(tx),
+            "delivery_pct": 100.0 * len(rx_in) / sent,
             "echo_back": len(rtt_in),
+            "echo_pct": 100.0 * len(rtt_in) / sent,
             "one_way_rtt_half_ms": describe([rtt[s].fields["us"] / 2000.0 for s in rtt_in]),
             "rtt_ms": describe([rtt[s].fields["us"] / 1000.0 for s in rtt_in]),
             "one_way_pc_ms": describe(
@@ -200,8 +206,9 @@ def format_report(res: dict) -> str:
     lines.append("")
     if "espnow" in res:
         e = res["espnow"]
-        lines.append(f"ESP-NOW: TX {e['tx']}, màn hình nhận {e['rx_screen']} "
-                     f"({e['delivery_pct']:.2f} %), echo về {e['echo_back']}")
+        lines.append(f"ESP-NOW: đã gửi {e['sent_seq_range']} gói (theo dải seq; log TX đọc được {e['tx']}, "
+                     f"rớt {e['tx_log_missing']} dòng log USB), màn hình nhận {e['rx_screen']} "
+                     f"({e['delivery_pct']:.2f} %), echo về {e['echo_back']} ({e['echo_pct']:.2f} %)")
     if "mqtt" in res:
         m = res["mqtt"]
         lines.append(f"MQTT: TX {m['tx']}, màn hình nhận {m['rx_screen']} ({m['delivery_pct']:.2f} %)")

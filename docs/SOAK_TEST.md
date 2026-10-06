@@ -41,6 +41,12 @@ Gửi broadcast không có ACK, nên `tx_ok` chỉ có nghĩa là gói đã đư
 
 ## 2. Chuẩn bị PC (người chạy tự làm)
 
+> **Đổi mật khẩu Wi-Fi/token trong `config/keys.json`?** Phải sinh lại header rồi build + nạp lại, nếu không firmware vẫn
+> mang giá trị cũ (06/10: board thấy hotspot nhưng lỗi xác thực "Reason code 15" vì `credentials.h` cũ):
+> `python tools/guard/gen_credentials.py --out firmware/sensor-node/include/credentials.h` và
+> `python tools/guard/gen_credentials.py --out firmware/waveshare-screen/components/coreiot_client/include/credentials.h`.
+> Hotspot Windows: băng 2,4 GHz; phát cùng kênh với Wi-Fi PC đang nối — màn hình quét mọi kênh khi chưa biết kênh AP.
+
 - Cắm sạc laptop, tắt Sleep/Hibernate khi cắm điện (Settings → System → Power).
 - Tắt USB selective suspend: Control Panel → Power Options → Change plan settings → Change advanced power
   settings → USB settings → USB selective suspend setting → **Disabled**.

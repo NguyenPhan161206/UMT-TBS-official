@@ -12,7 +12,7 @@ Cập nhật 06/10: đã xong phần chuẩn bị đo, **chưa đo**.
 - Quy trình: `docs/ACCURACY_TEST.md` — 6 mốc 30/50/100/150/200/300 cm, vật chắn phẳng ≥ 30×30 cm vuông góc, 1 cảm biến, ≥ 300 mẫu/mốc, ghi nhiệt độ phòng.
 - Việc tiếp theo: đo trên bàn (~30 phút), cần 1 sensor-node + 1 cảm biến.
 
-## DMXT-57 — Độ trễ đầu–cuối ESP-NOW và MQTT
+## DMXT-57 — Độ trễ đầu–cuối ESP-NOW và MQTT (bản "chưa đo" — KHÔNG gửi, đã thay bằng bản kết quả bên dưới)
 
 Cập nhật 06/10: đã xong phần chuẩn bị đo, **chưa đo**.
 - ESP-NOW: đo RTT/2 bằng echo (màn hình gửi lại seq, sensor-node đo bằng đồng hồ của chính nó), không cần logic analyzer. Env `yolo_uno_latency` cho cả 2 board.
@@ -28,3 +28,17 @@ Cập nhật 06/10: đã xong phần chuẩn bị, **chưa chạy soak**.
 - Công cụ `tools/soak/soak_logger.py` ghi 2 cổng, tự mở lại cổng khi board reset, tổng kết reset/heap/tỷ lệ nhận.
 - Quy trình + tiêu chí: `docs/SOAK_TEST.md` (0 reset ngoài ý muốn, min heap đi ngang, không mất link > 1500 ms).
 - Việc tiếp theo: flash `yolo_uno_coreiot` (sensor-node) + `yolo_uno` (màn hình), chạy thử 30 phút, rồi chạy 24 h từ tối 06/10 hoặc sáng 07/10.
+
+---
+
+## DMXT-57 — KẾT QUẢ — ✅ ĐÃ GỬI 06/10 (comment 10044, bản gửi có thêm đối chiếu mục tiêu ESP-NOW < 50 ms / MQTT 100–500 ms)
+
+Đã đo độ trễ V2 trên bàn, 2 board cách 1 m (log: `docs/logs/LATENCY_DMXT57_LOG.md`, dữ liệu `data/latency/`):
+- **ESP-NOW một chiều (RTT/2)**: Wi-Fi tắt — p50 2,73 ms, p95 6,16 ms, nhận 99,83 % (2999 gói, 5 phút);
+  Wi-Fi bật (hybrid) — p50 2,03 ms, p95 4,01 ms, nhận 99,93 % (8932 gói, 15 phút). Gói mất đều rời rạc (khoảng hở ≤ ~200 ms).
+- **MQTT đầu–cuối** (sensor-node → CoreIoT rule-chain → màn hình): p50 420 ms, p95 1001 ms, max 2,34 s, 450/450 bản tin (15 phút),
+  qua hotspot PC + Wi-Fi công cộng → phụ thuộc mạng.
+- Từ lúc đo đến lúc màn hình nhận (tuổi mẫu + ESP-NOW): p50 ≈ 54 ms, p95 ≈ 104 ms — chủ yếu do chu kỳ đo/gửi 100 ms.
+- Sửa trong lúc đo: thiếu nhánh xử lý echo ở sensor-node; màn hình chỉ quét kênh 6 khi chưa biết kênh AP; `credentials.h` cũ
+  (mật khẩu Wi-Fi); device CoreIoT đặt tên sai `waveshare-sreen`.
+- Chưa đo: thời gian vẽ UI trên màn hình; khoảng cách xa/vật cản như trên xe.

@@ -42,6 +42,12 @@ cd firmware/waveshare-screen
 pio run -e yolo_uno_latency -t upload --upload-port COM9
 ```
 
+> **Đổi mật khẩu Wi-Fi/token trong `config/keys.json`?** Phải sinh lại header rồi build + nạp lại, nếu không firmware vẫn
+> mang giá trị cũ (06/10: board thấy hotspot nhưng lỗi xác thực "Reason code 15" vì `credentials.h` cũ):
+> `python tools/guard/gen_credentials.py --out firmware/sensor-node/include/credentials.h` và
+> `python tools/guard/gen_credentials.py --out firmware/waveshare-screen/components/coreiot_client/include/credentials.h`.
+> Hotspot Windows: băng 2,4 GHz; phát cùng kênh với Wi-Fi PC đang nối — màn hình quét mọi kênh khi chưa biết kênh AP.
+
 Kịch bản B cần thêm: **import lại rule-chain** `cloud/coreiot/rule_chain/supersonic_rule_chain.json` lên
 CoreIoT (đã thêm trường `seq`). Chưa import thì màn hình không in `MQTT_RX` và phần MQTT sẽ trống.
 
