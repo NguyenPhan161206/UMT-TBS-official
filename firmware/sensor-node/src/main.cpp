@@ -28,6 +28,16 @@
 #include "coreiot_client.h"
 #endif
 
+
+// ====== BIẾN TEST THUẬT TOÁN CHO 6 CẢM BIẾN CÙNG LÚC ======
+volatile float g_test_raw_cm[6] = {0};
+volatile float g_test_filtered_cm[6] = {0};
+// Mảng 6 mốc chuẩn tương ứng cho 6 cảm biến (từ 0 đến 5).
+// Bạn hãy tự đổi các con số này cho khớp với khoảng cách vật cản mà bạn set up nhé:
+volatile float g_test_standard_cm[6] = {100.0f, 150.0f, 50.0f, 120.0f, 200.0f, 80.0f}; 
+// ==========================================================
+
+
 static TaskHandle_t s_sensorTaskHandle = nullptr;
 static TaskHandle_t s_networkTaskHandle = nullptr;
 static TaskHandle_t s_buzzerTaskHandle = nullptr;
@@ -211,17 +221,14 @@ static void sensorTask(void *pvParameters)
             }
             else
             {
-                s_invalidCount[i] = 0;
-
+               s_invalidCount[i] = 0;
                 FilterResult result = s_filters[i].process(reading.distanceCm);
-
+                // --- CHÈN THÊM BẮT ĐẦU TỪ ĐÂY ---
+                // Lưu dữ liệu của cảm biến thứ 'i' vào đúng vị trí 'i' trong mảng
+                g_test_raw_cm[i] = reading.distanceCm; 
+                g_test_filtered_cm[i] = result.outputCm; 
+                // --- KẾT THÚC ĐOẠN CHÈN THÊM ---
                 sharedStateSet(i, result.outputCm, result.hasOutput);
-
-                /* Xác định health theo kết quả đo. */
-                sensor_health_t h = result.hasOutput
-                                    ? SENSOR_HEALTH_OK
-                                    : SENSOR_HEALTH_OUT_OF_RANGE;
-                sharedStateSetHealth(i, h);
             }
         }
 
@@ -305,17 +312,25 @@ static void coreiotTask(void *pvParameters)
         {
             lastPublishMs = now;
 
-            // Telemetry: khoảng cách 6 slot + giá trị gần nhất (cm).
-            // JSON encode đơn giản, không dùng thư viện JSON trên Arduino.
-            char payload[256];
-            float nearestCm = 0.0f;
-            bool hasNearest = sharedStateGetNearest(nearestCm);
+                       // Tăng bộ đệm lên 512 và đóng gói toàn bộ 18 giá trị
+            char payload[512];
             int len = snprintf(
                 payload, sizeof(payload),
-                "{\"d1\":%.1f,\"d2\":%.1f,\"d3\":%.1f,\"d4\":%.1f,\"d5\":%.1f,\"d6\":%.1f,\"nearest_cm\":%.1f,\"has_nearest\":%s}",
-                sharedStateGetValue(0), sharedStateGetValue(1), sharedStateGetValue(2),
-                sharedStateGetValue(3), sharedStateGetValue(4), sharedStateGetValue(5),
-                nearestCm, hasNearest ? "true" : "false");
+                "{"
+                "\"std0\":%.1f,\"raw0\":%.1f,\"flt0\":%.1f,"
+                "\"std1\":%.1f,\"raw1\":%.1f,\"flt1\":%.1f,"
+                "\"std2\":%.1f,\"raw2\":%.1f,\"flt2\":%.1f,"
+                "\"std3\":%.1f,\"raw3\":%.1f,\"flt3\":%.1f,"
+                "\"std4\":%.1f,\"raw4\":%.1f,\"flt4\":%.1f,"
+                "\"std5\":%.1f,\"raw5\":%.1f,\"flt5\":%.1f"
+                "}",
+                g_test_standard_cm[0], g_test_raw_cm[0], g_test_filtered_cm[0],
+                g_test_standard_cm[1], g_test_raw_cm[1], g_test_filtered_cm[1],
+                g_test_standard_cm[2], g_test_raw_cm[2], g_test_filtered_cm[2],
+                g_test_standard_cm[3], g_test_raw_cm[3], g_test_filtered_cm[3],
+                g_test_standard_cm[4], g_test_raw_cm[4], g_test_filtered_cm[4],
+                g_test_standard_cm[5], g_test_raw_cm[5], g_test_filtered_cm[5]
+            );
             (void)len;
 
             if (!s_coreiotClient.publishTelemetry(payload))
