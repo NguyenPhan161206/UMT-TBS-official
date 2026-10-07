@@ -278,7 +278,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     a.add_argument("csv", nargs="+", help="file CSV (glob được)")
     a.add_argument("--beam", action="store_true", help="bảng tỷ lệ phát hiện theo (độ cao, góc)")
     a.add_argument("--tol-cm", type=float, default=DEFAULT_TOL_CM)
-    a.add_argument("--json", type=Path)
+    a.add_argument("--json", type=Path, help="ghi thêm số liệu dạng JSON")
+    a.add_argument("--md", type=Path, help="ghi bảng ra file Markdown UTF-8 (dán vào log/bài báo)")
     args = ap.parse_args(list(argv) if argv is not None else None)
 
     if args.cmd == "record":
@@ -299,7 +300,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         beam = args.angle_deg is not None
         groups = group(samples, beam)
     else:
-        paths = [Path(p) for pat in args.csv for p in (glob.glob(pat) or [pat])]
+        paths = sorted({Path(p) for pat in args.csv for p in (glob.glob(pat) or [pat])})
         missing = [str(p) for p in paths if not p.is_file()]
         if missing:
             print(f"[ACC] Không tìm thấy file: {', '.join(missing)} — kiểm tra --tag/--sensor đã dùng khi record "
@@ -312,10 +313,18 @@ def main(argv: Iterable[str] | None = None) -> int:
     tol = getattr(args, "tol_cm", DEFAULT_TOL_CM)
     if beam:
         res = [summarize_beam(g, tol) for g in groups.values()]
-        print(format_beam(res, tol))
+        table = format_beam(res, tol)
     else:
         res = [summarize_point(g) for g in groups.values()]
-        print(format_points(res))
+        table = format_points(res)
+    print(table)
+    if getattr(args, "md", None):
+        sources = "\n".join(f"- `{p.as_posix()}`" for p in paths)
+        args.md.parent.mkdir(parents=True, exist_ok=True)
+        args.md.write_text(f"Tạo lúc {datetime.datetime.now():%Y-%m-%d %H:%M} bằng "
+                           f"`tools/accuracy/measure_accuracy.py analyze`.\n\n{table}\n\nFile nguồn:\n{sources}\n",
+                           encoding="utf-8")
+        print(f"[ACC] Bảng -> {args.md}")
     if getattr(args, "json", None):
         args.json.write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0

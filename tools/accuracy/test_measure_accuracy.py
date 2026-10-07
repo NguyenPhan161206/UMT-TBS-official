@@ -82,3 +82,12 @@ def test_analyze_cli(tmp_path, capsys):
     ma.write_csv(path, [_sample(99.0, 100.0, 1), _sample(101.0, 100.0, 1)])
     assert ma.main(["analyze", str(path)]) == 0
     assert "| S0 | 100 | 2 | 0.0 |" in capsys.readouterr().out
+
+
+def test_analyze_writes_markdown_table(tmp_path, capsys):
+    path = tmp_path / "acc_S2_100cm.csv"
+    ma.write_csv(path, [_sample(99.0, 100.0, 1), _sample(101.0, 100.0, 1)])
+    md = tmp_path / "out" / "acc.md"
+    assert ma.main(["analyze", str(path), "--md", str(md)]) == 0
+    text = md.read_text(encoding="utf-8")
+    assert "| S0 | 100 | 2 | 0.0 |" in text and "acc_S2_100cm.csv" in text

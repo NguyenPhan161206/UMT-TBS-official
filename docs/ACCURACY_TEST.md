@@ -56,9 +56,10 @@ Lặp lại với `--true-cm 50`, `100`, `150`, `200`, `300`. Mỗi lần ghi `d
 và in bảng của mốc đó. Gộp bảng 6 mốc:
 
 ```bash
-python tools/accuracy/measure_accuracy.py analyze "data/accuracy/acc_S0_*.csv" --json data/accuracy/acc_S0.json
+python tools/accuracy/measure_accuracy.py analyze "data/accuracy/acc_S2_*.csv" --json data/accuracy/acc_S2.json --md data/accuracy/acc_S2.md
 ```
 
+`--md` lưu bảng ra file Markdown UTF-8 (kèm danh sách file nguồn) để dán vào log/bài báo; `--json` lưu số liệu.
 Bảng có, theo từng mốc: n, % reject; **raw**: mean, bias (mean − mốc), σ, MAE, |sai số| lớn nhất;
 **đã lọc**: n, mean, bias, σ, MAE, % mẫu hợp lệ có đầu ra. Báo cáo raw và đã lọc cạnh nhau để thấy tác dụng
 của bộ lọc. Lưu ý: σ của chuỗi đã lọc tính trên các mẫu liên tiếp có tương quan (bộ lọc giữ giá trị).
