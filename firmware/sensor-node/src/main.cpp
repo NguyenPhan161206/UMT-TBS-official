@@ -349,12 +349,11 @@ static void networkTask(void *pvParameters)
 // =========================================================
 
 #if USE_COREIOT
-// Hỗ trợ đọc giá trị thô cho telemetry (0 nếu chưa hợp lệ)
+// Giá trị đã lọc cho telemetry (0 nếu chưa hợp lệ — sharedStateGet vẫn trả giá trị cũ còn lưu khi valid=false)
 static float sharedStateGetValue(size_t sensorIndex)
 {
     float v = 0.0f;
-    sharedStateGet(sensorIndex, v);
-    return v;
+    return sharedStateGet(sensorIndex, v) ? v : 0.0f;
 }
 
 static void coreiotTask(void *pvParameters)
@@ -378,14 +377,24 @@ static void coreiotTask(void *pvParameters)
             // "seq": rule-chain chuyển tiếp sang màn hình để đo độ trễ đường MQTT (DMXT-57).
             static uint32_t s_mqttSeq = 0;
             ++s_mqttSeq;
+
+            // d1..d6 theo thứ tự SLOT ESP-NOW (d1=Front, d2=Rear, d3=L-Front, d4=L-Rear, d5=R-Front,
+            // d6=R-Rear — espnow_protocol.h, tools/scenarios.py), KHÔNG theo thứ tự chân SENSOR_PINS.
+            // Trước 07/10 gửi theo thứ tự chân → d2/d3/d5/d6 trên CoreIoT sai nhãn.
+            float slotCm[ESPNOW_SENSOR_SLOT_COUNT] = {0};
+            for (size_t i = 0; i < SENSOR_COUNT; ++i)
+            {
+                slotCm[SENSOR_ESPNOW_SLOT[i]] = sharedStateGetValue(i);
+            }
+
             char payload[256];
             float nearestCm = 0.0f;
             bool hasNearest = sharedStateGetNearest(nearestCm);
             int len = snprintf(
                 payload, sizeof(payload),
                 "{\"d1\":%.1f,\"d2\":%.1f,\"d3\":%.1f,\"d4\":%.1f,\"d5\":%.1f,\"d6\":%.1f,\"nearest_cm\":%.1f,\"has_nearest\":%s,\"seq\":%lu}",
-                sharedStateGetValue(0), sharedStateGetValue(1), sharedStateGetValue(2),
-                sharedStateGetValue(3), sharedStateGetValue(4), sharedStateGetValue(5),
+                slotCm[ESPNOW_SLOT_FRONT], slotCm[ESPNOW_SLOT_REAR], slotCm[ESPNOW_SLOT_LEFT_FRONT],
+                slotCm[ESPNOW_SLOT_LEFT_REAR], slotCm[ESPNOW_SLOT_RIGHT_FRONT], slotCm[ESPNOW_SLOT_RIGHT_REAR],
                 nearestCm, hasNearest ? "true" : "false", (unsigned long)s_mqttSeq);
             (void)len;
 
