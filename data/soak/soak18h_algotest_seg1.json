@@ -1,0 +1,72 @@
+{
+  "node": {
+    "beats": 1108,
+    "resets": {
+      "count": 0,
+      "unexpected": 0,
+      "missed_reason": 0,
+      "events": []
+    },
+    "port_lost": 0,
+    "events": 0,
+    "duration_h": 18.469166666666666,
+    "missing_beats": 1,
+    "heap": {
+      "free_first_kb": 256.91796875,
+      "free_last_kb": 256.91796875,
+      "free_min_kb": 253.82421875,
+      "minheap_min_kb": 248.33984375,
+      "minheap_steady_first_kb": 249.13671875,
+      "minheap_last_kb": 248.33984375,
+      "blk_min_kb": 243.98828125,
+      "slope_kb_per_h": 0.001302152219185216,
+      "steady_points": 1108
+    },
+    "hwm_min": {
+      "hwm_buzz": 1172,
+      "hwm_net": 1732,
+      "hwm_sensor": 1932
+    },
+    "mqtt_reconnects": 0
+  },
+  "scr": {
+    "beats": 1109,
+    "resets": {
+      "count": 0,
+      "unexpected": 0,
+      "missed_reason": 0,
+      "events": []
+    },
+    "port_lost": 0,
+    "events": 11,
+    "duration_h": 18.46684916666667,
+    "missing_beats": 0,
+    "heap": {
+      "free_first_kb": 62.2333984375,
+      "free_last_kb": 62.2333984375,
+      "free_min_kb": 59.1865234375,
+      "minheap_min_kb": 50.9052734375,
+      "minheap_steady_first_kb": 54.7568359375,
+      "minheap_last_kb": 50.9052734375,
+      "blk_min_kb": 25.0,
+      "slope_kb_per_h": -0.0017821230396550271,
+      "steady_points": 1109,
+      "psram_first_kb": 7281.41015625,
+      "psram_last_kb": 7281.41015625,
+      "psram_min_kb": 7281.15625
+    },
+    "hwm_min": {
+      "hwm_lvgl": 6156
+    },
+    "mqtt_reconnects": 0
+  },
+  "espnow": {
+    "tx_ok": 664388,
+    "tx_fail": 0,
+    "rx": 663056,
+    "rx_over_tx_pct": 99.79951474138606,
+    "link_down": 0,
+    "maxgap_ms": 317,
+    "windows_gap_over_limit": 0
+  }
+}
