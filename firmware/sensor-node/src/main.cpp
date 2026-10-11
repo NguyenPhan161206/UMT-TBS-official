@@ -403,6 +403,9 @@ static void coreiotTask(void *pvParameters)
                 slotCm[SENSOR_ESPNOW_SLOT[i]] = sharedStateGetValue(i);
             }
 
+#if TBS_ALGO_TEST
+            char payload[512]; // + 18 trường std/raw/flt (cần setBufferSize(512) ở coreiot_client.cpp)
+#else
             char payload[256];
 #endif
             float nearestCm = 0.0f;
