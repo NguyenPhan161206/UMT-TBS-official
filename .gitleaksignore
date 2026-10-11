@@ -1,0 +1,8 @@
+# Gitleaks ignore — chỉ fingerprint của secret ĐÃ THU HỒI (R1/R11).
+# Format: <commit>:<file>:<rule>:<line>. KHÔNG thêm fingerprint của secret còn hiệu lực.
+#
+# 57fc19e (25/09/2026) dán khối config/keys.json vào docs/DATASET_RECORDING_GUIDE.md;
+# 9bba9c2 (03/10) đã xoá khỏi file nhưng vẫn còn trong history (repo public).
+# 2 device token CoreIoT này đã bị chủ dự án xoá/thu hồi ngày 11/10/2026 — xem docs/logs/CI_FIX_LOG.md.
+57fc19e06912077209f610ac3988122d50b6b7b2:docs/DATASET_RECORDING_GUIDE.md:generic-api-key:40
+57fc19e06912077209f610ac3988122d50b6b7b2:docs/DATASET_RECORDING_GUIDE.md:generic-api-key:41
