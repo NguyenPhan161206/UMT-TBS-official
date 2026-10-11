@@ -12,6 +12,10 @@ static PubSubClient s_mqttClient(s_wifiClient);
 void CoreiotClient::begin()
 {
     s_mqttClient.setServer(COREIOT_BROKER, COREIOT_PORT);
+#if TBS_ALGO_TEST
+    // PubSubClient mặc định 256 B (gồm topic + header); payload algotest có thêm 18 trường nên cần lớn hơn.
+    s_mqttClient.setBufferSize(512);
+#endif
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);

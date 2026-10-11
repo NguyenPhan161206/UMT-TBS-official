@@ -28,6 +28,18 @@
 #if USE_COREIOT
 #include "coreiot_client.h"
 #endif
+#if TBS_ALGO_TEST
+// Env yolo_uno_coreiot_algotest — KHÔNG dùng cho bản phát hành. Xem docs/algorithm_test_changes.md.
+// Đẩy raw / filtered / chuẩn của 6 cảm biến lên CoreIoT để đối chiếu hiệu quả bộ lọc.
+// Ghi từ sensorTask (core 1), đọc từ coreiotTask (core 0): chỉ để quan sát, không cần atomic.
+volatile float g_test_raw_cm[SENSOR_COUNT] = {0};
+volatile float g_test_filtered_cm[SENSOR_COUNT] = {0};
+// Mốc chuẩn (đo bằng thước) theo thứ tự SENSOR_PINS[]; sửa cho khớp cảnh đặt vật cản.
+#ifndef TBS_ALGO_STD_CM_INIT
+#define TBS_ALGO_STD_CM_INIT {100.0f, 150.0f, 50.0f, 120.0f, 200.0f, 80.0f}
+#endif
+volatile float g_test_standard_cm[SENSOR_COUNT] = TBS_ALGO_STD_CM_INIT;
+#endif
 
 static TaskHandle_t s_sensorTaskHandle = nullptr;
 static TaskHandle_t s_networkTaskHandle = nullptr;
@@ -248,6 +260,10 @@ static void sensorTask(void *pvParameters)
                                   reading.distanceCm, result.status, result.clusterCount,
                                   (unsigned long)reading.durationUs);
 #endif
+#if TBS_ALGO_TEST
+                g_test_raw_cm[i] = reading.distanceCm;
+                g_test_filtered_cm[i] = result.outputCm;
+#endif
 
                 sharedStateSet(i, result.outputCm, result.hasOutput);
 
@@ -388,6 +404,7 @@ static void coreiotTask(void *pvParameters)
             }
 
             char payload[256];
+#endif
             float nearestCm = 0.0f;
             bool hasNearest = sharedStateGetNearest(nearestCm);
             int len = snprintf(
@@ -396,6 +413,28 @@ static void coreiotTask(void *pvParameters)
                 slotCm[ESPNOW_SLOT_FRONT], slotCm[ESPNOW_SLOT_REAR], slotCm[ESPNOW_SLOT_LEFT_FRONT],
                 slotCm[ESPNOW_SLOT_LEFT_REAR], slotCm[ESPNOW_SLOT_RIGHT_FRONT], slotCm[ESPNOW_SLOT_RIGHT_REAR],
                 nearestCm, hasNearest ? "true" : "false", (unsigned long)s_mqttSeq);
+#if TBS_ALGO_TEST
+            // Nối thêm 18 trường vào cuối JSON gốc (ghi đè '}' cuối) — vẫn giữ d1..d6/nearest_cm/seq
+            // để rule-chain, màn hình và công cụ đo độ trễ không bị phá.
+            if (len > 0 && (size_t)len < sizeof(payload))
+            {
+                int extra = snprintf(
+                    payload + len - 1, sizeof(payload) - (size_t)(len - 1),
+                    ",\"std0\":%.1f,\"raw0\":%.1f,\"flt0\":%.1f,"
+                    "\"std1\":%.1f,\"raw1\":%.1f,\"flt1\":%.1f,"
+                    "\"std2\":%.1f,\"raw2\":%.1f,\"flt2\":%.1f,"
+                    "\"std3\":%.1f,\"raw3\":%.1f,\"flt3\":%.1f,"
+                    "\"std4\":%.1f,\"raw4\":%.1f,\"flt4\":%.1f,"
+                    "\"std5\":%.1f,\"raw5\":%.1f,\"flt5\":%.1f}",
+                    g_test_standard_cm[0], g_test_raw_cm[0], g_test_filtered_cm[0],
+                    g_test_standard_cm[1], g_test_raw_cm[1], g_test_filtered_cm[1],
+                    g_test_standard_cm[2], g_test_raw_cm[2], g_test_filtered_cm[2],
+                    g_test_standard_cm[3], g_test_raw_cm[3], g_test_filtered_cm[3],
+                    g_test_standard_cm[4], g_test_raw_cm[4], g_test_filtered_cm[4],
+                    g_test_standard_cm[5], g_test_raw_cm[5], g_test_filtered_cm[5]);
+                len = (len - 1) + extra;
+            }
+#endif
             (void)len;
 
 #if TBS_LATENCY_PROBE
